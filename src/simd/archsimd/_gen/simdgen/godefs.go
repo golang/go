@@ -783,7 +783,7 @@ func writeGoDefs(cl unify.Closure) error {
 	writeSIMDStubs(
 		files.NewGoFile(simdPackage+"/ops_"+goTypeArch+".go"),
 		files.NewGoFile(simdPackage+"/ops_internal_"+goTypeArch+".go"),
-		deduped, typeMap, archLower == "amd64",
+		deduped, typeMap,
 	)
 	writeSIMDIntrinsics(files.NewGoFile("cmd/compile/internal/ssagen/simd"+simdTag+"intrinsics.go"), deduped, typeMap)
 	writeSIMDGenericOps(files.NewGoFile("cmd/compile/internal/ssa/_gen/simd"+simdTag+"genericOps_gen.go"), deduped)

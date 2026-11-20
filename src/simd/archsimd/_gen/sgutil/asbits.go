@@ -28,11 +28,6 @@ func templateOf(name, text string) *template.Template {
 	return template.Must(template.New(name).Parse(text))
 }
 
-var ToBitsCall = templateOf("toBitsCall", "."+ToBitsName+"()")
-var ToIntsCall = templateOf("toBitsCall", "."+ToIntsName+"()")
-var ToFloatsCall = templateOf("toBitsCall", "."+ToFloatsName+"()")
-var ReshapeCall = templateOf("toBitsCall", "."+ReshapeName+"()")
-
 var ToBitsDcl = templateOf("toBitsDcl", `
 	// `+ToBitsName+` reinterprets the bits of a {{.From.Name_}} vector as a {{.To.Name_}} vector
 	func (x {{.From.Name_}}) `+ToBitsName+`() {{.To.Name_}}
@@ -72,17 +67,6 @@ var ReshapeDcl = templateOf("reshapeDcl", `
 
 var ReshapeIntrinsic = templateOf("reshapeIntrinsic", `{{.From.Name_}}.`+ReshapeName)
 
-var AsOp = templateOf("asConversion", `
-	// As{{.To.Name}} reinterprets the bits of a {{.From.Name}} vector as a {{.To.Name}} vector
-	//
-	// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
-	//
-	//go:fix inline
-	func (x {{.From.Name}}) As{{.To.Name}}() {{.To.Name}} {
-		return x{{.AsTranslation}}
-	}
-`)
-
 type AsConversion struct {
 	From, To TforAsBits
 }
@@ -119,21 +103,4 @@ func (c *AsConversion) ExecuteIntrinsicTemplateOfTypeDotMethod(w io.Writer, t *t
 			t.Execute(w, c.TypeDotMethod(ReshapeIntrinsic))
 		}
 	}
-}
-
-func (a *AsConversion) AsTranslation() string {
-	var b bytes.Buffer
-	if a.From.Name_()[0] != 'U' {
-		ToBitsCall.Execute(&b, a)
-	}
-	if a.From.ElemBits() != a.To.ElemBits() {
-		ReshapeCall.Execute(&b, a)
-	}
-	if a.To.Name_()[0] == 'F' {
-		ToFloatsCall.Execute(&b, a)
-	}
-	if a.To.Name_()[0] == 'I' {
-		ToIntsCall.Execute(&b, a)
-	}
-	return b.String()
 }

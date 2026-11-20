@@ -1446,3 +1446,2767 @@ func (x Uint64x8) CarrylessMultiplyOddEven(y Uint64x8) (z Uint64x8) {
 func (x Uint64x8) CarrylessMultiplyEvenOdd(y Uint64x8) (z Uint64x8) {
 	return x.CarrylessMulEvenOdd(y)
 }
+
+// Deprecated bit-reinterpreting conversions.
+
+// AsFloat64x2 reinterprets the bits of a Float32x4 vector as a Float64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x4) AsFloat64x2() Float64x2 {
+	return x.ToBits().ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x16 reinterprets the bits of a Float32x4 vector as a Int8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x4) AsInt8x16() Int8x16 {
+	return x.ToBits().ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x8 reinterprets the bits of a Float32x4 vector as a Int16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x4) AsInt16x8() Int16x8 {
+	return x.ToBits().ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x4 reinterprets the bits of a Float32x4 vector as a Int32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x4) AsInt32x4() Int32x4 {
+	return x.ToBits().BitsToInt32()
+}
+
+// AsInt64x2 reinterprets the bits of a Float32x4 vector as a Int64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x4) AsInt64x2() Int64x2 {
+	return x.ToBits().ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x16 reinterprets the bits of a Float32x4 vector as a Uint8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x4) AsUint8x16() Uint8x16 {
+	return x.ToBits().ReshapeToUint8s()
+}
+
+// AsUint16x8 reinterprets the bits of a Float32x4 vector as a Uint16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x4) AsUint16x8() Uint16x8 {
+	return x.ToBits().ReshapeToUint16s()
+}
+
+// AsUint32x4 reinterprets the bits of a Float32x4 vector as a Uint32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x4) AsUint32x4() Uint32x4 {
+	return x.ToBits()
+}
+
+// AsUint64x2 reinterprets the bits of a Float32x4 vector as a Uint64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x4) AsUint64x2() Uint64x2 {
+	return x.ToBits().ReshapeToUint64s()
+}
+
+// AsFloat64x4 reinterprets the bits of a Float32x8 vector as a Float64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x8) AsFloat64x4() Float64x4 {
+	return x.ToBits().ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x32 reinterprets the bits of a Float32x8 vector as a Int8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x8) AsInt8x32() Int8x32 {
+	return x.ToBits().ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x16 reinterprets the bits of a Float32x8 vector as a Int16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x8) AsInt16x16() Int16x16 {
+	return x.ToBits().ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x8 reinterprets the bits of a Float32x8 vector as a Int32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x8) AsInt32x8() Int32x8 {
+	return x.ToBits().BitsToInt32()
+}
+
+// AsInt64x4 reinterprets the bits of a Float32x8 vector as a Int64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x8) AsInt64x4() Int64x4 {
+	return x.ToBits().ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x32 reinterprets the bits of a Float32x8 vector as a Uint8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x8) AsUint8x32() Uint8x32 {
+	return x.ToBits().ReshapeToUint8s()
+}
+
+// AsUint16x16 reinterprets the bits of a Float32x8 vector as a Uint16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x8) AsUint16x16() Uint16x16 {
+	return x.ToBits().ReshapeToUint16s()
+}
+
+// AsUint32x8 reinterprets the bits of a Float32x8 vector as a Uint32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x8) AsUint32x8() Uint32x8 {
+	return x.ToBits()
+}
+
+// AsUint64x4 reinterprets the bits of a Float32x8 vector as a Uint64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x8) AsUint64x4() Uint64x4 {
+	return x.ToBits().ReshapeToUint64s()
+}
+
+// AsFloat64x8 reinterprets the bits of a Float32x16 vector as a Float64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x16) AsFloat64x8() Float64x8 {
+	return x.ToBits().ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x64 reinterprets the bits of a Float32x16 vector as a Int8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x16) AsInt8x64() Int8x64 {
+	return x.ToBits().ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x32 reinterprets the bits of a Float32x16 vector as a Int16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x16) AsInt16x32() Int16x32 {
+	return x.ToBits().ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x16 reinterprets the bits of a Float32x16 vector as a Int32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x16) AsInt32x16() Int32x16 {
+	return x.ToBits().BitsToInt32()
+}
+
+// AsInt64x8 reinterprets the bits of a Float32x16 vector as a Int64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x16) AsInt64x8() Int64x8 {
+	return x.ToBits().ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x64 reinterprets the bits of a Float32x16 vector as a Uint8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x16) AsUint8x64() Uint8x64 {
+	return x.ToBits().ReshapeToUint8s()
+}
+
+// AsUint16x32 reinterprets the bits of a Float32x16 vector as a Uint16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x16) AsUint16x32() Uint16x32 {
+	return x.ToBits().ReshapeToUint16s()
+}
+
+// AsUint32x16 reinterprets the bits of a Float32x16 vector as a Uint32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x16) AsUint32x16() Uint32x16 {
+	return x.ToBits()
+}
+
+// AsUint64x8 reinterprets the bits of a Float32x16 vector as a Uint64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float32x16) AsUint64x8() Uint64x8 {
+	return x.ToBits().ReshapeToUint64s()
+}
+
+// AsFloat32x4 reinterprets the bits of a Float64x2 vector as a Float32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x2) AsFloat32x4() Float32x4 {
+	return x.ToBits().ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsInt8x16 reinterprets the bits of a Float64x2 vector as a Int8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x2) AsInt8x16() Int8x16 {
+	return x.ToBits().ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x8 reinterprets the bits of a Float64x2 vector as a Int16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x2) AsInt16x8() Int16x8 {
+	return x.ToBits().ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x4 reinterprets the bits of a Float64x2 vector as a Int32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x2) AsInt32x4() Int32x4 {
+	return x.ToBits().ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x2 reinterprets the bits of a Float64x2 vector as a Int64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x2) AsInt64x2() Int64x2 {
+	return x.ToBits().BitsToInt64()
+}
+
+// AsUint8x16 reinterprets the bits of a Float64x2 vector as a Uint8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x2) AsUint8x16() Uint8x16 {
+	return x.ToBits().ReshapeToUint8s()
+}
+
+// AsUint16x8 reinterprets the bits of a Float64x2 vector as a Uint16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x2) AsUint16x8() Uint16x8 {
+	return x.ToBits().ReshapeToUint16s()
+}
+
+// AsUint32x4 reinterprets the bits of a Float64x2 vector as a Uint32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x2) AsUint32x4() Uint32x4 {
+	return x.ToBits().ReshapeToUint32s()
+}
+
+// AsUint64x2 reinterprets the bits of a Float64x2 vector as a Uint64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x2) AsUint64x2() Uint64x2 {
+	return x.ToBits()
+}
+
+// AsFloat32x8 reinterprets the bits of a Float64x4 vector as a Float32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x4) AsFloat32x8() Float32x8 {
+	return x.ToBits().ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsInt8x32 reinterprets the bits of a Float64x4 vector as a Int8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x4) AsInt8x32() Int8x32 {
+	return x.ToBits().ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x16 reinterprets the bits of a Float64x4 vector as a Int16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x4) AsInt16x16() Int16x16 {
+	return x.ToBits().ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x8 reinterprets the bits of a Float64x4 vector as a Int32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x4) AsInt32x8() Int32x8 {
+	return x.ToBits().ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x4 reinterprets the bits of a Float64x4 vector as a Int64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x4) AsInt64x4() Int64x4 {
+	return x.ToBits().BitsToInt64()
+}
+
+// AsUint8x32 reinterprets the bits of a Float64x4 vector as a Uint8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x4) AsUint8x32() Uint8x32 {
+	return x.ToBits().ReshapeToUint8s()
+}
+
+// AsUint16x16 reinterprets the bits of a Float64x4 vector as a Uint16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x4) AsUint16x16() Uint16x16 {
+	return x.ToBits().ReshapeToUint16s()
+}
+
+// AsUint32x8 reinterprets the bits of a Float64x4 vector as a Uint32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x4) AsUint32x8() Uint32x8 {
+	return x.ToBits().ReshapeToUint32s()
+}
+
+// AsUint64x4 reinterprets the bits of a Float64x4 vector as a Uint64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x4) AsUint64x4() Uint64x4 {
+	return x.ToBits()
+}
+
+// AsFloat32x16 reinterprets the bits of a Float64x8 vector as a Float32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x8) AsFloat32x16() Float32x16 {
+	return x.ToBits().ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsInt8x64 reinterprets the bits of a Float64x8 vector as a Int8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x8) AsInt8x64() Int8x64 {
+	return x.ToBits().ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x32 reinterprets the bits of a Float64x8 vector as a Int16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x8) AsInt16x32() Int16x32 {
+	return x.ToBits().ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x16 reinterprets the bits of a Float64x8 vector as a Int32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x8) AsInt32x16() Int32x16 {
+	return x.ToBits().ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x8 reinterprets the bits of a Float64x8 vector as a Int64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x8) AsInt64x8() Int64x8 {
+	return x.ToBits().BitsToInt64()
+}
+
+// AsUint8x64 reinterprets the bits of a Float64x8 vector as a Uint8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x8) AsUint8x64() Uint8x64 {
+	return x.ToBits().ReshapeToUint8s()
+}
+
+// AsUint16x32 reinterprets the bits of a Float64x8 vector as a Uint16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x8) AsUint16x32() Uint16x32 {
+	return x.ToBits().ReshapeToUint16s()
+}
+
+// AsUint32x16 reinterprets the bits of a Float64x8 vector as a Uint32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x8) AsUint32x16() Uint32x16 {
+	return x.ToBits().ReshapeToUint32s()
+}
+
+// AsUint64x8 reinterprets the bits of a Float64x8 vector as a Uint64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Float64x8) AsUint64x8() Uint64x8 {
+	return x.ToBits()
+}
+
+// AsFloat32x4 reinterprets the bits of a Int8x16 vector as a Float32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x16) AsFloat32x4() Float32x4 {
+	return x.ToBits().ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x2 reinterprets the bits of a Int8x16 vector as a Float64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x16) AsFloat64x2() Float64x2 {
+	return x.ToBits().ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt16x8 reinterprets the bits of a Int8x16 vector as a Int16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x16) AsInt16x8() Int16x8 {
+	return x.ToBits().ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x4 reinterprets the bits of a Int8x16 vector as a Int32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x16) AsInt32x4() Int32x4 {
+	return x.ToBits().ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x2 reinterprets the bits of a Int8x16 vector as a Int64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x16) AsInt64x2() Int64x2 {
+	return x.ToBits().ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x16 reinterprets the bits of a Int8x16 vector as a Uint8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x16) AsUint8x16() Uint8x16 {
+	return x.ToBits()
+}
+
+// AsUint16x8 reinterprets the bits of a Int8x16 vector as a Uint16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x16) AsUint16x8() Uint16x8 {
+	return x.ToBits().ReshapeToUint16s()
+}
+
+// AsUint32x4 reinterprets the bits of a Int8x16 vector as a Uint32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x16) AsUint32x4() Uint32x4 {
+	return x.ToBits().ReshapeToUint32s()
+}
+
+// AsUint64x2 reinterprets the bits of a Int8x16 vector as a Uint64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x16) AsUint64x2() Uint64x2 {
+	return x.ToBits().ReshapeToUint64s()
+}
+
+// AsFloat32x8 reinterprets the bits of a Int8x32 vector as a Float32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x32) AsFloat32x8() Float32x8 {
+	return x.ToBits().ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x4 reinterprets the bits of a Int8x32 vector as a Float64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x32) AsFloat64x4() Float64x4 {
+	return x.ToBits().ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt16x16 reinterprets the bits of a Int8x32 vector as a Int16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x32) AsInt16x16() Int16x16 {
+	return x.ToBits().ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x8 reinterprets the bits of a Int8x32 vector as a Int32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x32) AsInt32x8() Int32x8 {
+	return x.ToBits().ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x4 reinterprets the bits of a Int8x32 vector as a Int64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x32) AsInt64x4() Int64x4 {
+	return x.ToBits().ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x32 reinterprets the bits of a Int8x32 vector as a Uint8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x32) AsUint8x32() Uint8x32 {
+	return x.ToBits()
+}
+
+// AsUint16x16 reinterprets the bits of a Int8x32 vector as a Uint16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x32) AsUint16x16() Uint16x16 {
+	return x.ToBits().ReshapeToUint16s()
+}
+
+// AsUint32x8 reinterprets the bits of a Int8x32 vector as a Uint32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x32) AsUint32x8() Uint32x8 {
+	return x.ToBits().ReshapeToUint32s()
+}
+
+// AsUint64x4 reinterprets the bits of a Int8x32 vector as a Uint64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x32) AsUint64x4() Uint64x4 {
+	return x.ToBits().ReshapeToUint64s()
+}
+
+// AsFloat32x16 reinterprets the bits of a Int8x64 vector as a Float32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x64) AsFloat32x16() Float32x16 {
+	return x.ToBits().ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x8 reinterprets the bits of a Int8x64 vector as a Float64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x64) AsFloat64x8() Float64x8 {
+	return x.ToBits().ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt16x32 reinterprets the bits of a Int8x64 vector as a Int16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x64) AsInt16x32() Int16x32 {
+	return x.ToBits().ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x16 reinterprets the bits of a Int8x64 vector as a Int32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x64) AsInt32x16() Int32x16 {
+	return x.ToBits().ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x8 reinterprets the bits of a Int8x64 vector as a Int64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x64) AsInt64x8() Int64x8 {
+	return x.ToBits().ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x64 reinterprets the bits of a Int8x64 vector as a Uint8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x64) AsUint8x64() Uint8x64 {
+	return x.ToBits()
+}
+
+// AsUint16x32 reinterprets the bits of a Int8x64 vector as a Uint16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x64) AsUint16x32() Uint16x32 {
+	return x.ToBits().ReshapeToUint16s()
+}
+
+// AsUint32x16 reinterprets the bits of a Int8x64 vector as a Uint32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x64) AsUint32x16() Uint32x16 {
+	return x.ToBits().ReshapeToUint32s()
+}
+
+// AsUint64x8 reinterprets the bits of a Int8x64 vector as a Uint64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int8x64) AsUint64x8() Uint64x8 {
+	return x.ToBits().ReshapeToUint64s()
+}
+
+// AsFloat32x4 reinterprets the bits of a Int16x8 vector as a Float32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x8) AsFloat32x4() Float32x4 {
+	return x.ToBits().ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x2 reinterprets the bits of a Int16x8 vector as a Float64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x8) AsFloat64x2() Float64x2 {
+	return x.ToBits().ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x16 reinterprets the bits of a Int16x8 vector as a Int8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x8) AsInt8x16() Int8x16 {
+	return x.ToBits().ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt32x4 reinterprets the bits of a Int16x8 vector as a Int32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x8) AsInt32x4() Int32x4 {
+	return x.ToBits().ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x2 reinterprets the bits of a Int16x8 vector as a Int64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x8) AsInt64x2() Int64x2 {
+	return x.ToBits().ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x16 reinterprets the bits of a Int16x8 vector as a Uint8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x8) AsUint8x16() Uint8x16 {
+	return x.ToBits().ReshapeToUint8s()
+}
+
+// AsUint16x8 reinterprets the bits of a Int16x8 vector as a Uint16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x8) AsUint16x8() Uint16x8 {
+	return x.ToBits()
+}
+
+// AsUint32x4 reinterprets the bits of a Int16x8 vector as a Uint32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x8) AsUint32x4() Uint32x4 {
+	return x.ToBits().ReshapeToUint32s()
+}
+
+// AsUint64x2 reinterprets the bits of a Int16x8 vector as a Uint64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x8) AsUint64x2() Uint64x2 {
+	return x.ToBits().ReshapeToUint64s()
+}
+
+// AsFloat32x8 reinterprets the bits of a Int16x16 vector as a Float32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x16) AsFloat32x8() Float32x8 {
+	return x.ToBits().ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x4 reinterprets the bits of a Int16x16 vector as a Float64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x16) AsFloat64x4() Float64x4 {
+	return x.ToBits().ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x32 reinterprets the bits of a Int16x16 vector as a Int8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x16) AsInt8x32() Int8x32 {
+	return x.ToBits().ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt32x8 reinterprets the bits of a Int16x16 vector as a Int32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x16) AsInt32x8() Int32x8 {
+	return x.ToBits().ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x4 reinterprets the bits of a Int16x16 vector as a Int64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x16) AsInt64x4() Int64x4 {
+	return x.ToBits().ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x32 reinterprets the bits of a Int16x16 vector as a Uint8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x16) AsUint8x32() Uint8x32 {
+	return x.ToBits().ReshapeToUint8s()
+}
+
+// AsUint16x16 reinterprets the bits of a Int16x16 vector as a Uint16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x16) AsUint16x16() Uint16x16 {
+	return x.ToBits()
+}
+
+// AsUint32x8 reinterprets the bits of a Int16x16 vector as a Uint32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x16) AsUint32x8() Uint32x8 {
+	return x.ToBits().ReshapeToUint32s()
+}
+
+// AsUint64x4 reinterprets the bits of a Int16x16 vector as a Uint64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x16) AsUint64x4() Uint64x4 {
+	return x.ToBits().ReshapeToUint64s()
+}
+
+// AsFloat32x16 reinterprets the bits of a Int16x32 vector as a Float32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x32) AsFloat32x16() Float32x16 {
+	return x.ToBits().ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x8 reinterprets the bits of a Int16x32 vector as a Float64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x32) AsFloat64x8() Float64x8 {
+	return x.ToBits().ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x64 reinterprets the bits of a Int16x32 vector as a Int8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x32) AsInt8x64() Int8x64 {
+	return x.ToBits().ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt32x16 reinterprets the bits of a Int16x32 vector as a Int32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x32) AsInt32x16() Int32x16 {
+	return x.ToBits().ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x8 reinterprets the bits of a Int16x32 vector as a Int64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x32) AsInt64x8() Int64x8 {
+	return x.ToBits().ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x64 reinterprets the bits of a Int16x32 vector as a Uint8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x32) AsUint8x64() Uint8x64 {
+	return x.ToBits().ReshapeToUint8s()
+}
+
+// AsUint16x32 reinterprets the bits of a Int16x32 vector as a Uint16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x32) AsUint16x32() Uint16x32 {
+	return x.ToBits()
+}
+
+// AsUint32x16 reinterprets the bits of a Int16x32 vector as a Uint32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x32) AsUint32x16() Uint32x16 {
+	return x.ToBits().ReshapeToUint32s()
+}
+
+// AsUint64x8 reinterprets the bits of a Int16x32 vector as a Uint64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int16x32) AsUint64x8() Uint64x8 {
+	return x.ToBits().ReshapeToUint64s()
+}
+
+// AsFloat32x4 reinterprets the bits of a Int32x4 vector as a Float32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x4) AsFloat32x4() Float32x4 {
+	return x.ToBits().BitsToFloat32()
+}
+
+// AsFloat64x2 reinterprets the bits of a Int32x4 vector as a Float64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x4) AsFloat64x2() Float64x2 {
+	return x.ToBits().ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x16 reinterprets the bits of a Int32x4 vector as a Int8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x4) AsInt8x16() Int8x16 {
+	return x.ToBits().ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x8 reinterprets the bits of a Int32x4 vector as a Int16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x4) AsInt16x8() Int16x8 {
+	return x.ToBits().ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt64x2 reinterprets the bits of a Int32x4 vector as a Int64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x4) AsInt64x2() Int64x2 {
+	return x.ToBits().ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x16 reinterprets the bits of a Int32x4 vector as a Uint8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x4) AsUint8x16() Uint8x16 {
+	return x.ToBits().ReshapeToUint8s()
+}
+
+// AsUint16x8 reinterprets the bits of a Int32x4 vector as a Uint16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x4) AsUint16x8() Uint16x8 {
+	return x.ToBits().ReshapeToUint16s()
+}
+
+// AsUint32x4 reinterprets the bits of a Int32x4 vector as a Uint32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x4) AsUint32x4() Uint32x4 {
+	return x.ToBits()
+}
+
+// AsUint64x2 reinterprets the bits of a Int32x4 vector as a Uint64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x4) AsUint64x2() Uint64x2 {
+	return x.ToBits().ReshapeToUint64s()
+}
+
+// AsFloat32x8 reinterprets the bits of a Int32x8 vector as a Float32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x8) AsFloat32x8() Float32x8 {
+	return x.ToBits().BitsToFloat32()
+}
+
+// AsFloat64x4 reinterprets the bits of a Int32x8 vector as a Float64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x8) AsFloat64x4() Float64x4 {
+	return x.ToBits().ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x32 reinterprets the bits of a Int32x8 vector as a Int8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x8) AsInt8x32() Int8x32 {
+	return x.ToBits().ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x16 reinterprets the bits of a Int32x8 vector as a Int16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x8) AsInt16x16() Int16x16 {
+	return x.ToBits().ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt64x4 reinterprets the bits of a Int32x8 vector as a Int64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x8) AsInt64x4() Int64x4 {
+	return x.ToBits().ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x32 reinterprets the bits of a Int32x8 vector as a Uint8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x8) AsUint8x32() Uint8x32 {
+	return x.ToBits().ReshapeToUint8s()
+}
+
+// AsUint16x16 reinterprets the bits of a Int32x8 vector as a Uint16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x8) AsUint16x16() Uint16x16 {
+	return x.ToBits().ReshapeToUint16s()
+}
+
+// AsUint32x8 reinterprets the bits of a Int32x8 vector as a Uint32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x8) AsUint32x8() Uint32x8 {
+	return x.ToBits()
+}
+
+// AsUint64x4 reinterprets the bits of a Int32x8 vector as a Uint64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x8) AsUint64x4() Uint64x4 {
+	return x.ToBits().ReshapeToUint64s()
+}
+
+// AsFloat32x16 reinterprets the bits of a Int32x16 vector as a Float32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x16) AsFloat32x16() Float32x16 {
+	return x.ToBits().BitsToFloat32()
+}
+
+// AsFloat64x8 reinterprets the bits of a Int32x16 vector as a Float64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x16) AsFloat64x8() Float64x8 {
+	return x.ToBits().ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x64 reinterprets the bits of a Int32x16 vector as a Int8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x16) AsInt8x64() Int8x64 {
+	return x.ToBits().ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x32 reinterprets the bits of a Int32x16 vector as a Int16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x16) AsInt16x32() Int16x32 {
+	return x.ToBits().ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt64x8 reinterprets the bits of a Int32x16 vector as a Int64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x16) AsInt64x8() Int64x8 {
+	return x.ToBits().ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x64 reinterprets the bits of a Int32x16 vector as a Uint8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x16) AsUint8x64() Uint8x64 {
+	return x.ToBits().ReshapeToUint8s()
+}
+
+// AsUint16x32 reinterprets the bits of a Int32x16 vector as a Uint16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x16) AsUint16x32() Uint16x32 {
+	return x.ToBits().ReshapeToUint16s()
+}
+
+// AsUint32x16 reinterprets the bits of a Int32x16 vector as a Uint32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x16) AsUint32x16() Uint32x16 {
+	return x.ToBits()
+}
+
+// AsUint64x8 reinterprets the bits of a Int32x16 vector as a Uint64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int32x16) AsUint64x8() Uint64x8 {
+	return x.ToBits().ReshapeToUint64s()
+}
+
+// AsFloat32x4 reinterprets the bits of a Int64x2 vector as a Float32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x2) AsFloat32x4() Float32x4 {
+	return x.ToBits().ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x2 reinterprets the bits of a Int64x2 vector as a Float64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x2) AsFloat64x2() Float64x2 {
+	return x.ToBits().BitsToFloat64()
+}
+
+// AsInt8x16 reinterprets the bits of a Int64x2 vector as a Int8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x2) AsInt8x16() Int8x16 {
+	return x.ToBits().ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x8 reinterprets the bits of a Int64x2 vector as a Int16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x2) AsInt16x8() Int16x8 {
+	return x.ToBits().ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x4 reinterprets the bits of a Int64x2 vector as a Int32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x2) AsInt32x4() Int32x4 {
+	return x.ToBits().ReshapeToUint32s().BitsToInt32()
+}
+
+// AsUint8x16 reinterprets the bits of a Int64x2 vector as a Uint8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x2) AsUint8x16() Uint8x16 {
+	return x.ToBits().ReshapeToUint8s()
+}
+
+// AsUint16x8 reinterprets the bits of a Int64x2 vector as a Uint16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x2) AsUint16x8() Uint16x8 {
+	return x.ToBits().ReshapeToUint16s()
+}
+
+// AsUint32x4 reinterprets the bits of a Int64x2 vector as a Uint32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x2) AsUint32x4() Uint32x4 {
+	return x.ToBits().ReshapeToUint32s()
+}
+
+// AsUint64x2 reinterprets the bits of a Int64x2 vector as a Uint64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x2) AsUint64x2() Uint64x2 {
+	return x.ToBits()
+}
+
+// AsFloat32x8 reinterprets the bits of a Int64x4 vector as a Float32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x4) AsFloat32x8() Float32x8 {
+	return x.ToBits().ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x4 reinterprets the bits of a Int64x4 vector as a Float64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x4) AsFloat64x4() Float64x4 {
+	return x.ToBits().BitsToFloat64()
+}
+
+// AsInt8x32 reinterprets the bits of a Int64x4 vector as a Int8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x4) AsInt8x32() Int8x32 {
+	return x.ToBits().ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x16 reinterprets the bits of a Int64x4 vector as a Int16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x4) AsInt16x16() Int16x16 {
+	return x.ToBits().ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x8 reinterprets the bits of a Int64x4 vector as a Int32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x4) AsInt32x8() Int32x8 {
+	return x.ToBits().ReshapeToUint32s().BitsToInt32()
+}
+
+// AsUint8x32 reinterprets the bits of a Int64x4 vector as a Uint8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x4) AsUint8x32() Uint8x32 {
+	return x.ToBits().ReshapeToUint8s()
+}
+
+// AsUint16x16 reinterprets the bits of a Int64x4 vector as a Uint16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x4) AsUint16x16() Uint16x16 {
+	return x.ToBits().ReshapeToUint16s()
+}
+
+// AsUint32x8 reinterprets the bits of a Int64x4 vector as a Uint32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x4) AsUint32x8() Uint32x8 {
+	return x.ToBits().ReshapeToUint32s()
+}
+
+// AsUint64x4 reinterprets the bits of a Int64x4 vector as a Uint64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x4) AsUint64x4() Uint64x4 {
+	return x.ToBits()
+}
+
+// AsFloat32x16 reinterprets the bits of a Int64x8 vector as a Float32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x8) AsFloat32x16() Float32x16 {
+	return x.ToBits().ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x8 reinterprets the bits of a Int64x8 vector as a Float64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x8) AsFloat64x8() Float64x8 {
+	return x.ToBits().BitsToFloat64()
+}
+
+// AsInt8x64 reinterprets the bits of a Int64x8 vector as a Int8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x8) AsInt8x64() Int8x64 {
+	return x.ToBits().ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x32 reinterprets the bits of a Int64x8 vector as a Int16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x8) AsInt16x32() Int16x32 {
+	return x.ToBits().ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x16 reinterprets the bits of a Int64x8 vector as a Int32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x8) AsInt32x16() Int32x16 {
+	return x.ToBits().ReshapeToUint32s().BitsToInt32()
+}
+
+// AsUint8x64 reinterprets the bits of a Int64x8 vector as a Uint8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x8) AsUint8x64() Uint8x64 {
+	return x.ToBits().ReshapeToUint8s()
+}
+
+// AsUint16x32 reinterprets the bits of a Int64x8 vector as a Uint16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x8) AsUint16x32() Uint16x32 {
+	return x.ToBits().ReshapeToUint16s()
+}
+
+// AsUint32x16 reinterprets the bits of a Int64x8 vector as a Uint32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x8) AsUint32x16() Uint32x16 {
+	return x.ToBits().ReshapeToUint32s()
+}
+
+// AsUint64x8 reinterprets the bits of a Int64x8 vector as a Uint64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Int64x8) AsUint64x8() Uint64x8 {
+	return x.ToBits()
+}
+
+// AsFloat32x4 reinterprets the bits of a Uint8x16 vector as a Float32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x16) AsFloat32x4() Float32x4 {
+	return x.ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x2 reinterprets the bits of a Uint8x16 vector as a Float64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x16) AsFloat64x2() Float64x2 {
+	return x.ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x16 reinterprets the bits of a Uint8x16 vector as a Int8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x16) AsInt8x16() Int8x16 {
+	return x.BitsToInt8()
+}
+
+// AsInt16x8 reinterprets the bits of a Uint8x16 vector as a Int16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x16) AsInt16x8() Int16x8 {
+	return x.ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x4 reinterprets the bits of a Uint8x16 vector as a Int32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x16) AsInt32x4() Int32x4 {
+	return x.ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x2 reinterprets the bits of a Uint8x16 vector as a Int64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x16) AsInt64x2() Int64x2 {
+	return x.ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint16x8 reinterprets the bits of a Uint8x16 vector as a Uint16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x16) AsUint16x8() Uint16x8 {
+	return x.ReshapeToUint16s()
+}
+
+// AsUint32x4 reinterprets the bits of a Uint8x16 vector as a Uint32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x16) AsUint32x4() Uint32x4 {
+	return x.ReshapeToUint32s()
+}
+
+// AsUint64x2 reinterprets the bits of a Uint8x16 vector as a Uint64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x16) AsUint64x2() Uint64x2 {
+	return x.ReshapeToUint64s()
+}
+
+// AsFloat32x8 reinterprets the bits of a Uint8x32 vector as a Float32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x32) AsFloat32x8() Float32x8 {
+	return x.ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x4 reinterprets the bits of a Uint8x32 vector as a Float64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x32) AsFloat64x4() Float64x4 {
+	return x.ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x32 reinterprets the bits of a Uint8x32 vector as a Int8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x32) AsInt8x32() Int8x32 {
+	return x.BitsToInt8()
+}
+
+// AsInt16x16 reinterprets the bits of a Uint8x32 vector as a Int16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x32) AsInt16x16() Int16x16 {
+	return x.ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x8 reinterprets the bits of a Uint8x32 vector as a Int32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x32) AsInt32x8() Int32x8 {
+	return x.ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x4 reinterprets the bits of a Uint8x32 vector as a Int64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x32) AsInt64x4() Int64x4 {
+	return x.ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint16x16 reinterprets the bits of a Uint8x32 vector as a Uint16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x32) AsUint16x16() Uint16x16 {
+	return x.ReshapeToUint16s()
+}
+
+// AsUint32x8 reinterprets the bits of a Uint8x32 vector as a Uint32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x32) AsUint32x8() Uint32x8 {
+	return x.ReshapeToUint32s()
+}
+
+// AsUint64x4 reinterprets the bits of a Uint8x32 vector as a Uint64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x32) AsUint64x4() Uint64x4 {
+	return x.ReshapeToUint64s()
+}
+
+// AsFloat32x16 reinterprets the bits of a Uint8x64 vector as a Float32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x64) AsFloat32x16() Float32x16 {
+	return x.ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x8 reinterprets the bits of a Uint8x64 vector as a Float64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x64) AsFloat64x8() Float64x8 {
+	return x.ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x64 reinterprets the bits of a Uint8x64 vector as a Int8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x64) AsInt8x64() Int8x64 {
+	return x.BitsToInt8()
+}
+
+// AsInt16x32 reinterprets the bits of a Uint8x64 vector as a Int16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x64) AsInt16x32() Int16x32 {
+	return x.ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x16 reinterprets the bits of a Uint8x64 vector as a Int32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x64) AsInt32x16() Int32x16 {
+	return x.ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x8 reinterprets the bits of a Uint8x64 vector as a Int64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x64) AsInt64x8() Int64x8 {
+	return x.ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint16x32 reinterprets the bits of a Uint8x64 vector as a Uint16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x64) AsUint16x32() Uint16x32 {
+	return x.ReshapeToUint16s()
+}
+
+// AsUint32x16 reinterprets the bits of a Uint8x64 vector as a Uint32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x64) AsUint32x16() Uint32x16 {
+	return x.ReshapeToUint32s()
+}
+
+// AsUint64x8 reinterprets the bits of a Uint8x64 vector as a Uint64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint8x64) AsUint64x8() Uint64x8 {
+	return x.ReshapeToUint64s()
+}
+
+// AsFloat32x4 reinterprets the bits of a Uint16x8 vector as a Float32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x8) AsFloat32x4() Float32x4 {
+	return x.ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x2 reinterprets the bits of a Uint16x8 vector as a Float64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x8) AsFloat64x2() Float64x2 {
+	return x.ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x16 reinterprets the bits of a Uint16x8 vector as a Int8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x8) AsInt8x16() Int8x16 {
+	return x.ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x8 reinterprets the bits of a Uint16x8 vector as a Int16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x8) AsInt16x8() Int16x8 {
+	return x.BitsToInt16()
+}
+
+// AsInt32x4 reinterprets the bits of a Uint16x8 vector as a Int32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x8) AsInt32x4() Int32x4 {
+	return x.ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x2 reinterprets the bits of a Uint16x8 vector as a Int64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x8) AsInt64x2() Int64x2 {
+	return x.ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x16 reinterprets the bits of a Uint16x8 vector as a Uint8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x8) AsUint8x16() Uint8x16 {
+	return x.ReshapeToUint8s()
+}
+
+// AsUint32x4 reinterprets the bits of a Uint16x8 vector as a Uint32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x8) AsUint32x4() Uint32x4 {
+	return x.ReshapeToUint32s()
+}
+
+// AsUint64x2 reinterprets the bits of a Uint16x8 vector as a Uint64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x8) AsUint64x2() Uint64x2 {
+	return x.ReshapeToUint64s()
+}
+
+// AsFloat32x8 reinterprets the bits of a Uint16x16 vector as a Float32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x16) AsFloat32x8() Float32x8 {
+	return x.ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x4 reinterprets the bits of a Uint16x16 vector as a Float64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x16) AsFloat64x4() Float64x4 {
+	return x.ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x32 reinterprets the bits of a Uint16x16 vector as a Int8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x16) AsInt8x32() Int8x32 {
+	return x.ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x16 reinterprets the bits of a Uint16x16 vector as a Int16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x16) AsInt16x16() Int16x16 {
+	return x.BitsToInt16()
+}
+
+// AsInt32x8 reinterprets the bits of a Uint16x16 vector as a Int32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x16) AsInt32x8() Int32x8 {
+	return x.ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x4 reinterprets the bits of a Uint16x16 vector as a Int64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x16) AsInt64x4() Int64x4 {
+	return x.ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x32 reinterprets the bits of a Uint16x16 vector as a Uint8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x16) AsUint8x32() Uint8x32 {
+	return x.ReshapeToUint8s()
+}
+
+// AsUint32x8 reinterprets the bits of a Uint16x16 vector as a Uint32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x16) AsUint32x8() Uint32x8 {
+	return x.ReshapeToUint32s()
+}
+
+// AsUint64x4 reinterprets the bits of a Uint16x16 vector as a Uint64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x16) AsUint64x4() Uint64x4 {
+	return x.ReshapeToUint64s()
+}
+
+// AsFloat32x16 reinterprets the bits of a Uint16x32 vector as a Float32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x32) AsFloat32x16() Float32x16 {
+	return x.ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x8 reinterprets the bits of a Uint16x32 vector as a Float64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x32) AsFloat64x8() Float64x8 {
+	return x.ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x64 reinterprets the bits of a Uint16x32 vector as a Int8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x32) AsInt8x64() Int8x64 {
+	return x.ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x32 reinterprets the bits of a Uint16x32 vector as a Int16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x32) AsInt16x32() Int16x32 {
+	return x.BitsToInt16()
+}
+
+// AsInt32x16 reinterprets the bits of a Uint16x32 vector as a Int32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x32) AsInt32x16() Int32x16 {
+	return x.ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x8 reinterprets the bits of a Uint16x32 vector as a Int64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x32) AsInt64x8() Int64x8 {
+	return x.ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x64 reinterprets the bits of a Uint16x32 vector as a Uint8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x32) AsUint8x64() Uint8x64 {
+	return x.ReshapeToUint8s()
+}
+
+// AsUint32x16 reinterprets the bits of a Uint16x32 vector as a Uint32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x32) AsUint32x16() Uint32x16 {
+	return x.ReshapeToUint32s()
+}
+
+// AsUint64x8 reinterprets the bits of a Uint16x32 vector as a Uint64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint16x32) AsUint64x8() Uint64x8 {
+	return x.ReshapeToUint64s()
+}
+
+// AsFloat32x4 reinterprets the bits of a Uint32x4 vector as a Float32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x4) AsFloat32x4() Float32x4 {
+	return x.BitsToFloat32()
+}
+
+// AsFloat64x2 reinterprets the bits of a Uint32x4 vector as a Float64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x4) AsFloat64x2() Float64x2 {
+	return x.ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x16 reinterprets the bits of a Uint32x4 vector as a Int8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x4) AsInt8x16() Int8x16 {
+	return x.ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x8 reinterprets the bits of a Uint32x4 vector as a Int16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x4) AsInt16x8() Int16x8 {
+	return x.ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x4 reinterprets the bits of a Uint32x4 vector as a Int32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x4) AsInt32x4() Int32x4 {
+	return x.BitsToInt32()
+}
+
+// AsInt64x2 reinterprets the bits of a Uint32x4 vector as a Int64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x4) AsInt64x2() Int64x2 {
+	return x.ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x16 reinterprets the bits of a Uint32x4 vector as a Uint8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x4) AsUint8x16() Uint8x16 {
+	return x.ReshapeToUint8s()
+}
+
+// AsUint16x8 reinterprets the bits of a Uint32x4 vector as a Uint16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x4) AsUint16x8() Uint16x8 {
+	return x.ReshapeToUint16s()
+}
+
+// AsUint64x2 reinterprets the bits of a Uint32x4 vector as a Uint64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x4) AsUint64x2() Uint64x2 {
+	return x.ReshapeToUint64s()
+}
+
+// AsFloat32x8 reinterprets the bits of a Uint32x8 vector as a Float32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x8) AsFloat32x8() Float32x8 {
+	return x.BitsToFloat32()
+}
+
+// AsFloat64x4 reinterprets the bits of a Uint32x8 vector as a Float64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x8) AsFloat64x4() Float64x4 {
+	return x.ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x32 reinterprets the bits of a Uint32x8 vector as a Int8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x8) AsInt8x32() Int8x32 {
+	return x.ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x16 reinterprets the bits of a Uint32x8 vector as a Int16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x8) AsInt16x16() Int16x16 {
+	return x.ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x8 reinterprets the bits of a Uint32x8 vector as a Int32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x8) AsInt32x8() Int32x8 {
+	return x.BitsToInt32()
+}
+
+// AsInt64x4 reinterprets the bits of a Uint32x8 vector as a Int64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x8) AsInt64x4() Int64x4 {
+	return x.ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x32 reinterprets the bits of a Uint32x8 vector as a Uint8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x8) AsUint8x32() Uint8x32 {
+	return x.ReshapeToUint8s()
+}
+
+// AsUint16x16 reinterprets the bits of a Uint32x8 vector as a Uint16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x8) AsUint16x16() Uint16x16 {
+	return x.ReshapeToUint16s()
+}
+
+// AsUint64x4 reinterprets the bits of a Uint32x8 vector as a Uint64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x8) AsUint64x4() Uint64x4 {
+	return x.ReshapeToUint64s()
+}
+
+// AsFloat32x16 reinterprets the bits of a Uint32x16 vector as a Float32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x16) AsFloat32x16() Float32x16 {
+	return x.BitsToFloat32()
+}
+
+// AsFloat64x8 reinterprets the bits of a Uint32x16 vector as a Float64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x16) AsFloat64x8() Float64x8 {
+	return x.ReshapeToUint64s().BitsToFloat64()
+}
+
+// AsInt8x64 reinterprets the bits of a Uint32x16 vector as a Int8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x16) AsInt8x64() Int8x64 {
+	return x.ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x32 reinterprets the bits of a Uint32x16 vector as a Int16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x16) AsInt16x32() Int16x32 {
+	return x.ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x16 reinterprets the bits of a Uint32x16 vector as a Int32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x16) AsInt32x16() Int32x16 {
+	return x.BitsToInt32()
+}
+
+// AsInt64x8 reinterprets the bits of a Uint32x16 vector as a Int64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x16) AsInt64x8() Int64x8 {
+	return x.ReshapeToUint64s().BitsToInt64()
+}
+
+// AsUint8x64 reinterprets the bits of a Uint32x16 vector as a Uint8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x16) AsUint8x64() Uint8x64 {
+	return x.ReshapeToUint8s()
+}
+
+// AsUint16x32 reinterprets the bits of a Uint32x16 vector as a Uint16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x16) AsUint16x32() Uint16x32 {
+	return x.ReshapeToUint16s()
+}
+
+// AsUint64x8 reinterprets the bits of a Uint32x16 vector as a Uint64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint32x16) AsUint64x8() Uint64x8 {
+	return x.ReshapeToUint64s()
+}
+
+// AsFloat32x4 reinterprets the bits of a Uint64x2 vector as a Float32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x2) AsFloat32x4() Float32x4 {
+	return x.ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x2 reinterprets the bits of a Uint64x2 vector as a Float64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x2) AsFloat64x2() Float64x2 {
+	return x.BitsToFloat64()
+}
+
+// AsInt8x16 reinterprets the bits of a Uint64x2 vector as a Int8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x2) AsInt8x16() Int8x16 {
+	return x.ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x8 reinterprets the bits of a Uint64x2 vector as a Int16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x2) AsInt16x8() Int16x8 {
+	return x.ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x4 reinterprets the bits of a Uint64x2 vector as a Int32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x2) AsInt32x4() Int32x4 {
+	return x.ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x2 reinterprets the bits of a Uint64x2 vector as a Int64x2 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x2) AsInt64x2() Int64x2 {
+	return x.BitsToInt64()
+}
+
+// AsUint8x16 reinterprets the bits of a Uint64x2 vector as a Uint8x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x2) AsUint8x16() Uint8x16 {
+	return x.ReshapeToUint8s()
+}
+
+// AsUint16x8 reinterprets the bits of a Uint64x2 vector as a Uint16x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x2) AsUint16x8() Uint16x8 {
+	return x.ReshapeToUint16s()
+}
+
+// AsUint32x4 reinterprets the bits of a Uint64x2 vector as a Uint32x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x2) AsUint32x4() Uint32x4 {
+	return x.ReshapeToUint32s()
+}
+
+// AsFloat32x8 reinterprets the bits of a Uint64x4 vector as a Float32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x4) AsFloat32x8() Float32x8 {
+	return x.ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x4 reinterprets the bits of a Uint64x4 vector as a Float64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x4) AsFloat64x4() Float64x4 {
+	return x.BitsToFloat64()
+}
+
+// AsInt8x32 reinterprets the bits of a Uint64x4 vector as a Int8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x4) AsInt8x32() Int8x32 {
+	return x.ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x16 reinterprets the bits of a Uint64x4 vector as a Int16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x4) AsInt16x16() Int16x16 {
+	return x.ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x8 reinterprets the bits of a Uint64x4 vector as a Int32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x4) AsInt32x8() Int32x8 {
+	return x.ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x4 reinterprets the bits of a Uint64x4 vector as a Int64x4 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x4) AsInt64x4() Int64x4 {
+	return x.BitsToInt64()
+}
+
+// AsUint8x32 reinterprets the bits of a Uint64x4 vector as a Uint8x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x4) AsUint8x32() Uint8x32 {
+	return x.ReshapeToUint8s()
+}
+
+// AsUint16x16 reinterprets the bits of a Uint64x4 vector as a Uint16x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x4) AsUint16x16() Uint16x16 {
+	return x.ReshapeToUint16s()
+}
+
+// AsUint32x8 reinterprets the bits of a Uint64x4 vector as a Uint32x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x4) AsUint32x8() Uint32x8 {
+	return x.ReshapeToUint32s()
+}
+
+// AsFloat32x16 reinterprets the bits of a Uint64x8 vector as a Float32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x8) AsFloat32x16() Float32x16 {
+	return x.ReshapeToUint32s().BitsToFloat32()
+}
+
+// AsFloat64x8 reinterprets the bits of a Uint64x8 vector as a Float64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x8) AsFloat64x8() Float64x8 {
+	return x.BitsToFloat64()
+}
+
+// AsInt8x64 reinterprets the bits of a Uint64x8 vector as a Int8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x8) AsInt8x64() Int8x64 {
+	return x.ReshapeToUint8s().BitsToInt8()
+}
+
+// AsInt16x32 reinterprets the bits of a Uint64x8 vector as a Int16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x8) AsInt16x32() Int16x32 {
+	return x.ReshapeToUint16s().BitsToInt16()
+}
+
+// AsInt32x16 reinterprets the bits of a Uint64x8 vector as a Int32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x8) AsInt32x16() Int32x16 {
+	return x.ReshapeToUint32s().BitsToInt32()
+}
+
+// AsInt64x8 reinterprets the bits of a Uint64x8 vector as a Int64x8 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x8) AsInt64x8() Int64x8 {
+	return x.BitsToInt64()
+}
+
+// AsUint8x64 reinterprets the bits of a Uint64x8 vector as a Uint8x64 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x8) AsUint8x64() Uint8x64 {
+	return x.ReshapeToUint8s()
+}
+
+// AsUint16x32 reinterprets the bits of a Uint64x8 vector as a Uint16x32 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x8) AsUint16x32() Uint16x32 {
+	return x.ReshapeToUint16s()
+}
+
+// AsUint32x16 reinterprets the bits of a Uint64x8 vector as a Uint32x16 vector
+//
+// Deprecated: use combinations of ToBits, BitsTo{Int<N>,Float<N>}, ReshapeToUint<N>
+//
+//go:fix inline
+func (x Uint64x8) AsUint32x16() Uint32x16 {
+	return x.ReshapeToUint32s()
+}
+
+// Deprecated masked merges.
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Int8x16) Merge(y Int8x16, mask Mask8x16) Int8x16 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Int16x8) Merge(y Int16x8, mask Mask16x8) Int16x8 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Int32x4) Merge(y Int32x4, mask Mask32x4) Int32x4 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Int64x2) Merge(y Int64x2, mask Mask64x2) Int64x2 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Uint8x16) Merge(y Uint8x16, mask Mask8x16) Uint8x16 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Uint16x8) Merge(y Uint16x8, mask Mask16x8) Uint16x8 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Uint32x4) Merge(y Uint32x4, mask Mask32x4) Uint32x4 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Uint64x2) Merge(y Uint64x2, mask Mask64x2) Uint64x2 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Float32x4) Merge(y Float32x4, mask Mask32x4) Float32x4 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Float64x2) Merge(y Float64x2, mask Mask64x2) Float64x2 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX2
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Int8x32) Merge(y Int8x32, mask Mask8x32) Int8x32 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX2
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Int16x16) Merge(y Int16x16, mask Mask16x16) Int16x16 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX2
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Int32x8) Merge(y Int32x8, mask Mask32x8) Int32x8 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX2
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Int64x4) Merge(y Int64x4, mask Mask64x4) Int64x4 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX2
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Uint8x32) Merge(y Uint8x32, mask Mask8x32) Uint8x32 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX2
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Uint16x16) Merge(y Uint16x16, mask Mask16x16) Uint16x16 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX2
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Uint32x8) Merge(y Uint32x8, mask Mask32x8) Uint32x8 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX2
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Uint64x4) Merge(y Uint64x4, mask Mask64x4) Uint64x4 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Float32x8) Merge(y Float32x8, mask Mask32x8) Float32x8 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Float64x4) Merge(y Float64x4, mask Mask64x4) Float64x4 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Int8x64) Merge(y Int8x64, mask Mask8x64) Int8x64 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Int16x32) Merge(y Int16x32, mask Mask16x32) Int16x32 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Int32x16) Merge(y Int32x16, mask Mask32x16) Int32x16 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Int64x8) Merge(y Int64x8, mask Mask64x8) Int64x8 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Uint8x64) Merge(y Uint8x64, mask Mask8x64) Uint8x64 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Uint16x32) Merge(y Uint16x32, mask Mask16x32) Uint16x32 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Uint32x16) Merge(y Uint32x16, mask Mask32x16) Uint32x16 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Uint64x8) Merge(y Uint64x8, mask Mask64x8) Uint64x8 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Float32x16) Merge(y Float32x16, mask Mask32x16) Float32x16 {
+	return x.IfElse(mask, y)
+}
+
+// Merge returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
+func (x Float64x8) Merge(y Float64x8, mask Mask64x8) Float64x8 {
+	return x.IfElse(mask, y)
+}

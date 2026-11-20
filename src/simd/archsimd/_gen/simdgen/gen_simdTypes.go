@@ -1418,7 +1418,7 @@ func opStub(op Operation) ([]byte, bool) {
 
 // writeSIMDStubs returns two bytes.Buffers containing the declarations for the public
 // and internal-use vector intrinsics.
-func writeSIMDStubs(f, fI *bytes.Buffer, ops []Operation, typeMap simdTypeMap, doDeprecatedPuns bool) {
+func writeSIMDStubs(f, fI *bytes.Buffer, ops []Operation, typeMap simdTypeMap) {
 	f.WriteString(simdPackageHeader())
 	fI.WriteString(simdPackageHeader())
 
@@ -1442,12 +1442,6 @@ func writeSIMDStubs(f, fI *bytes.Buffer, ops []Operation, typeMap simdTypeMap, d
 	vectorConversions := vConvertFromTypeMap(typeMap)
 	for _, conv := range vectorConversions {
 		from, to := &conv.Tsrc, &conv.Tdst
-
-		if doDeprecatedPuns {
-			if err := sgutil.AsOp.Execute(f, sgutil.Conversion(from, to)); err != nil {
-				panic(fmt.Errorf("failed to execute vectorConversion template: %w", err))
-			}
-		}
 
 		// New style factored conversion intrinsics
 		if from.Name()[0] != 'U' && to.Name()[0] != 'U' {

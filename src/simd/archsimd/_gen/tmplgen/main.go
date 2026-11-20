@@ -1233,17 +1233,6 @@ var maskedTemplate = shapedTemplateOf(allShapes, ".Masked and .IfElse methods", 
 // CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}}
 
-// Merge returns x but with elements set to y where mask is false.
-//
-// Emulated, CPU Feature: {{.CPUfeature}}
-//
-// Deprecated: use x.IfElse(mask, y)
-//
-//go:fix inline
-func (x {{.VType}}) Merge(y {{.VType}}, mask Mask{{.WxC}}) {{.VType}} {
-	return x.IfElse(mask, y)
-}
-
 // CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) IfElse(mask Mask{{.WxC}}, y {{.VType}}) {{.VType}}
 `)
