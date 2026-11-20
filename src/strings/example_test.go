@@ -184,6 +184,15 @@ func ExampleHasPrefix() {
 	// true
 }
 
+func ExampleHasAnyOfPrefixes() {
+	fmt.Println(strings.HasAnyOfPrefixes("Gopher", "Go", "pher"))
+	fmt.Println(strings.HasAnyOfPrefixes("Gopher", "C", "D"))
+	fmt.Println(strings.HasAnyOfPrefixes("Gopher", ""))
+	// Output:
+	// true
+	// false
+	// true
+}
 func ExampleHasSuffix() {
 	fmt.Println(strings.HasSuffix("Amigo", "go"))
 	fmt.Println(strings.HasSuffix("Amigo", "O"))
@@ -196,6 +205,17 @@ func ExampleHasSuffix() {
 	// true
 }
 
+func ExampleHasAnyOfSuffixes() {
+	fmt.Println(strings.HasAnyOfSuffixes("Amigo", "go", "Am"))
+	fmt.Println(strings.HasAnyOfSuffixes("Amigo", "O", "p"))
+	fmt.Println(strings.HasAnyOfSuffixes("Amigo", "Ami", "Am"))
+	fmt.Println(strings.HasAnyOfSuffixes("Amigo", ""))
+	// Output:
+	// true
+	// false
+	// false
+	// true
+}
 func ExampleIndex() {
 	fmt.Println(strings.Index("chicken", "ken"))
 	fmt.Println(strings.Index("chicken", "dmr"))
