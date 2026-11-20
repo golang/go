@@ -8,6 +8,7 @@ package simd_test
 
 import (
 	"fmt"
+	"internal/testenv"
 	"simd"
 	"simd/archsimd"
 	"testing"
@@ -43,6 +44,9 @@ func TestToFromArchAMD64(t *testing.T) {
 		}
 	}
 
+	// Without optimization, the conversions to and from the arch types
+	// allocate.
+	testenv.SkipIfOptimizationOff(t)
 	var sink simd.Int32s
 	allocs := testing.AllocsPerRun(100, func() {
 		sink = doubleViaArchAMD64(x)
