@@ -7472,6 +7472,36 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpcarrylessMultiplyUint64x8:
 		v.Op = ssaop.OpAMD64VPCLMULQDQ512
 		return true
+	case ssaop.OpconcatPermute128ScalarsFloat32x8:
+		v.Op = ssaop.OpAMD64VPERM2F128256
+		return true
+	case ssaop.OpconcatPermute128ScalarsFloat64x4:
+		v.Op = ssaop.OpAMD64VPERM2F128256
+		return true
+	case ssaop.OpconcatPermute128ScalarsInt16x16:
+		v.Op = ssaop.OpAMD64VPERM2I128256
+		return true
+	case ssaop.OpconcatPermute128ScalarsInt32x8:
+		v.Op = ssaop.OpAMD64VPERM2I128256
+		return true
+	case ssaop.OpconcatPermute128ScalarsInt64x4:
+		v.Op = ssaop.OpAMD64VPERM2I128256
+		return true
+	case ssaop.OpconcatPermute128ScalarsInt8x32:
+		v.Op = ssaop.OpAMD64VPERM2I128256
+		return true
+	case ssaop.OpconcatPermute128ScalarsUint16x16:
+		v.Op = ssaop.OpAMD64VPERM2I128256
+		return true
+	case ssaop.OpconcatPermute128ScalarsUint32x8:
+		v.Op = ssaop.OpAMD64VPERM2I128256
+		return true
+	case ssaop.OpconcatPermute128ScalarsUint64x4:
+		v.Op = ssaop.OpAMD64VPERM2I128256
+		return true
+	case ssaop.OpconcatPermute128ScalarsUint8x32:
+		v.Op = ssaop.OpAMD64VPERM2I128256
+		return true
 	case ssaop.OpconcatSaturateToInt8GroupedInt16x16:
 		v.Op = ssaop.OpAMD64VPACKSSWB256
 		return true

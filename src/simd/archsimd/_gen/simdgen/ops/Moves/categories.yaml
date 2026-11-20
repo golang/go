@@ -295,6 +295,18 @@
     // NAME treats the 256-bit vectors x and y as a single vector of four
     // 128-bit elements, and returns a 256-bit result formed by
     // concatenating the two elements specified by lo and hi.
+# concatPermute128Scalars is an unexported duplicate of ConcatPermute128Scalars,
+# which isn't generally available, for use in generally available emulations.
+# It can be removed once the generally available emulations that use it have
+# moved to exported generally available APIs.
+- go: concatPermute128Scalars
+  commutative: false
+  documentation: !string |-
+    // NAME is an unexported duplicate of ConcatPermute128Scalars,
+    // which isn't generally available, for use in generally available
+    // emulations. It can be removed once the generally available emulations
+    // that use it have moved to exported generally available APIs.
+    //
 
 # TODO: ConcatWindow and ConcatWindowGrouped are only defined on vectors of
 # 8-bit elements, but they could be extended to other element widths. The

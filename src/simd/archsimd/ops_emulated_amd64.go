@@ -667,8 +667,8 @@ func (x Int8x32) LookupOrZero(indices Uint8x32) (z Int8x32) {
 	if X86.AVX512VBMI() {
 		return x.LookupMod(indices).Masked(indices.Less(BroadcastUint8x32(32)))
 	}
-	ll := x.ConcatPermute128Scalars(0, 0, x) // Double the low 128 bits of x. (The x argument is unused.)
-	hh := x.ConcatPermute128Scalars(1, 1, x) // Double the high 128 bits of x.
+	ll := x.concatPermute128Scalars(0, 0, x) // Double the low 128 bits of x. (The x argument is unused.)
+	hh := x.concatPermute128Scalars(1, 1, x) // Double the high 128 bits of x.
 	c70 := BroadcastUint8x32(0x70)
 	c16 := BroadcastUint8x32(16)
 	// Adding 0x70 with unsigned saturation maps 0..15 to 0x70..0x7f
@@ -695,10 +695,10 @@ func (x Int8x64) LookupOrZero(indices Uint8x64) (z Int8x64) {
 		return x.LookupMod(indices).Masked(indices.Less(BroadcastUint8x64(64)))
 	}
 	xl, xh := x.Lo(), x.Hi()
-	ll := xl.ConcatPermute128Scalars(0, 0, xl) // 2 copies of elements 0-15
-	lh := xl.ConcatPermute128Scalars(1, 1, xl) // 2 copies of elements 16-31
-	hl := xh.ConcatPermute128Scalars(0, 0, xh) // 2 copies of elements 32-47
-	hh := xh.ConcatPermute128Scalars(1, 1, xh) // 2 copies of elements 48-63
+	ll := xl.concatPermute128Scalars(0, 0, xl) // 2 copies of elements 0-15
+	lh := xl.concatPermute128Scalars(1, 1, xl) // 2 copies of elements 16-31
+	hl := xh.concatPermute128Scalars(0, 0, xh) // 2 copies of elements 32-47
+	hh := xh.concatPermute128Scalars(1, 1, xh) // 2 copies of elements 48-63
 	ll4 := z.SetLo(ll).SetHi(ll)               // 4 copies of elements 0-15 etc
 	lh4 := z.SetLo(lh).SetHi(lh)
 	hl4 := z.SetLo(hl).SetHi(hl)

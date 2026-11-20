@@ -1301,6 +1301,16 @@
 (carrylessMultiplyUint64x2 ...) => (VPCLMULQDQ128 ...) // pureVreg
 (carrylessMultiplyUint64x4 ...) => (VPCLMULQDQ256 ...) // pureVreg
 (carrylessMultiplyUint64x8 ...) => (VPCLMULQDQ512 ...) // pureVreg
+(concatPermute128ScalarsFloat32x8 ...) => (VPERM2F128256 ...) // pureVreg
+(concatPermute128ScalarsFloat64x4 ...) => (VPERM2F128256 ...) // pureVreg
+(concatPermute128ScalarsInt8x32 ...) => (VPERM2I128256 ...) // pureVreg
+(concatPermute128ScalarsInt16x16 ...) => (VPERM2I128256 ...) // pureVreg
+(concatPermute128ScalarsInt32x8 ...) => (VPERM2I128256 ...) // pureVreg
+(concatPermute128ScalarsInt64x4 ...) => (VPERM2I128256 ...) // pureVreg
+(concatPermute128ScalarsUint8x32 ...) => (VPERM2I128256 ...) // pureVreg
+(concatPermute128ScalarsUint16x16 ...) => (VPERM2I128256 ...) // pureVreg
+(concatPermute128ScalarsUint32x8 ...) => (VPERM2I128256 ...) // pureVreg
+(concatPermute128ScalarsUint64x4 ...) => (VPERM2I128256 ...) // pureVreg
 (concatSaturateToInt8Int16x8 ...) => (VPACKSSWB128 ...) // pureVreg
 (concatSaturateToInt8GroupedInt16x16 ...) => (VPACKSSWB256 ...) // pureVreg
 (concatSaturateToUint8Int16x8 ...) => (VPACKUSWB128 ...) // pureVreg

@@ -1584,7 +1584,7 @@ func (x Float64x2) HiToLo() (z Float64x2) {
 // Emulated, CPU Feature: AVX2
 func (x Int8x32) HiToLo() (z Int8x32) {
 	var zero Int8x32
-	return x.ConcatPermute128Scalars(1, 2, zero)
+	return x.concatPermute128Scalars(1, 2, zero)
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1595,7 +1595,7 @@ func (x Int8x32) HiToLo() (z Int8x32) {
 // Emulated, CPU Feature: AVX2
 func (x Int16x16) HiToLo() (z Int16x16) {
 	var zero Int16x16
-	return x.ConcatPermute128Scalars(1, 2, zero)
+	return x.concatPermute128Scalars(1, 2, zero)
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1606,7 +1606,7 @@ func (x Int16x16) HiToLo() (z Int16x16) {
 // Emulated, CPU Feature: AVX2
 func (x Int32x8) HiToLo() (z Int32x8) {
 	var zero Int32x8
-	return x.ConcatPermute128Scalars(1, 2, zero)
+	return x.concatPermute128Scalars(1, 2, zero)
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1617,7 +1617,7 @@ func (x Int32x8) HiToLo() (z Int32x8) {
 // Emulated, CPU Feature: AVX2
 func (x Int64x4) HiToLo() (z Int64x4) {
 	var zero Int64x4
-	return x.ConcatPermute128Scalars(1, 2, zero)
+	return x.concatPermute128Scalars(1, 2, zero)
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1628,7 +1628,7 @@ func (x Int64x4) HiToLo() (z Int64x4) {
 // Emulated, CPU Feature: AVX2
 func (x Uint8x32) HiToLo() (z Uint8x32) {
 	var zero Uint8x32
-	return x.ConcatPermute128Scalars(1, 2, zero)
+	return x.concatPermute128Scalars(1, 2, zero)
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1639,7 +1639,7 @@ func (x Uint8x32) HiToLo() (z Uint8x32) {
 // Emulated, CPU Feature: AVX2
 func (x Uint16x16) HiToLo() (z Uint16x16) {
 	var zero Uint16x16
-	return x.ConcatPermute128Scalars(1, 2, zero)
+	return x.concatPermute128Scalars(1, 2, zero)
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1650,7 +1650,7 @@ func (x Uint16x16) HiToLo() (z Uint16x16) {
 // Emulated, CPU Feature: AVX2
 func (x Uint32x8) HiToLo() (z Uint32x8) {
 	var zero Uint32x8
-	return x.ConcatPermute128Scalars(1, 2, zero)
+	return x.concatPermute128Scalars(1, 2, zero)
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1661,7 +1661,7 @@ func (x Uint32x8) HiToLo() (z Uint32x8) {
 // Emulated, CPU Feature: AVX2
 func (x Uint64x4) HiToLo() (z Uint64x4) {
 	var zero Uint64x4
-	return x.ConcatPermute128Scalars(1, 2, zero)
+	return x.concatPermute128Scalars(1, 2, zero)
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1672,7 +1672,7 @@ func (x Uint64x4) HiToLo() (z Uint64x4) {
 // Emulated, CPU Feature: AVX
 func (x Float32x8) HiToLo() (z Float32x8) {
 	var zero Float32x8
-	return x.ConcatPermute128Scalars(1, 2, zero)
+	return x.concatPermute128Scalars(1, 2, zero)
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1683,7 +1683,7 @@ func (x Float32x8) HiToLo() (z Float32x8) {
 // Emulated, CPU Feature: AVX
 func (x Float64x4) HiToLo() (z Float64x4) {
 	var zero Float64x4
-	return x.ConcatPermute128Scalars(1, 2, zero)
+	return x.concatPermute128Scalars(1, 2, zero)
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high

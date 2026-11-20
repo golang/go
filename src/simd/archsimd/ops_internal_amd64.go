@@ -506,6 +506,192 @@ func (x Uint64x4) carrylessMultiply(xyHiLo uint8, y Uint64x4) Uint64x4
 // Asm: VPCLMULQDQ, CPU Feature: AVX512CLMUL
 func (x Uint64x8) carrylessMultiply(xyHiLo uint8, y Uint64x8) Uint64x8
 
+/* concatPermute128Scalars */
+
+// concatPermute128Scalars is an unexported duplicate of ConcatPermute128Scalars,
+// which isn't generally available, for use in generally available
+// emulations. It can be removed once the generally available emulations
+// that use it have moved to exported generally available APIs.
+//
+// For example,
+//
+//	{40, 41, 42, 43, 50, 51, 52, 53}.concatPermute128Scalars(3, 0, {60, 61, 62, 63, 70, 71, 72, 73})
+//
+// returns {70, 71, 72, 73, 40, 41, 42, 43}.
+//
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
+//
+// Asm: VPERM2F128, CPU Feature: AVX
+func (x Float32x8) concatPermute128Scalars(lo, hi uint8, y Float32x8) Float32x8
+
+// concatPermute128Scalars is an unexported duplicate of ConcatPermute128Scalars,
+// which isn't generally available, for use in generally available
+// emulations. It can be removed once the generally available emulations
+// that use it have moved to exported generally available APIs.
+//
+// For example,
+//
+//	{40, 41, 50, 51}.concatPermute128Scalars(3, 0, {60, 61, 70, 71})
+//
+// returns {70, 71, 40, 41}.
+//
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
+//
+// Asm: VPERM2F128, CPU Feature: AVX
+func (x Float64x4) concatPermute128Scalars(lo, hi uint8, y Float64x4) Float64x4
+
+// concatPermute128Scalars is an unexported duplicate of ConcatPermute128Scalars,
+// which isn't generally available, for use in generally available
+// emulations. It can be removed once the generally available emulations
+// that use it have moved to exported generally available APIs.
+//
+// For example,
+//
+//	{0x40, 0x41, ..., 0x4f, 0x50, 0x51, ..., 0x5f}.concatPermute128Scalars(3, 0,
+//	     {0x60, 0x61, ..., 0x6f, 0x70, 0x71, ..., 0x7f})
+//
+// returns {0x70, 0x71, ..., 0x7f, 0x40, 0x41, ..., 0x4f}.
+//
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
+//
+// Asm: VPERM2I128, CPU Feature: AVX2
+func (x Int8x32) concatPermute128Scalars(lo, hi uint8, y Int8x32) Int8x32
+
+// concatPermute128Scalars is an unexported duplicate of ConcatPermute128Scalars,
+// which isn't generally available, for use in generally available
+// emulations. It can be removed once the generally available emulations
+// that use it have moved to exported generally available APIs.
+//
+// For example,
+//
+//	{40, 41, 42, 43, 44, 45, 46, 47, 50, 51, 52, 53, 54, 55, 56, 57}.concatPermute128Scalars(3, 0,
+//	 {60, 61, 62, 63, 64, 65, 66, 67, 70, 71, 72, 73, 74, 75, 76, 77})
+//
+// returns {70, 71, 72, 73, 74, 75, 76, 77, 40, 41, 42, 43, 44, 45, 46, 47}.
+//
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
+//
+// Asm: VPERM2I128, CPU Feature: AVX2
+func (x Int16x16) concatPermute128Scalars(lo, hi uint8, y Int16x16) Int16x16
+
+// concatPermute128Scalars is an unexported duplicate of ConcatPermute128Scalars,
+// which isn't generally available, for use in generally available
+// emulations. It can be removed once the generally available emulations
+// that use it have moved to exported generally available APIs.
+//
+// For example,
+//
+//	{40, 41, 42, 43, 50, 51, 52, 53}.concatPermute128Scalars(3, 0, {60, 61, 62, 63, 70, 71, 72, 73})
+//
+// returns {70, 71, 72, 73, 40, 41, 42, 43}.
+//
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
+//
+// Asm: VPERM2I128, CPU Feature: AVX2
+func (x Int32x8) concatPermute128Scalars(lo, hi uint8, y Int32x8) Int32x8
+
+// concatPermute128Scalars is an unexported duplicate of ConcatPermute128Scalars,
+// which isn't generally available, for use in generally available
+// emulations. It can be removed once the generally available emulations
+// that use it have moved to exported generally available APIs.
+//
+// For example,
+//
+//	{40, 41, 50, 51}.concatPermute128Scalars(3, 0, {60, 61, 70, 71})
+//
+// returns {70, 71, 40, 41}.
+//
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
+//
+// Asm: VPERM2I128, CPU Feature: AVX2
+func (x Int64x4) concatPermute128Scalars(lo, hi uint8, y Int64x4) Int64x4
+
+// concatPermute128Scalars is an unexported duplicate of ConcatPermute128Scalars,
+// which isn't generally available, for use in generally available
+// emulations. It can be removed once the generally available emulations
+// that use it have moved to exported generally available APIs.
+//
+// For example,
+//
+//	{0x40, 0x41, ..., 0x4f, 0x50, 0x51, ..., 0x5f}.concatPermute128Scalars(3, 0,
+//	     {0x60, 0x61, ..., 0x6f, 0x70, 0x71, ..., 0x7f})
+//
+// returns {0x70, 0x71, ..., 0x7f, 0x40, 0x41, ..., 0x4f}.
+//
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
+//
+// Asm: VPERM2I128, CPU Feature: AVX2
+func (x Uint8x32) concatPermute128Scalars(lo, hi uint8, y Uint8x32) Uint8x32
+
+// concatPermute128Scalars is an unexported duplicate of ConcatPermute128Scalars,
+// which isn't generally available, for use in generally available
+// emulations. It can be removed once the generally available emulations
+// that use it have moved to exported generally available APIs.
+//
+// For example,
+//
+//	{40, 41, 42, 43, 44, 45, 46, 47, 50, 51, 52, 53, 54, 55, 56, 57}.concatPermute128Scalars(3, 0,
+//	 {60, 61, 62, 63, 64, 65, 66, 67, 70, 71, 72, 73, 74, 75, 76, 77})
+//
+// returns {70, 71, 72, 73, 74, 75, 76, 77, 40, 41, 42, 43, 44, 45, 46, 47}.
+//
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
+//
+// Asm: VPERM2I128, CPU Feature: AVX2
+func (x Uint16x16) concatPermute128Scalars(lo, hi uint8, y Uint16x16) Uint16x16
+
+// concatPermute128Scalars is an unexported duplicate of ConcatPermute128Scalars,
+// which isn't generally available, for use in generally available
+// emulations. It can be removed once the generally available emulations
+// that use it have moved to exported generally available APIs.
+//
+// For example,
+//
+//	{40, 41, 42, 43, 50, 51, 52, 53}.concatPermute128Scalars(3, 0, {60, 61, 62, 63, 70, 71, 72, 73})
+//
+// returns {70, 71, 72, 73, 40, 41, 42, 43}.
+//
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
+//
+// Asm: VPERM2I128, CPU Feature: AVX2
+func (x Uint32x8) concatPermute128Scalars(lo, hi uint8, y Uint32x8) Uint32x8
+
+// concatPermute128Scalars is an unexported duplicate of ConcatPermute128Scalars,
+// which isn't generally available, for use in generally available
+// emulations. It can be removed once the generally available emulations
+// that use it have moved to exported generally available APIs.
+//
+// For example,
+//
+//	{40, 41, 50, 51}.concatPermute128Scalars(3, 0, {60, 61, 70, 71})
+//
+// returns {70, 71, 40, 41}.
+//
+// lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// Performance: A non-constant value of lo, hi may result in significantly worse performance for this operation.
+//
+// Asm: VPERM2I128, CPU Feature: AVX2
+func (x Uint64x4) concatPermute128Scalars(lo, hi uint8, y Uint64x4) Uint64x4
+
 /* concatSaturateToInt8 */
 
 // concatSaturateToInt8 converts the element values of x and y to int8 with signed

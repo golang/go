@@ -1041,7 +1041,12 @@
   out:
   - *v
 
-- go: ConcatPermute128Scalars
+# All of the ConcatPermute128Scalars entries below also define
+# concatPermute128Scalars, an unexported duplicate of ConcatPermute128Scalars,
+# which isn't generally available, for use in generally available emulations.
+# The duplicate can be removed once those emulations have moved to exported
+# generally available APIs (see the concatPermute128Scalars category).
+- go: !sum [ConcatPermute128Scalars, concatPermute128Scalars]
   asm: VPERM2F128
   operandOrder: II
   addDoc: !string |-
@@ -1064,7 +1069,7 @@
   out:
   - *v
 
-- go: ConcatPermute128Scalars
+- go: !sum [ConcatPermute128Scalars, concatPermute128Scalars]
   asm: VPERM2F128
   operandOrder: II
   addDoc: !string |-
@@ -1088,7 +1093,7 @@
   out:
   - *v
 
-- go: ConcatPermute128Scalars
+- go: !sum [ConcatPermute128Scalars, concatPermute128Scalars]
   asm: VPERM2I128
   operandOrder: II
   addDoc: !string |-
@@ -1112,7 +1117,7 @@
   out:
   - *v
 
-- go: ConcatPermute128Scalars
+- go: !sum [ConcatPermute128Scalars, concatPermute128Scalars]
   asm: VPERM2I128
   operandOrder: II
   addDoc: !string |-
@@ -1136,7 +1141,7 @@
   out:
   - *v
 
-- go: ConcatPermute128Scalars
+- go: !sum [ConcatPermute128Scalars, concatPermute128Scalars]
   asm: VPERM2I128
   operandOrder: II
   addDoc: !string |-
@@ -1161,7 +1166,7 @@
   out:
   - *v
 
-- go: ConcatPermute128Scalars
+- go: !sum [ConcatPermute128Scalars, concatPermute128Scalars]
   asm: VPERM2I128
   operandOrder: II
   addDoc: !string |-

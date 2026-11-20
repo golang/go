@@ -9224,6 +9224,16 @@ const (
 	OpcarrylessMultiplyUint64x8
 	OpcarrylessMultiplyWidenLoUint64x2
 	OpcarrylessMultiplyWidenLoUint8x16
+	OpconcatPermute128ScalarsFloat32x8
+	OpconcatPermute128ScalarsFloat64x4
+	OpconcatPermute128ScalarsInt16x16
+	OpconcatPermute128ScalarsInt32x8
+	OpconcatPermute128ScalarsInt64x4
+	OpconcatPermute128ScalarsInt8x32
+	OpconcatPermute128ScalarsUint16x16
+	OpconcatPermute128ScalarsUint32x8
+	OpconcatPermute128ScalarsUint64x4
+	OpconcatPermute128ScalarsUint8x32
 	OpconcatSaturateToInt16Int32x4
 	OpconcatSaturateToInt8GroupedInt16x16
 	OpconcatSaturateToInt8Int16x8
@@ -130054,6 +130064,66 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:      2,
 		Commutative: true,
 		Generic:     true,
+	},
+	{
+		Name:    "concatPermute128ScalarsFloat32x8",
+		AuxType: AuxTypeUInt8,
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "concatPermute128ScalarsFloat64x4",
+		AuxType: AuxTypeUInt8,
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "concatPermute128ScalarsInt16x16",
+		AuxType: AuxTypeUInt8,
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "concatPermute128ScalarsInt32x8",
+		AuxType: AuxTypeUInt8,
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "concatPermute128ScalarsInt64x4",
+		AuxType: AuxTypeUInt8,
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "concatPermute128ScalarsInt8x32",
+		AuxType: AuxTypeUInt8,
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "concatPermute128ScalarsUint16x16",
+		AuxType: AuxTypeUInt8,
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "concatPermute128ScalarsUint32x8",
+		AuxType: AuxTypeUInt8,
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "concatPermute128ScalarsUint64x4",
+		AuxType: AuxTypeUInt8,
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "concatPermute128ScalarsUint8x32",
+		AuxType: AuxTypeUInt8,
+		ArgLen:  2,
+		Generic: true,
 	},
 	{
 		Name:    "concatSaturateToInt16Int32x4",
