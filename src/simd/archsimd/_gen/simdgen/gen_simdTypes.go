@@ -304,7 +304,7 @@ func compareSimdTypePairs(x, y simdTypePair) int {
 }
 
 func simdPackageHeader() string {
-	return simdPackageHeaderFor("simd")
+	return simdPackageHeaderFor(apiPhase().experiment())
 }
 
 // simdPackageHeaderFor returns the header for a generated archsimd file that is
@@ -1423,7 +1423,7 @@ func opStub(op Operation) ([]byte, bool) {
 func writeSIMDStubs(f, fExp, fI *bytes.Buffer, ops []Operation, typeMap simdTypeMap, specIdx *specgen.Index) {
 	f.WriteString(simdPackageHeader())
 	if fExp != nil {
-		fExp.WriteString(simdPackageHeader())
+		fExp.WriteString(simdPackageHeaderFor(phaseExperiment.experiment()))
 	}
 	fI.WriteString(simdPackageHeader())
 

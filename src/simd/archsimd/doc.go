@@ -2,15 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.simd
+//go:build goexperiment.simdstable
 
 // Package archsimd provides access to architecture-specific SIMD operations.
 //
 // This is a low-level package that exposes hardware-specific functionality.
 // It currently supports amd64, arm64 Neon, and WebAssembly SIMD.
 //
-// This package is experimental, and not subject to the Go 1 compatibility promise.
-// It only exists when building with the GOEXPERIMENT=simd environment variable set.
+// The generally available API exists when building with the
+// GOEXPERIMENT=simdstable environment variable set. Additional experimental
+// API, including all arm64 SVE support, exists only when building with
+// GOEXPERIMENT=simd, which implies GOEXPERIMENT=simdstable. This package is
+// not yet subject to the Go 1 compatibility promise.
 //
 // # Vector types and operations
 //
@@ -33,7 +36,7 @@
 //   - Comparison: Equal, Greater, etc., which produce a mask.
 //   - Conversion: Convert between different vector types.
 //   - Field selection and rearrangement: Elem, LookupMod, etc.
-//   - Masking: Masked, Merge.
+//   - Masking: Masked, IfElse.
 //
 // The compiler recognizes certain patterns of operations and may optimize
 // them to more performant instructions. For example, on AVX512, an Add operation

@@ -40,6 +40,15 @@ func (p phase) String() string {
 	return p.experiment()
 }
 
+// apiPhase returns the phase of the current target's API files, other than
+// the files of experimental ops. SVE is entirely experimental.
+func apiPhase() phase {
+	if CurrentArch().isSVE() {
+		return phaseExperiment
+	}
+	return phaseStable
+}
+
 // opPhase returns the phase of op's Go declaration.
 //
 // Exported declarations are in phaseStable unless spec says they're
