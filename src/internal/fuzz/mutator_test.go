@@ -115,3 +115,23 @@ func TestStringImmutability(t *testing.T) {
 		t.Fatalf("string was mutated: got %x, want %x", []byte(original), originalCopy)
 	}
 }
+
+func TestMutatorByteSliceValuesAreIndependent(t *testing.T) {
+	m := &mutator{r: &mockRand{values: []int{
+		0, 4, 0, 0, // Select argument 0, byteSliceBitFlip, byte 0, bit 0.
+		1, 4, 0, 0, // Select argument 1, byteSliceBitFlip, byte 0, bit 0.
+	}}}
+	vals := []any{[]byte{1, 2, 3}, []byte{4, 5, 6}}
+	for i := range vals {
+		other := 1 - i
+		before := bytes.Clone(vals[other].([]byte))
+		m.mutate(vals, 1024)
+		if after := vals[other].([]byte); !bytes.Equal(after, before) {
+			t.Fatalf("mutating argument %d changed argument %d: %x -> %x", i, other, before, after)
+		}
+	}
+	a, b := vals[0].([]byte), vals[1].([]byte)
+	if &a[0] == &b[0] {
+		t.Fatal("arguments share one backing array")
+	}
+}
