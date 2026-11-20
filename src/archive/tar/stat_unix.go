@@ -7,7 +7,9 @@
 package tar
 
 import (
+	"fmt"
 	"io/fs"
+	"math"
 	"os/user"
 	"runtime"
 	"strconv"
@@ -27,6 +29,16 @@ func statUnix(fi fs.FileInfo, h *Header, doNameLookups bool) error {
 	sys, ok := fi.Sys().(*syscall.Stat_t)
 	if !ok {
 		return nil
+	}
+	// On 32-bit platforms int is 32 bits wide, so a Uid or Gid with the high
+	// bit set would wrap to a negative value when converted from uint32.
+	// Report an error rather than storing a wrapped result. On 64-bit
+	// platforms int is wide enough to hold any uint32, so these never fire.
+	if int64(sys.Uid) > math.MaxInt {
+		return fmt.Errorf("archive/tar: uid %d does not fit in int", sys.Uid)
+	}
+	if int64(sys.Gid) > math.MaxInt {
+		return fmt.Errorf("archive/tar: gid %d does not fit in int", sys.Gid)
 	}
 	h.Uid = int(sys.Uid)
 	h.Gid = int(sys.Gid)
