@@ -149,6 +149,90 @@ func TestUnsafePoint(t *testing.T) {
 	// Hopefully we can clean up the latter at some point.
 }
 
+type wbHolder struct {
+	pad [38]int
+	p   *int
+}
+
+func (h *wbHolder) set(p *int) {
+	h.p = p
+}
+
+//go:noinline
+func (h *wbHolder) use(n int) { h.pad[1] += n }
+
+// setPointersInLoop has a write barrier in an inlined call. On 386 the
+// inline mark of h.set is scheduled between the load of
+// runtime.writeBarrier and the test of the loaded value, and it must not be
+// an async preemption point. See go.dev/issue/83238.
+//
+//go:noinline
+func setPointersInLoop(h *wbHolder, list []int) {
+	for i, x := range list {
+		var n int
+		if i > 0 {
+			h.pad[0]++
+		}
+		h.set(&n)
+		h.use(x)
+	}
+}
+
+func TestUnsafePointInlMark(t *testing.T) {
+	testenv.MustHaveExec(t)
+	switch runtime.GOARCH {
+	case "386":
+	default:
+		t.Skipf("test not enabled for %s", runtime.GOARCH)
+	}
+
+	f := runtime.FuncForPC(reflect.ValueOf(setPointersInLoop).Pointer())
+
+	// See TestUnsafePoint for why objdump works here.
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "objdump", "-s", "setPointersInLoop", os.Args[0])
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("can't objdump %v:\n%s", err, out)
+	}
+
+	// Every instruction after the load of runtime.writeBarrier, up to and
+	// including the branch on the loaded value, must be unpreemptible.
+	// Otherwise a goroutine preempted there resumes with a stale flag.
+	var entry uint64
+	var loads int
+	var inWB bool
+	for _, line := range strings.Split(string(out), "\n")[1:] {
+		line = strings.TrimSpace(line)
+		parts := strings.Fields(line)
+		if len(parts) < 4 || !strings.HasPrefix(parts[0], "unsafepoint_test.go:") {
+			continue
+		}
+		pc, err := strconv.ParseUint(parts[1][2:], 16, 64)
+		if err != nil {
+			t.Fatalf("can't parse pc %s: %v", parts[1], err)
+		}
+		if entry == 0 {
+			entry = pc
+		}
+		t.Logf("%s", line)
+		if inWB {
+			if !runtime.UnsafePoint(f.Entry() + uintptr(pc-entry)) {
+				t.Errorf("%s\n\tinstruction after the write barrier flag load must be marked unsafe, but isn't", line)
+			}
+			if strings.HasPrefix(parts[3], "J") {
+				inWB = false
+			}
+		}
+		if strings.Contains(line, "runtime.writeBarrier(SB)") {
+			loads++
+			inWB = true
+		}
+	}
+	if loads == 0 {
+		t.Errorf("no load of runtime.writeBarrier in %s", f.Name())
+	}
+}
+
 // tailCallOuter embeds an interface, so the compiler generates a wrapper for
 // the promoted method M. On ppc64 that wrapper ends in a tail call:
 //
