@@ -34,3 +34,22 @@ func (p Phase) Experiment() string {
 func (p Phase) String() string {
 	return p.Experiment()
 }
+
+// AllPhaseTags lists the build tags that a phase's GOEXPERIMENT can set (see
+// [Phase.BuildTags]).
+var AllPhaseTags = []string{"goexperiment.simdstable", "goexperiment.simd"}
+
+// BuildTags returns the build tags that the GOEXPERIMENT of phase p sets: none
+// for the zero Phase, goexperiment.simdstable for [PhaseStable], and both
+// goexperiment.simdstable and goexperiment.simd for [PhaseExperiment].
+func (p Phase) BuildTags() []string {
+	switch p {
+	case 0:
+		return nil
+	case PhaseStable:
+		return []string{"goexperiment.simdstable"}
+	case PhaseExperiment:
+		return []string{"goexperiment.simdstable", "goexperiment.simd"}
+	}
+	panic(fmt.Sprintf("unknown phase %d", int(p)))
+}
