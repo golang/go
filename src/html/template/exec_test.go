@@ -1657,7 +1657,7 @@ func TestExecutePanicDuringCall(t *testing.T) {
 		{
 			"method call on nil interface",
 			"{{.NonEmptyInterfaceNil.Method0}}", tVal,
-			`template: t:1:23: executing "t" at <.NonEmptyInterfaceNil.Method0>: nil pointer evaluating template.I.Method0`,
+			`template: t:1:2: executing "t" at <.NonEmptyInterfaceNil.Method0>: nil pointer evaluating template.I.Method0`,
 		},
 	}
 	for _, tc := range tests {
