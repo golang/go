@@ -2024,6 +2024,13 @@ func emitCDATA(w io.Writer, s []byte) error {
 	if len(s) == 0 {
 		return nil
 	}
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRune(s[i:])
+		if !isInCharacterRange(r) || r == utf8.RuneError && size == 1 {
+			return fmt.Errorf("xml: invalid character %#U in CDATA", r)
+		}
+		i += size
+	}
 	if _, err := w.Write(cdataStart); err != nil {
 		return err
 	}
