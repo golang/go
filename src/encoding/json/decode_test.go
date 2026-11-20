@@ -2977,3 +2977,45 @@ func TestUnmarshalMaxDepth(t *testing.T) {
 		}
 	}
 }
+
+type unmarshalTypeErrorReceiver struct {
+	value string
+}
+
+func (t *unmarshalTypeErrorReceiver) UnmarshalJSON(data []byte) error {
+	return Unmarshal(data, &t.value)
+}
+
+func TestCustomUnmarshalTypeErrorField(t *testing.T) {
+	type Target struct {
+		Foo unmarshalTypeErrorReceiver `json:"foo"`
+	}
+	var tgt Target
+	err := Unmarshal([]byte(`{"foo":[]}`), &tgt)
+	ute, ok := err.(*UnmarshalTypeError)
+	if !ok {
+		t.Fatalf("Unmarshal error = %v (%T), want *UnmarshalTypeError", err, err)
+	}
+	if ute.Field != "foo" {
+		t.Errorf("UnmarshalTypeError.Field = %q, want %q", ute.Field, "foo")
+	}
+	if ute.Struct != "Target" {
+		t.Errorf("UnmarshalTypeError.Struct = %q, want %q", ute.Struct, "Target")
+	}
+
+	// Also test anonymous struct as reported in issue #82870.
+	var anonTarget struct {
+		Foo unmarshalTypeErrorReceiver `json:"foo"`
+	}
+	err = Unmarshal([]byte(`{"foo":[]}`), &anonTarget)
+	ute, ok = err.(*UnmarshalTypeError)
+	if !ok {
+		t.Fatalf("Unmarshal error = %v (%T), want *UnmarshalTypeError", err, err)
+	}
+	if ute.Field != "foo" {
+		t.Errorf("UnmarshalTypeError.Field = %q, want %q", ute.Field, "foo")
+	}
+	if ute.Struct != "" {
+		t.Errorf("UnmarshalTypeError.Struct = %q, want empty string", ute.Struct)
+	}
+}
