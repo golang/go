@@ -51,11 +51,11 @@ func (cr *chunkedReader) beginChunk() {
 		return
 	}
 	cr.excess += int64(len(line)) + 2 // header, plus \r\n after the chunk data
-	line = trimTrailingWhitespace(line)
 	line, cr.err = removeChunkExtension(line)
 	if cr.err != nil {
 		return
 	}
+	line = trimTrailingWhitespace(line)
 	cr.n, cr.err = parseHexUint(line)
 	if cr.err != nil {
 		return

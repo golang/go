@@ -177,12 +177,14 @@ func TestChunkReadingIgnoresExtensions(t *testing.T) {
 		"hello, \r\n" +
 		"17;someext\r\n" + // token without value
 		"world! 0123456789abcdef\r\n" +
+		"1 \t;ext\r\n" + // whitespace before the semicolon
+		"!\r\n" +
 		"0;someextension=sometoken\r\n" // token=token
 	data, err := io.ReadAll(NewChunkedReader(strings.NewReader(in)))
 	if err != nil {
 		t.Fatalf("ReadAll = %q, %v", data, err)
 	}
-	if g, e := string(data), "hello, world! 0123456789abcdef"; g != e {
+	if g, e := string(data), "hello, world! 0123456789abcdef!"; g != e {
 		t.Errorf("read %q; want %q", g, e)
 	}
 }
