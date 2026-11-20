@@ -221,4 +221,46 @@ func TestLookPath(t *testing.T) {
 		t.Run("dotdot1", checker("abc/.."))
 		t.Run("dotdot2", checker(".."))
 	})
+
+	// Names whose final path element consists only of dots cannot denote
+	// an executable; they must not resolve through extension probing to a
+	// different file (for example, "abc/.." must not resolve "abc/...exe").
+	// See issue #74466 and CVE-2025-47906.
+	t.Run("dots-only elements", func(t *testing.T) {
+		dir := t.TempDir()
+		for _, f := range []string{".exe", "abc/...exe", "abc/..exe", "sub/..exe"} {
+			p := filepath.Join(dir, filepath.FromSlash(f))
+			if err := os.MkdirAll(filepath.Dir(p), 0o777); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(p, []byte{1, 2, 3}, 0o777); err != nil {
+				t.Fatal(err)
+			}
+		}
+		t.Chdir(dir)
+
+		for _, name := range []string{"abc/..", "abc/.", "sub/.", "./", "abc/../"} {
+			p, err := LookPath(name)
+			if err == nil {
+				t.Errorf("LookPath(%q) = %q, want error", name, p)
+			}
+			if p != "" {
+				t.Errorf("LookPath(%q) returned path %q, want empty", name, p)
+			}
+		}
+	})
+
+	// The same names must not resolve when the dots-only sibling lives in
+	// a PATH directory; such a resolution would be silent (dotErr is never
+	// set for it).
+	t.Run("dots-only in PATH dir", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "....exe"), []byte{1, 2, 3}, 0o777); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv(pathVar, dir)
+		if p, err := LookPath("..."); err == nil || p != "" {
+			t.Errorf("LookPath(%q) = %q, %v; want error and empty path", "...", p, err)
+		}
+	})
 }
