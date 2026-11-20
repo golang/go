@@ -781,6 +781,14 @@ func (t *tester) registerTests() {
 			env:     []string{"GOEXPERIMENT=" + goexperiments("simd")},
 			pkg:     "simd",
 		})
+		// hash/crc32 has an arm64 implementation built only with simd.
+		if goarch == "arm64" {
+			t.registerTest("GOEXPERIMENT=simd go test hash/crc32", &goTest{
+				variant: "simd",
+				env:     []string{"GOEXPERIMENT=" + goexperiments("simd")},
+				pkg:     "hash/crc32",
+			})
+		}
 		// simd/archsimd supports amd64, arm64, and wasm.
 		archsimdSupported := goarch == "amd64" || goarch == "arm64" || goarch == "wasm"
 		if archsimdSupported {
