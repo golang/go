@@ -345,3 +345,24 @@ func TestCrossOriginProtectionServer(t *testing.T) {
 		})
 	}
 }
+
+func TestCrossOriginProtectionHandlerPanic(t *testing.T) {
+	t.Run("nil receiver", func(t *testing.T) {
+		var protection *http.CrossOriginProtection
+		defer func() {
+			if recover() == nil {
+				t.Fatal("got no panic; want panic")
+			}
+		}()
+		protection.Handler(okHandler)
+	})
+	t.Run("nil handler", func(t *testing.T) {
+		protection := http.NewCrossOriginProtection()
+		defer func() {
+			if recover() == nil {
+				t.Fatal("got no panic; want panic")
+			}
+		}()
+		protection.Handler(nil)
+	})
+}
