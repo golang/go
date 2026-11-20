@@ -20,6 +20,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/net/idna"
 )
 
 // PublicSuffixList provides the public suffix of a domain. For example:
@@ -341,15 +343,35 @@ func canonicalHost(host string) (string, error) {
 			return "", err
 		}
 	}
-	// Strip trailing dot from fully qualified domain names.
-	host = strings.TrimSuffix(host, ".")
-	encoded, err := toASCII(host)
+	host, err = toASCII(host)
 	if err != nil {
 		return "", err
 	}
+	// Strip trailing dot from fully qualified domain names.
+	host = strings.TrimSuffix(host, ".")
 	// We know this is ascii, no need to check.
-	lower, _ := ascii.ToLower(encoded)
+	lower, _ := ascii.ToLower(host)
 	return lower, nil
+}
+
+// toASCII converts a host name to its ASCII form in the same way as
+// net/http's idnaASCII does for the host it connects to: ASCII names are
+// left as they are, others are converted with the IDNA Lookup profile.
+// For example, toASCII("bücher.example.com") is "xn--bcher-kva.example.com".
+func toASCII(host string) (string, error) {
+	if ascii.Is(host) {
+		return host, nil
+	}
+	encoded, err := idna.Lookup.ToASCII(host)
+	if err != nil {
+		return "", err
+	}
+	// Like net/http, reject a name that converts to nothing, such as
+	// U+00AD SOFT HYPHEN, which IDNA maps to the empty string.
+	if strings.TrimSuffix(encoded, ".") == "" {
+		return "", errEmptyHost
+	}
+	return encoded, nil
 }
 
 // hasPort reports whether host contains a port number. host may be a host
@@ -484,6 +506,7 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 var (
 	errIllegalDomain   = errors.New("cookiejar: illegal cookie domain attribute")
 	errMalformedDomain = errors.New("cookiejar: malformed cookie domain attribute")
+	errEmptyHost       = errors.New("cookiejar: host name converts to the empty string")
 )
 
 // endOfTime is the time when session (non-persistent) cookies expire.
