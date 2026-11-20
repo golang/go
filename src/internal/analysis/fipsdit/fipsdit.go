@@ -147,6 +147,9 @@ var allowlist = map[string]bool{
 	"crypto/internal/fips140/sha512.New384":     true,
 	"crypto/internal/fips140/sha512.New512_224": true,
 	"crypto/internal/fips140/sha512.New512_256": true,
+
+	// Check only hashes public certificate metadata (issuer SPKI and serial).
+	"crypto/internal/upki.Check": true,
 }
 
 // funcFact is an analysis.Fact exported on *types.Func objects.
