@@ -21,6 +21,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"simd/archsimd/_gen/gentools"
+	"simd/archsimd/_gen/sgutil"
 )
 
 // buildConfigs are the configurations we report API coverage for. The API is spread
@@ -101,48 +102,36 @@ func (f fact) archMethodKey() archMethodKey { return archMethodKey{f.target, f.p
 // runs count as one tool.
 func (f fact) tool() string { t, _, _ := strings.Cut(f.gen, "/"); return t }
 
-// nonSpecOp reports whether name is an operation that will never come from spec:
-// specifically architecture bridge operations ToArch and FromArch.
-// They are excluded from the fact table, and
-// so from every denominator. See SPEC-TRANSITION.md §2.7.
+// nonSpecOp reports whether name is an architecture bridge operation, ToArch
+// or a FromArch, which will never come from spec (SPEC-TRANSITION.md §2.7).
+// It's used to exclude such operations from spec's side as well as the API's.
 func nonSpecOp(name string) bool {
 	return name == "ToArch" || strings.HasSuffix(name, "FromArch")
 }
 
 // nonSpecDecl reports whether d is a declaration that will never come from
-// spec, so that it is excluded from the fact table and every denominator:
-// a [nonSpecOp], or a declaration that is not a vector operation at all.
-// These are:
-//
-//   - CPU feature checks, the methods of archsimd.X86Features and
-//     archsimd.ARM64Features (such as X86.AVX512 and ARM64.SVE);
-//   - package simd's queries about the implementation, Emulated, VectorBits
-//     (and its deprecated old name, VectorBitSize), and
-//     HasHardwareCarrylessMultiply, which the generator README lists as
-//     the one addition to the intersection of the archsimd APIs;
-//   - archsimd.ClearAVXUpperBits, a hint to the hardware with no operands;
-//   - the amd64 Merge methods, which are deprecated in favor of IfElse, which
-//     spec covers.
+// spec, so that it is excluded from the fact table and every denominator.
 func nonSpecDecl(d *decl) bool {
 	switch {
-	case nonSpecOp(d.name):
+	case sgutil.NonSpecAPI(d.pkg, d.recv, d.name):
+		// APIs that may be generally available without being in spec: the CPU
+		// feature checks, the ToArch and FromArch conversions, VectorBits and
+		// Emulated.
 		return true
-	case d.recv == "X86Features" || d.recv == "ARM64Features":
+	case d.recv == "" && (d.name == "VectorBitSize" || d.name == "HasHardwareCarrylessMultiply"):
+		// Deprecated: VectorBitSize is the old name of VectorBits, and
+		// HasHardwareCarrylessMultiply was the one addition to the
+		// intersection of the archsimd APIs in package simd.
 		return true
-	case d.recv == "" && nonSpecFuncs[d.name]:
+	case d.recv == "" && d.name == "ClearAVXUpperBits":
+		// Not a vector operation: a hint to the hardware with no operands.
 		return true
 	case d.recv != "" && d.name == "Merge":
+		// Deprecated: the amd64 Merge methods, replaced by IfElse, which spec
+		// covers.
 		return true
 	}
 	return false
-}
-
-var nonSpecFuncs = map[string]bool{
-	"Emulated":                     true,
-	"VectorBits":                   true,
-	"VectorBitSize":                true,
-	"HasHardwareCarrylessMultiply": true,
-	"ClearAVXUpperBits":            true,
 }
 
 // loadOverlay builds a packages.Config.Overlay map from the scratch overlay
