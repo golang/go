@@ -38,7 +38,7 @@ This data is collected in accordance with the Google Privacy Policy
 To view the current telemetry mode, run "go telemetry".
 To disable telemetry uploading, but keep local data collection, run
 "go telemetry local".
-To enable both collection and uploading, run “go telemetry on”.
+To enable both collection and uploading, run "go telemetry on".
 To disable both collection and uploading, run "go telemetry off".
 
 The current telemetry mode is also available as the value of the
