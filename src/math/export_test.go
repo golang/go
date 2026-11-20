@@ -8,6 +8,7 @@ package math
 var ExpGo = exp
 var Exp2Go = exp2
 var HypotGo = hypot
+var FrexpGo = frexp
 var SqrtGo = sqrt
 var TrigReduce = trigReduce
 
