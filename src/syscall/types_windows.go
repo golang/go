@@ -528,7 +528,7 @@ type StartupInfo struct {
 // _PROC_THREAD_ATTRIBUTE_LIST is a placeholder type to represent a the opaque PROC_THREAD_ATTRIBUTE_LIST.
 //
 // Manipulate this type only through [procThreadAttributeListContainer] to ensure proper handling of the
-// underlying memory. See https://g.dev/issue/73170.
+// underlying memory. See https://go.dev/issue/73170.
 type _PROC_THREAD_ATTRIBUTE_LIST struct{}
 
 type procThreadAttributeListContainer struct {
