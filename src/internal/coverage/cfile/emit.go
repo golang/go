@@ -9,6 +9,7 @@
 package cfile
 
 import (
+	"encoding/binary"
 	"fmt"
 	"hash/fnv"
 	"internal/coverage"
@@ -256,7 +257,7 @@ func emitMetaDataToDirectory(outdir string, ml []rtcov.CovMetaBlob) error {
 	}
 
 	// Open output files.
-	if err := s.openOutputFiles(finalHash, finalMetaLen, metaDataFile); err != nil {
+	if err := s.openOutputFiles(finalHash, metaDataFile); err != nil {
 		return err
 	}
 
@@ -307,7 +308,7 @@ func emitCounterDataToDirectory(outdir string) error {
 	}
 
 	// Open output file.
-	if err := s.openOutputFiles(finalHash, finalMetaLen, counterDataFile); err != nil {
+	if err := s.openOutputFiles(finalHash, counterDataFile); err != nil {
 		return err
 	}
 	if s.cf == nil {
@@ -339,21 +340,51 @@ func (s *emitState) emitCounterDataToWriter(w io.Writer) error {
 	return nil
 }
 
+// metaFileReusable reports whether the meta-data file already present
+// at path is a complete file for metaHash, in which case the caller
+// can reuse it instead of emitting a new one. The header check (magic,
+// version, hash, and self-reported length against the actual size)
+// rejects partial files left behind by interrupted runs.
+func metaFileReusable(path string, metaHash [16]byte) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	var mh coverage.MetaFileHeader
+	if err := binary.Read(f, binary.LittleEndian, &mh); err != nil {
+		return false
+	}
+	return mh.Magic == coverage.CovMetaMagic &&
+		mh.Version == coverage.MetaFileVersion &&
+		mh.MetaFileHash == metaHash &&
+		mh.TotalLength == uint64(fi.Size())
+}
+
 // openMetaFile determines whether we need to emit a meta-data output
 // file, or whether we can reuse the existing file in the coverage out
 // dir. It updates mfname/mftmp/mf fields in 's', returning an error
 // if something went wrong. See the comment on the emitState type
 // definition above for more on how file opening is managed.
-func (s *emitState) openMetaFile(metaHash [16]byte, metaLen uint64) error {
+func (s *emitState) openMetaFile(metaHash [16]byte) error {
 
 	// Open meta-outfile for reading to see if it exists.
 	fn := fmt.Sprintf("%s.%x", coverage.MetaFilePref, metaHash)
 	s.mfname = filepath.Join(s.outdir, fn)
-	fi, err := os.Stat(s.mfname)
-	if err != nil || fi.Size() != int64(metaLen) {
-		// We need a new meta-file.
-		tname := "tmp." + fn + strconv.FormatInt(time.Now().UnixNano(), 10)
+	if !metaFileReusable(s.mfname, metaHash) {
+		// We need a new meta-file. Include the pid in the temp
+		// name: without it, two processes emitting to the same
+		// directory can pick the same temp name when their clocks
+		// agree on the time, and the loser's rename then fails
+		// with ENOENT (issue #82911).
+		tname := "tmp." + fn + "." + strconv.Itoa(os.Getpid()) + "." +
+			strconv.FormatInt(time.Now().UnixNano(), 10)
 		s.mftmp = filepath.Join(s.outdir, tname)
+		var err error
 		s.mf, err = os.Create(s.mftmp)
 		if err != nil {
 			return fmt.Errorf("creating meta-data file %s: %v", s.mftmp, err)
@@ -389,7 +420,7 @@ func (s *emitState) openCounterFile(metaHash [16]byte) error {
 // 'mf', close it, and then rename 'mftmp' to 'mfname'. This function
 // also opens the counter data output file, setting 'cf' and 'cfname'
 // in the state struct.
-func (s *emitState) openOutputFiles(metaHash [16]byte, metaLen uint64, which fileType) error {
+func (s *emitState) openOutputFiles(metaHash [16]byte, which fileType) error {
 	fi, err := os.Stat(s.outdir)
 	if err != nil {
 		return fmt.Errorf("output directory %q inaccessible (err: %v); no coverage data written", s.outdir, err)
@@ -399,7 +430,7 @@ func (s *emitState) openOutputFiles(metaHash [16]byte, metaLen uint64, which fil
 	}
 
 	if (which & metaDataFile) != 0 {
-		if err := s.openMetaFile(metaHash, metaLen); err != nil {
+		if err := s.openMetaFile(metaHash); err != nil {
 			return err
 		}
 	}
