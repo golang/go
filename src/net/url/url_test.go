@@ -1340,6 +1340,13 @@ var resolveReferenceTests = []struct {
 	{"http://foo.com/bar/baz", "quux/./dotdot/dotdot/./.././../tail", "http://foo.com/bar/quux/tail"},
 	{"http://foo.com/bar/baz", "quux/./dotdot/dotdot/dotdot/./../../.././././tail", "http://foo.com/bar/quux/tail"},
 	{"http://foo.com/bar/baz", "quux/./dotdot/../dotdot/../dot/./tail/..", "http://foo.com/bar/quux/dot/"},
+	// reached root followed by empty segments (issue 80282)
+	{"http://foo.com", "..//", "http://foo.com//"},
+	{"http://foo.com", "..//b", "http://foo.com//b"},
+	{"http://foo.com/a/", "b/../..//", "http://foo.com//"},
+	{"http://foo.com/a/", "b/../..//c", "http://foo.com//c"},
+	{"http://foo.com", "http://bar.com/..//", "http://bar.com//"},
+	{"http://foo.com", "http://bar.com/..//b", "http://bar.com//b"},
 
 	// Remove any dot-segments prior to forming the target URI.
 	// https://datatracker.ietf.org/doc/html/rfc3986#section-5.2.4

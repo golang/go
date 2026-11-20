@@ -1054,7 +1054,15 @@ func (v Values) Encode() string {
 // resolvePath applies special path segments from refs and applies
 // them to base, per RFC 3986.
 func resolvePath(base, ref string) string {
+	if base == "" && ref == "" {
+		return ""
+	}
+
+	// RFC 3986 Section 5.2.3. Merge Paths
 	var full string
+	if !strings.HasPrefix(base, "/") {
+		base = "/" + base
+	}
 	if ref == "" {
 		full = base
 	} else if ref[0] != '/' {
@@ -1063,46 +1071,45 @@ func resolvePath(base, ref string) string {
 	} else {
 		full = ref
 	}
-	if full == "" {
-		return ""
+	if full == "/" {
+		return "/"
 	}
 
+	// RFC 3986 Section 5.2.4. Remove Dot Segments
 	dst := make([]byte, 0, len(full)+1)
-	dst = append(dst, '/')
-	elem := ""
 	remaining := full
-	found := true
-	first := true
-	for found {
-		elem, remaining, found = strings.Cut(remaining, "/")
-		switch elem {
-		case ".":
-			first = false
-			continue
-		case "..":
-			if i := bytes.LastIndexByte(dst[1:], '/'); i >= 0 {
-				dst = dst[:i+1]
+
+	for len(remaining) > 0 {
+		if strings.HasPrefix(remaining, "../") || strings.HasPrefix(remaining, "./") {
+			i := strings.Index(remaining, "/")
+			remaining = remaining[i+1:]
+		} else if strings.HasPrefix(remaining, "/./") {
+			remaining = remaining[2:]
+		} else if remaining == "/." {
+			remaining = "/"
+		} else if strings.HasPrefix(remaining, "/../") || remaining == "/.." {
+			if i := bytes.LastIndexByte(dst, '/'); i >= 0 {
+				dst = dst[:i]
 			} else {
-				dst = dst[:1]
+				dst = dst[:0]
 			}
-			first = len(dst) == 1
-		default:
-			if !first {
-				dst = append(dst, '/')
+
+			if remaining == "/.." {
+				remaining = "/"
+			} else {
+				remaining = remaining[3:]
 			}
-			dst = append(dst, elem...)
-			first = false
+		} else if remaining == "." || remaining == ".." {
+			remaining = ""
+		} else if i := strings.Index(remaining[1:], "/"); i >= 0 {
+			dst = append(dst, remaining[:i+1]...)
+			remaining = remaining[i+1:]
+		} else {
+			dst = append(dst, remaining...)
+			remaining = ""
 		}
 	}
 
-	if elem == "." || elem == ".." {
-		dst = append(dst, '/')
-	}
-
-	// We wrote an initial '/', but we don't want two.
-	if len(dst) > 1 && dst[1] == '/' {
-		return string(dst[1:])
-	}
 	return string(dst)
 }
 
