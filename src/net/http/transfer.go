@@ -97,6 +97,21 @@ func newTransferWriter(r any) (t *transferWriter, err error) {
 		if t.ContentLength < 0 && len(t.TransferEncoding) == 0 && t.shouldSendChunkedRequestBody() {
 			t.TransferEncoding = []string{"chunked"}
 		}
+		// Any other TransferEncoding (such as "identity") turns off
+		// chunking. A body of unknown length then has no framing at all:
+		// HTTP/1.1 has no close-delimited request body (RFC 9112,
+		// Section 6.3), so the server would read the body as the start
+		// of the next request. Only an empty body can be sent this way.
+		// (Issue 38867.)
+		if t.ContentLength < 0 && len(t.TransferEncoding) > 0 && !chunked(t.TransferEncoding) && t.Method != "CONNECT" {
+			t.probeRequestBody() // adjusts t.Body, t.ContentLength
+			if er, ok := t.Body.(errorReader); ok {
+				return nil, er.err
+			}
+			if t.Body != nil {
+				return nil, fmt.Errorf("http: Request.TransferEncoding=%q with Body of unknown length", rr.TransferEncoding)
+			}
+		}
 		// If there's a body, conservatively flush the headers
 		// to any bufio.Writer we're writing to, just in case
 		// the server needs the headers early, before we copy
@@ -208,7 +223,8 @@ func (t *transferWriter) shouldSendChunkedRequestBody() bool {
 // are true:
 //   - the request body blocks
 //   - the content length is not set (or set to -1)
-//   - the method doesn't usually have a body (GET, HEAD, DELETE, ...)
+//   - the method doesn't usually have a body (GET, HEAD, DELETE, ...),
+//     or the request's TransferEncoding turns off chunking
 //   - there is no transfer-encoding=chunked already set.
 //
 // In other words, this delay will not normally affect anybody, and there
@@ -246,7 +262,8 @@ func (t *transferWriter) probeRequestBody() {
 		// Too slow. Don't wait. Read it later, and keep
 		// assuming that this is ContentLength == -1
 		// (unknown), which means we'll send a
-		// "Transfer-Encoding: chunked" header.
+		// "Transfer-Encoding: chunked" header (or, if
+		// TransferEncoding turns off chunking, return an error).
 		t.Body = io.MultiReader(finishAsyncByteRead{t}, t.Body)
 		// Request that Request.Write flush the headers to the
 		// network before writing the body, since our body may not
