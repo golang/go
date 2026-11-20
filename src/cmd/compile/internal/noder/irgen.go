@@ -181,7 +181,7 @@ recheck:
 		dumpSyntax(pkg, info, files, "checked")
 	}
 
-	if buildcfg.Experiment.SIMD && !didMidway {
+	if buildcfg.Experiment.SIMDStable && !didMidway {
 		didMidway = true
 		// Perform midway transformation on AST directly
 		if midway.RewriteWrapper(pkg, info, files) {

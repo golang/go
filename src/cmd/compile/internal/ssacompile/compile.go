@@ -450,9 +450,9 @@ var passes = [...]ssa.Pass{
 	{Name: "writebarrier", Fn: writebarrier, Required: true}, // expand write barrier ops
 	{Name: "insert resched checks", Fn: insertLoopReschedChecks,
 		Disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.
-	{Name: "cpufeatures", Fn: cpufeatures, Required: buildcfg.Experiment.SIMD, Disabled: !buildcfg.Experiment.SIMD},
-	{Name: "rewrite tern", Fn: rewriteTern, Required: false, Disabled: !buildcfg.Experiment.SIMD},
-	{Name: "simd enlarge", Fn: simdEnlarge, Required: false, Disabled: !buildcfg.Experiment.SIMD},
+	{Name: "cpufeatures", Fn: cpufeatures, Required: buildcfg.Experiment.SIMDStable, Disabled: !buildcfg.Experiment.SIMDStable},
+	{Name: "rewrite tern", Fn: rewriteTern, Required: false, Disabled: !buildcfg.Experiment.SIMDStable},
+	{Name: "simd enlarge", Fn: simdEnlarge, Required: false, Disabled: !buildcfg.Experiment.SIMDStable},
 	{Name: "lower", Fn: lower, Required: true},
 	{Name: "addressing modes", Fn: addressingModes, Required: false},
 	{Name: "late lower", Fn: lateLower, Required: true},

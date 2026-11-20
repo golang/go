@@ -503,7 +503,7 @@ func CalcStructSize(t *Type) {
 		case sym.Name == "align128" && isAtomicStdPkg(sym.Pkg):
 			maxAlign = 16
 
-		case buildcfg.Experiment.SIMD && sym.Pkg.Path == "simd/archsimd":
+		case buildcfg.Experiment.SIMDStable && sym.Pkg.Path == "simd/archsimd":
 			// This gates the experiment -- without it, no user-visible types can be "simd".
 			// The SSA-visible SIMD types remain.
 			switch sym.Name {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build amd64 && goexperiment.simd && !boringcrypto
+//go:build amd64 && goexperiment.simdstable && !boringcrypto
 
 package amd64_test
 

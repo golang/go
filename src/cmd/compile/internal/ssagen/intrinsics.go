@@ -1742,11 +1742,39 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		all...)
 
-	if buildcfg.Experiment.SIMD {
-		// Only enable intrinsics, if SIMD experiment.
+	if buildcfg.Experiment.SIMDStable {
+		// Fixed-width SIMD intrinsics.
 		simdAMD64Intrinsics(addF)
 		simdARM64Intrinsics(addF)
 		initWasmSIMD()
+
+		for _, typ := range []string{
+			"Int8x16", "Int16x8", "Int32x4", "Int64x2",
+			"Uint8x16", "Uint16x8", "Uint32x4", "Uint64x2",
+			"Int8x32", "Int16x16", "Int32x8", "Int64x4",
+			"Uint8x32", "Uint16x16", "Uint32x8", "Uint64x4",
+		} {
+			addF(simdPackage, typ+".IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		}
+		for _, t := range []struct {
+			name string
+			op   ssaop.Op
+			typ  *types.Type
+		}{
+			{"Float32x4", ssaop.OpIsNaNFloat32x4, types.TypeVec128},
+			{"Float32x8", ssaop.OpIsNaNFloat32x8, types.TypeVec256},
+			{"Float32x16", ssaop.OpIsNaNFloat32x16, types.TypeVec512},
+			{"Float64x2", ssaop.OpIsNaNFloat64x2, types.TypeVec128},
+			{"Float64x4", ssaop.OpIsNaNFloat64x4, types.TypeVec256},
+			{"Float64x8", ssaop.OpIsNaNFloat64x8, types.TypeVec512},
+		} {
+			addF(simdPackage, t.name+".IsNaN", opLen1(t.op, t.typ), sys.AMD64)
+		}
+	}
+
+	if buildcfg.Experiment.SIMD {
+		// Experimental SIMD intrinsics: scalable vectors (SVE) and
+		// operations that are not part of the stable API.
 		simdARM64SVEIntrinsics(addF)
 		// Hand-written SVE infra intrinsic (not generated from a type op): vl
 		// reads the runtime vector length so the package can bound-check it.
@@ -1811,29 +1839,6 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 				return nil
 			},
 			sys.AMD64)
-
-		for _, typ := range []string{
-			"Int8x16", "Int16x8", "Int32x4", "Int64x2",
-			"Uint8x16", "Uint16x8", "Uint32x4", "Uint64x2",
-			"Int8x32", "Int16x16", "Int32x8", "Int64x4",
-			"Uint8x32", "Uint16x16", "Uint32x8", "Uint64x4",
-		} {
-			addF(simdPackage, typ+".IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		}
-		for _, t := range []struct {
-			name string
-			op   ssaop.Op
-			typ  *types.Type
-		}{
-			{"Float32x4", ssaop.OpIsNaNFloat32x4, types.TypeVec128},
-			{"Float32x8", ssaop.OpIsNaNFloat32x8, types.TypeVec256},
-			{"Float32x16", ssaop.OpIsNaNFloat32x16, types.TypeVec512},
-			{"Float64x2", ssaop.OpIsNaNFloat64x2, types.TypeVec128},
-			{"Float64x4", ssaop.OpIsNaNFloat64x4, types.TypeVec256},
-			{"Float64x8", ssaop.OpIsNaNFloat64x8, types.TypeVec512},
-		} {
-			addF(simdPackage, t.name+".IsNaN", opLen1(t.op, t.typ), sys.AMD64)
-		}
 
 		// sfp4 is intrinsic-if-constant, but otherwise it's complicated enough to just implement in Go.
 		sfp4 := func(method string, hwop ssaop.Op, vectype *types.Type) {

@@ -26,7 +26,7 @@ func TestCanSSA(t *testing.T) {
 		// Test size check for array.
 		t.Errorf("CanSSA(%v) returned true, expected false", a1)
 	}
-	if buildcfg.Experiment.SIMD {
+	if buildcfg.Experiment.SIMDStable {
 		s2 := mkstruct(v128, v128, v128, v128)
 		if !ssa.CanSSA(s2) {
 			// Test size check for SIMD struct special case.

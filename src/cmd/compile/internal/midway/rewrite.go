@@ -571,7 +571,7 @@ func (r *Rewriter) shouldIncludeDecl(decl syntax.Decl) bool {
 
 // Generate an API matching the standalone compilation call
 func RewriteWrapper(pkg *types2.Package, info *types2.Info, files []*syntax.File) bool {
-	if !buildcfg.Experiment.SIMD {
+	if !buildcfg.Experiment.SIMDStable {
 		return false
 	}
 

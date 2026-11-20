@@ -80,7 +80,7 @@ func CanSSA(t *types.Type) bool {
 		// 4*Widthptr is an arbitrary constant. We want it
 		// to be at least 3*Widthptr so slices can be registerized.
 		// Too big and we'll introduce too much register pressure.
-		if !buildcfg.Experiment.SIMD {
+		if !buildcfg.Experiment.SIMDStable {
 			return false
 		}
 	}
@@ -109,7 +109,7 @@ func CanSSA(t *types.Type) bool {
 		// Special check for SIMD. If the composite type
 		// contains SIMD vectors we can return true
 		// if it pass the checks below.
-		if !buildcfg.Experiment.SIMD {
+		if !buildcfg.Experiment.SIMDStable {
 			return true
 		}
 		if t.Size() <= sizeLimit {
