@@ -1,0 +1,47 @@
+# A file path into a nested replacement module must resolve using that module,
+# not the replacement module containing its directory.
+cd m
+go list ../a
+stdout '^example.com/a$'
+go list ../a/b
+stdout '^example.com/b$'
+go list ../a/b/c
+stdout '^example.com/b/c$'
+go list $GOPATH/src/a/b
+stdout '^example.com/b$'
+
+# Also check the pruned module graph.
+go mod edit -go=1.17
+go list ../a/b
+stdout '^example.com/b$'
+go list ../a/b/c
+stdout '^example.com/b/c$'
+
+-- m/go.mod --
+module example.com/m
+
+go 1.16
+
+require (
+	example.com/a v0.0.0
+	example.com/b v0.0.0
+)
+
+replace (
+	example.com/a => ../a
+	example.com/b => ../a/b
+)
+-- a/go.mod --
+module example.com/a
+
+go 1.16
+-- a/a.go --
+package a
+-- a/b/go.mod --
+module example.com/b
+
+go 1.16
+-- a/b/b.go --
+package b
+-- a/b/c/c.go --
+package c
