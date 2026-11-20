@@ -983,6 +983,30 @@ func testQueryRow(t *testing.T, db *DB) {
 	}
 }
 
+func TestQueryRowDefinedTypes(t *testing.T) {
+	testDatabase(t, testQueryRowDefinedTypes)
+}
+func testQueryRowDefinedTypes(t *testing.T, db *DB) {
+	populate(t, db, "people")
+	type (
+		userID   int64
+		userAge  uint8
+		userName string
+	)
+	var (
+		id   userID
+		age  userAge
+		name userName
+	)
+	err := db.QueryRow("SELECT|people|age,age,name|age=?", 3).Scan(&id, &age, &name)
+	if err != nil {
+		t.Fatalf("QueryRow+Scan: %v", err)
+	}
+	if id != 3 || age != 3 || name != "Chris" {
+		t.Errorf("got %d, %d, %q; want 3, 3, %q", id, age, name, "Chris")
+	}
+}
+
 func TestRowErr(t *testing.T) {
 	testDatabase(t, testRowErr)
 }
