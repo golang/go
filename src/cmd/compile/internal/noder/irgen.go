@@ -181,7 +181,13 @@ recheck:
 		dumpSyntax(pkg, info, files, "checked")
 	}
 
-	if buildcfg.Experiment.SIMDStable && !didMidway {
+	// The midway rewrite only affects code that depends on package simd,
+	// which is only possible if this is package simd or simd is reachable
+	// from the imports. The importer adds every package in the transitive
+	// import graph to importer.packages (export data lists each package's
+	// imports), so this is a cheap way to skip midway for most packages.
+	simdReachable := pkg.Path() == midway.SimdPkg || importer.packages[midway.SimdPkg] != nil
+	if buildcfg.Experiment.SIMDStable && !didMidway && simdReachable {
 		didMidway = true
 		// Perform midway transformation on AST directly
 		if midway.RewriteWrapper(pkg, info, files) {
