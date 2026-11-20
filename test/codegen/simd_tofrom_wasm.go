@@ -7,7 +7,7 @@
 // Verify that portable simd <-> archsimd conversions via ToArch and FromArch
 // inline and fold away with zero overhead on wasm.
 
-//go:build goexperiment.simd && wasm
+//go:build goexperiment.simdstable && wasm
 
 package codegen
 

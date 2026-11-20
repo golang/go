@@ -1,6 +1,6 @@
 // compile
 
-//go:build amd64 && goexperiment.simd
+//go:build amd64 && goexperiment.simdstable
 
 // Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

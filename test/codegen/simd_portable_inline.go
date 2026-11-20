@@ -12,7 +12,7 @@
 // Do not import simd/archsimd, math, or math/bits here: that would mask
 // missing bodies.
 
-//go:build goexperiment.simd && (amd64 || arm64 || wasm)
+//go:build goexperiment.simdstable && (amd64 || arm64 || wasm)
 
 package codegen
 

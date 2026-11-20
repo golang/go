@@ -6,7 +6,7 @@
 
 // These tests check code generation of widening multiplies.
 
-//go:build goexperiment.simd && (arm64 || wasm)
+//go:build goexperiment.simdstable && (arm64 || wasm)
 
 package codegen
 

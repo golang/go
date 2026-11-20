@@ -1,6 +1,6 @@
 // errorcheck -0 -d=ssa/mem2reg/debug=4
 
-//go:build goexperiment.simd
+//go:build goexperiment.simdstable && (amd64 || arm64 || wasm)
 
 // Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

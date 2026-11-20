@@ -1,6 +1,6 @@
 // errorcheck -0 -m
 
-//go:build goexperiment.simd && amd64
+//go:build goexperiment.simdstable && amd64
 
 // Copyright 2025 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

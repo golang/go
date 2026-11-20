@@ -1,5 +1,5 @@
 // asmcheck
-//go:build goexperiment.simd
+//go:build goexperiment.simdstable
 
 // Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

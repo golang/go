@@ -7,7 +7,7 @@
 // Verify that portable simd <-> archsimd conversions via ToArch and FromArch
 // inline and fold away with zero overhead on arm64.
 
-//go:build goexperiment.simd && arm64
+//go:build goexperiment.simdstable && arm64
 
 package codegen
 

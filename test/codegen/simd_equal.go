@@ -7,7 +7,7 @@
 // These tests check code generation of == and != on 128-bit SIMD vectors and
 // masks, which every architecture has.
 
-//go:build goexperiment.simd
+//go:build goexperiment.simdstable
 
 package codegen
 

@@ -7,7 +7,7 @@
 // These tests check code generation of SIMD conversions on 128-bit vectors,
 // which every architecture has.
 
-//go:build goexperiment.simd
+//go:build goexperiment.simdstable
 
 package codegen
 

@@ -1,6 +1,6 @@
 // errorcheck -0 -d=ssa/critical/debug=1
 
-//go:build goexperiment.simd && amd64
+//go:build goexperiment.simdstable && amd64
 
 // Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

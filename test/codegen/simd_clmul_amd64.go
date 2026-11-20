@@ -6,7 +6,7 @@
 
 // These tests check code generation of amd64 SIMD carryless multiply.
 
-//go:build goexperiment.simd && amd64
+//go:build goexperiment.simdstable && amd64
 
 package codegen
 
