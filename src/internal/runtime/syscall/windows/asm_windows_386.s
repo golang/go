@@ -45,6 +45,17 @@ docall:
 	MOVL	AX, StdCallInfo_R1(BX)
 	MOVL	DX, StdCallInfo_R2(BX)
 
+	// Floating point return values are returned in ST(0), the top of the
+	// x87 stack, which is empty otherwise. Pop it as a float64 into R1 and
+	// R2, low word first, so that the x87 stack is left empty.
+	FXAM
+	FSTSW	AX
+	ANDL	$0x4500, AX	// C3, C2 and C0 classify ST(0)
+	CMPL	AX, $0x4100	// empty
+	JEQ	nofloat
+	FMOVDP	F0, StdCallInfo_R1(BX)
+nofloat:
+
 	// GetLastError().
 	MOVL	0x34(FS), AX
 
