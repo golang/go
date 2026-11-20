@@ -143,6 +143,9 @@ func (bz2 *reader) readFromBlock(buf []byte) int {
 		if bz2.byteRepeats == 3 {
 			bz2.repeats = uint(b)
 			bz2.byteRepeats = 0
+			if bz2.repeats == 0 {
+				bz2.lastByte = -1
+			}
 			continue
 		}
 
@@ -168,7 +171,11 @@ func (bz2 *reader) read(buf []byte) (int, error) {
 			return n, nil
 		}
 
-		// End of block. Check CRC.
+		// End of block. Check for a missing repeat count and verify the CRC.
+		if bz2.byteRepeats == 3 {
+			bz2.br.err = StructuralError("missing repeat count")
+			return 0, bz2.br.err
+		}
 		if bz2.blockCRC != bz2.wantBlockCRC {
 			bz2.br.err = StructuralError("block checksum mismatch")
 			return 0, bz2.br.err
@@ -372,6 +379,12 @@ func (bz2 *reader) readBlock() (err error) {
 		}
 
 		v := currentHuffmanTree.Decode(br)
+		if v == invalidHuffmanSymbol {
+			if br.err == nil {
+				br.err = StructuralError("invalid Huffman code")
+			}
+			return br.err
+		}
 		decoded++
 
 		if v < 2 {
