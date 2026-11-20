@@ -739,6 +739,9 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
 	if !ok {
 		errorf("bad interface encoding: name too large for buffer")
 	}
+	if n == 0 {
+		return
+	}
 	bn := state.b.Len()
 	if bn < n {
 		errorf("invalid interface value length %d: exceeds input size %d", n, bn)
