@@ -19,6 +19,55 @@ type intStruct struct {
 	A int
 }
 
+func TestMarshalStringSliceParameters(t *testing.T) {
+	for _, tt := range []struct {
+		params string
+		values []string
+		want   string
+	}{
+		{"utf8", []string{"a", "b"}, "30060c01610c0162"},
+		{"ia5", []string{"a", "b"}, "3006160161160162"},
+		{"printable", []string{"a", "b"}, "3006130161130162"},
+		{"numeric", []string{"1", "2"}, "3006120131120132"},
+		{"utf8", nil, "3000"},
+		{"set,utf8", []string{"b", "a"}, "31060c01610c0162"},
+	} {
+		t.Run(tt.params, func(t *testing.T) {
+			out, err := MarshalWithParams(tt.values, tt.params)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := hex.EncodeToString(out); got != tt.want {
+				t.Errorf("MarshalWithParams = %s, want %s", got, tt.want)
+			}
+		})
+	}
+	t.Run("field tag", func(t *testing.T) {
+		value := struct {
+			Strings []string `asn1:"utf8,explicit,tag:0"`
+		}{[]string{"a", "b"}}
+		out, err := Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := hex.EncodeToString(out), "300aa00830060c01610c0162"; got != want {
+			t.Errorf("Marshal = %s, want %s", got, want)
+		}
+	})
+	for _, tt := range []struct {
+		value  any
+		params string
+	}{
+		{[]string{"\u00e9"}, "ia5"},
+		{[]string{"a"}, "numeric"},
+		{[]int{1}, "utf8"},
+	} {
+		if _, err := MarshalWithParams(tt.value, tt.params); err == nil {
+			t.Errorf("MarshalWithParams(%v, %q) succeeded, want error", tt.value, tt.params)
+		}
+	}
+}
+
 type twoIntStruct struct {
 	A int
 	B int
