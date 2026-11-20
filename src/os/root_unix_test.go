@@ -161,3 +161,56 @@ func TestRootConsistencyLchown(t *testing.T) {
 		})
 	}
 }
+
+func TestRootNoReadPermission(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("O_PATH intermediate directories are Linux-specific")
+	}
+	if os.Getuid() == 0 {
+		t.Skip("test requires an unprivileged user")
+	}
+
+	dir := t.TempDir()
+	parent := filepath.Join(dir, "parent")
+	if err := os.Mkdir(parent, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(parent, 0o300); err != nil {
+		t.Fatal(err)
+	}
+	// Restore permissions so the test's temp dir can be removed.
+	defer os.Chmod(parent, 0o700)
+
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+
+	// Creating an entry in a directory requires write and search
+	// permission on the directory, not read permission.
+	// Root operations must preserve those permission semantics
+	// instead of additionally requiring read permission on
+	// intermediate directories (issue #81605).
+	if err := root.Mkdir("parent/child", 0o700); err != nil {
+		t.Errorf("Root.Mkdir: %v", err)
+	}
+	if err := root.MkdirAll("parent/a/b", 0o700); err != nil {
+		t.Errorf("Root.MkdirAll: %v", err)
+	}
+	f, err := root.Create("parent/file")
+	if err != nil {
+		t.Errorf("Root.Create: %v", err)
+	} else {
+		f.Close()
+	}
+	if _, err := root.Stat("parent/child"); err != nil {
+		t.Errorf("Root.Stat: %v", err)
+	}
+	if err := root.Symlink("child", "parent/link"); err != nil {
+		t.Errorf("Root.Symlink: %v", err)
+	}
+	if _, err := root.Readlink("parent/link"); err != nil {
+		t.Errorf("Root.Readlink: %v", err)
+	}
+}
