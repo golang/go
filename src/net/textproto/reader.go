@@ -819,6 +819,7 @@ func initCommonHeader() {
 		"Cache-Control",
 		"Cc",
 		"Connection",
+		"Content-Disposition",
 		"Content-Id",
 		"Content-Language",
 		"Content-Length",
