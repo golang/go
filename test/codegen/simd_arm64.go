@@ -515,3 +515,43 @@ func sveLookupOrZeroSigned(table archsimd.Int8s, indices archsimd.Uint8s) archsi
 	// arm64:`ZTBL\s+Z[0-9]+\.B, \[Z[0-9]+\.B\], Z[0-9]+\.B` -`PWHILELT`
 	return table.LookupOrZero(indices)
 }
+
+// Keep >8 Mask32s values live simultaneously across Pg1013 operations (ZCPYW
+// /M) so regalloc must restrict <Pg> to P0-P7 even under predicate pressure.
+func sveManyLiveMasks(a archsimd.Int32s, x int32, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9 int) archsimd.Int32s {
+	m0 := archsimd.Mask32sFromCount(c0)
+	m1 := archsimd.Mask32sFromCount(c1)
+	m2 := archsimd.Mask32sFromCount(c2)
+	m3 := archsimd.Mask32sFromCount(c3)
+	m4 := archsimd.Mask32sFromCount(c4)
+	m5 := archsimd.Mask32sFromCount(c5)
+	m6 := archsimd.Mask32sFromCount(c6)
+	m7 := archsimd.Mask32sFromCount(c7)
+	m8 := archsimd.Mask32sFromCount(c8)
+	m9 := archsimd.Mask32sFromCount(c9)
+	a = archsimd.BroadcastInt32s(x).IfElse(m0, a)
+	a = archsimd.BroadcastInt32s(x).IfElse(m1, a)
+	a = archsimd.BroadcastInt32s(x).IfElse(m2, a)
+	a = archsimd.BroadcastInt32s(x).IfElse(m3, a)
+	a = archsimd.BroadcastInt32s(x).IfElse(m4, a)
+	a = archsimd.BroadcastInt32s(x).IfElse(m5, a)
+	a = archsimd.BroadcastInt32s(x).IfElse(m6, a)
+	a = archsimd.BroadcastInt32s(x).IfElse(m7, a)
+	// arm64:`ZCPYW\s+R[0-9]+, P[0-7]\.M, Z[0-9]+\.S` -`P(?:[89]|1[0-5])\.M`
+	a = archsimd.BroadcastInt32s(x).IfElse(m8, a)
+	// arm64:`ZCPYW\s+R[0-9]+, P[0-7]\.M, Z[0-9]+\.S` -`P(?:[89]|1[0-5])\.M`
+	a = archsimd.BroadcastInt32s(x).IfElse(m9, a)
+	a = archsimd.BroadcastInt32s(x).IfElse(m0, a)
+	a = archsimd.BroadcastInt32s(x).IfElse(m1, a)
+	a = archsimd.BroadcastInt32s(x).IfElse(m2, a)
+	a = archsimd.BroadcastInt32s(x).IfElse(m3, a)
+	a = archsimd.BroadcastInt32s(x).IfElse(m4, a)
+	a = archsimd.BroadcastInt32s(x).IfElse(m5, a)
+	a = archsimd.BroadcastInt32s(x).IfElse(m6, a)
+	a = archsimd.BroadcastInt32s(x).IfElse(m7, a)
+	// arm64:`ZCPYW\s+R[0-9]+, P[0-7]\.M, Z[0-9]+\.S` -`P(?:[89]|1[0-5])\.M`
+	a = archsimd.BroadcastInt32s(x).IfElse(m8, a)
+	// arm64:`ZCPYW\s+R[0-9]+, P[0-7]\.M, Z[0-9]+\.S` -`P(?:[89]|1[0-5])\.M`
+	a = archsimd.BroadcastInt32s(x).IfElse(m9, a)
+	return a
+}
