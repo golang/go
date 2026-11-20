@@ -279,19 +279,33 @@ func (op Token) Precedence() int {
 	return LowestPrec
 }
 
-var keywords map[string]Token
+// hash is a perfect hash function for keywords.
+// It assumes that s has at least length 2. taken from src/cmd/compile/internal/syntax/scanner.go
+func hash(s string) uint {
+	return (uint(s[0])<<4 ^ uint(s[1]) + uint(len(s))) & uint(len(keywordMap)-1)
+}
+
+var keywordMap [1 << 6]Token // size must be power of two
 
 func init() {
-	keywords = make(map[string]Token, keyword_end-(keyword_beg+1))
-	for i := keyword_beg + 1; i < keyword_end; i++ {
-		keywords[tokens[i]] = i
+	// populate keywordMap
+	for tok := keyword_beg + 1; tok < keyword_end; tok++ {
+		h := hash(tok.String())
+		if keywordMap[h] != 0 {
+			panic("imperfect hash")
+		}
+		keywordMap[h] = tok
 	}
 }
 
 // Lookup maps an identifier to its keyword token or [IDENT] (if not a keyword).
 func Lookup(ident string) Token {
-	if tok, is_keyword := keywords[ident]; is_keyword {
-		return tok
+	if len(ident) < 2 {
+		return IDENT
+	}
+	maybeMatch := keywordMap[hash(ident)]
+	if maybeMatch != 0 && maybeMatch.String() == ident {
+		return maybeMatch
 	}
 	return IDENT
 }
@@ -319,10 +333,12 @@ func IsExported(name string) bool {
 }
 
 // IsKeyword reports whether name is a Go keyword, such as "func" or "return".
-func IsKeyword(name string) bool {
-	// TODO: opt: use a perfect hash function instead of a global map.
-	_, ok := keywords[name]
-	return ok
+func IsKeyword(ident string) bool {
+	if len(ident) < 2 {
+		return false
+	}
+	tok := keywordMap[hash(ident)]
+	return tok != 0 && tok.String() == ident
 }
 
 // IsIdentifier reports whether name is a Go identifier, that is, a non-empty
