@@ -32,6 +32,10 @@ chmod 0755 $WORK/fakebin/git
 ! exec git help
 cd a
 ! go install
+stderr '^error obtaining VCS status: exit status 1:\n\tfatal: cannot read the repository\n\tUse -buildvcs=false to disable VCS stamping.$'
+# With -v, the standard error of git is printed once, not again in the error.
+! go install -v
+stderr -count=1 '^fatal: cannot read the repository'
 stderr '^error obtaining VCS status: exit status 1\n\tUse -buildvcs=false to disable VCS stamping.$'
 go list -e -f '{{.ImportPath}}: {{.Error}}' ./...
 stdout -count=1 '^example\.com/a: error obtaining VCS status'
@@ -123,8 +127,10 @@ stderr -count=1 '^git -c log.showsignature=false log'
 
 -- $WORK/fakebin/git --
 #!/bin/sh
+echo 'fatal: cannot read the repository' >&2
 exit 1
 -- $WORK/fakebin/git.bat --
+echo fatal: cannot read the repository 1>&2
 exit 1
 -- repo/README --
 Far out in the uncharted backwaters of the unfashionable end of the western

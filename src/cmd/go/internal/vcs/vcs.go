@@ -442,9 +442,29 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
 			} else {
 				fmt.Fprintln(os.Stderr, err.Error())
 			}
+		} else if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+			// The command's standard error was not printed above, and
+			// exec.ExitError omits it from its message. Keep it in the
+			// error so that the user can see why the command failed.
+			err = &exitErrorWithStderr{ee}
 		}
 	}
 	return out, err
+}
+
+// An exitErrorWithStderr is an *exec.ExitError whose message includes
+// the standard error output of the command.
+type exitErrorWithStderr struct {
+	*exec.ExitError
+}
+
+func (e *exitErrorWithStderr) Error() string {
+	stderr := bytes.TrimSpace(e.Stderr)
+	return e.ExitError.Error() + ":\n\t" + strings.ReplaceAll(string(stderr), "\n", "\n\t")
+}
+
+func (e *exitErrorWithStderr) Unwrap() error {
+	return e.ExitError
 }
 
 // Ping pings to determine scheme to use.
