@@ -183,3 +183,47 @@ func TestNetlinkAddrMessages(t *testing.T) {
 		t.Errorf("nonexistent interface: got %d messages, %v; want none", len(msgs), err)
 	}
 }
+
+// TestNetlinkLink checks that a single-link request returns the same
+// interface, by index and by name, as a dump of every link, and
+// reports an interface that does not exist as absent rather than as
+// an error.
+func TestNetlinkLink(t *testing.T) {
+	ift, err := Interfaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ifi := range ift {
+		byIndex, err := netlinkLink(ifi.Index, "")
+		if err != nil {
+			t.Fatalf("netlinkLink(%d, \"\"): %v", ifi.Index, err)
+		}
+		if !reflect.DeepEqual(byIndex, &ifi) {
+			t.Errorf("netlinkLink(%d, \"\") = %+v, want %+v", ifi.Index, byIndex, ifi)
+		}
+		byName, err := netlinkLink(0, ifi.Name)
+		if err != nil {
+			t.Fatalf("netlinkLink(0, %q): %v", ifi.Name, err)
+		}
+		if !reflect.DeepEqual(byName, &ifi) {
+			t.Errorf("netlinkLink(0, %q) = %+v, want %+v", ifi.Name, byName, ifi)
+		}
+	}
+	for _, tc := range []struct {
+		index int
+		name  string
+	}{
+		{index: 1 << 30},
+		{name: "gotest-no-such-interface"},
+		{name: "a-name-longer-than-ifnamsiz-allows"},
+		{name: "lo\x00"},
+	} {
+		ifi, err := netlinkLink(tc.index, tc.name)
+		if err != nil {
+			t.Errorf("netlinkLink(%d, %q): %v, want no error", tc.index, tc.name, err)
+		}
+		if ifi != nil {
+			t.Errorf("netlinkLink(%d, %q) = %+v, want nil", tc.index, tc.name, ifi)
+		}
+	}
+}
