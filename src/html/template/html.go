@@ -6,7 +6,7 @@ package template
 
 import (
 	"bytes"
-	"fmt"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -142,7 +142,8 @@ var htmlNospaceNormReplacementTable = []string{
 // htmlReplacer returns s with runes replaced according to replacementTable
 // and when badRunes is true, certain bad runes are allowed through unescaped.
 func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
-	written, b := 0, new(strings.Builder)
+	var b strings.Builder
+	written := 0
 	r, w := rune(0), 0
 	for i := 0; i < len(s); i += w {
 		// Cannot use 'for range s' because we need to preserve the width
@@ -165,7 +166,10 @@ func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
 			if written == 0 {
 				b.Grow(len(s))
 			}
-			fmt.Fprintf(b, "%s&#x%x;", s[written:i], r)
+			b.WriteString(s[written:i])
+			b.WriteString("&#x")
+			b.WriteString(strconv.FormatInt(int64(r), 16))
+			b.WriteByte(';')
 			written = i + w
 		}
 	}
