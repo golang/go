@@ -56,6 +56,9 @@ func (gccgoToolchain) ar() []string {
 }
 
 func checkGccgoBin() {
+	if cfg.RestrictedBuild() {
+		base.Fatalf("go: gccgo is not allowed when GORESTRICTEDBUILD=1")
+	}
 	if gccgoErr == nil {
 		return
 	}

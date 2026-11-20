@@ -737,7 +737,13 @@ func (gcToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg s
 
 // linkEnv returns the environment for the linker.
 func linkEnv() []string {
-	return append(slices.Clip(cfgChangedEnv), "GOROOT="+linkGOROOT())
+	env := append(slices.Clip(cfgChangedEnv), "GOROOT="+linkGOROOT())
+	if cfg.RestrictedBuild() {
+		env = append(env, "GORESTRICTEDBUILD=1")
+	} else {
+		env = append(env, "GORESTRICTEDBUILD=0")
+	}
+	return env
 }
 
 // linkGOROOT returns the GOROOT that the linker expands "$GOROOT" to.
@@ -762,13 +768,16 @@ func checkBindingExternalLinker(root *Action, ldBuildmode string, cxx bool, comp
 	if !bindingNeedsExternalLink(ldBuildmode) {
 		return nil
 	}
+	// The link action depends on all packages in the program.
+	if !slices.ContainsFunc(root.Deps, func(a *Action) bool { return a.Package != nil && a.Package.ImportPath == "runtime/cgo" }) {
+		return nil
+	}
+	if cfg.RestrictedBuild() {
+		return fmt.Errorf("cgo bindings on %s/%s require external linking, which is not allowed when GORESTRICTEDBUILD=1", cfg.Goos, cfg.Goarch)
+	}
 	if slices.ContainsFunc(ldflags, func(f string) bool {
 		return f == "-extld" || f == "--extld" || strings.HasPrefix(f, "-extld=") || strings.HasPrefix(f, "--extld=")
 	}) {
-		return nil
-	}
-	// The link action depends on all packages in the program.
-	if !slices.ContainsFunc(root.Deps, func(a *Action) bool { return a.Package != nil && a.Package.ImportPath == "runtime/cgo" }) {
 		return nil
 	}
 	envName, defaultCC := "CC", cfg.DefaultCC

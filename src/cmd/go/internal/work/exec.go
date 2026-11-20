@@ -2181,6 +2181,9 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 
 		// GO_EXTLINK_ENABLED controls whether the external linker is used.
 		fmt.Fprintf(h, "GO_EXTLINK_ENABLED=%s\n", cfg.Getenv("GO_EXTLINK_ENABLED"))
+		if cfg.RestrictedBuild() {
+			fmt.Fprintf(h, "GORESTRICTEDBUILD=1\n")
+		}
 
 		// TODO(rsc): Do cgo settings and flags need to be included?
 		// Or external linker settings and flags?
@@ -2376,6 +2379,9 @@ func splitPkgConfigOutput(out []byte) ([]string, error) {
 func (b *Builder) getPkgConfigFlags(a *Action, p *load.Package) (cflags, ldflags []string, err error) {
 	sh := b.Shell(a)
 	if pcargs := p.CgoPkgConfig; len(pcargs) > 0 {
+		if cfg.RestrictedBuild() {
+			return nil, nil, errors.New("pkg-config is not allowed when GORESTRICTEDBUILD=1")
+		}
 		// pkg-config permits arguments to appear anywhere in
 		// the command line. Move them all to the front, before --.
 		var pcflags []string
@@ -2908,6 +2914,9 @@ func (b *Builder) gfortran(a *Action, workdir, out string, flags []string, ffile
 
 // ccompile runs the given C or C++ compiler and creates an object from a single source file.
 func (b *Builder) ccompile(a *Action, outfile string, flags []string, file string, compiler []string) error {
+	if cfg.RestrictedBuild() {
+		return errors.New("C compiler invocation is not allowed when GORESTRICTEDBUILD=1")
+	}
 	p := a.Package
 	sh := b.Shell(a)
 	file = mkAbs(p.Dir, file)
@@ -3008,6 +3017,9 @@ func (b *Builder) ccompile(a *Action, outfile string, flags []string, file strin
 
 // gccld runs the gcc linker to create an executable from a set of object files.
 func (b *Builder) gccld(a *Action, objdir, outfile string, flags []string, objs []string) error {
+	if cfg.RestrictedBuild() {
+		return errors.New("C linker invocation is not allowed when GORESTRICTEDBUILD=1")
+	}
 	p := a.Package
 	sh := b.Shell(a)
 	var cmd []string
@@ -3154,6 +3166,9 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	// We use the background shell for operations here because, while this is
 	// triggered by some Action, it's not really about that Action, and often we
 	// just get the results from the global cache.
+	if cfg.RestrictedBuild() {
+		return false
+	}
 	sh := b.BackgroundShell()
 
 	key := [2]string{compiler[0], flag}
@@ -3277,6 +3292,9 @@ func (b *Builder) gccCompilerID(compiler string) (id cache.ActionID, ok bool) {
 	// We use the background shell for operations here because, while this is
 	// triggered by some Action, it's not really about that Action, and often we
 	// just get the results from the global cache.
+	if cfg.RestrictedBuild() {
+		return cache.ActionID{}, false
+	}
 	sh := b.BackgroundShell()
 
 	if cfg.BuildN {
@@ -3504,6 +3522,9 @@ func mustGetCoverInfo(a *Action) *coverProvider {
 }
 
 func (b *Builder) runCgo(_ context.Context, a *Action) error {
+	if cfg.RestrictedBuild() && !a.Package.UsesCgoBinding() {
+		return errors.New("cgo is not allowed when GORESTRICTEDBUILD=1")
+	}
 	p := a.Package
 	sh := b.Shell(a)
 	objdir := a.Objdir
@@ -4073,6 +4094,9 @@ var (
 )
 
 func (b *Builder) swigDoVersionCheck() error {
+	if cfg.RestrictedBuild() {
+		return errors.New("SWIG is not allowed when GORESTRICTEDBUILD=1")
+	}
 	sh := b.BackgroundShell()
 	out, err := sh.runOut(".", nil, "swig", "-version")
 	if err != nil {
@@ -4177,6 +4201,9 @@ func (b *Builder) swigIntSize(objdir string) (intsize string, err error) {
 
 // Run SWIG on one SWIG input file.
 func (b *Builder) swigOne(a *Action, file, objdir string, pcCFLAGS []string, cxx bool, intgosize string) error {
+	if cfg.RestrictedBuild() {
+		return errors.New("SWIG is not allowed when GORESTRICTEDBUILD=1")
+	}
 	if strings.HasPrefix(file, "cgo") {
 		return errors.New("SWIG file must not use prefix 'cgo'")
 	}

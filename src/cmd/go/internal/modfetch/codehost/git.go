@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/vcscmd"
 	"cmd/go/internal/web"
@@ -996,6 +997,9 @@ func (r *gitRepo) runGit(ctx context.Context, cmd *vcscmd.Command) ([]byte, erro
 var gitVersLineExtract = regexp.MustCompile(`git version\s+(\d+\.\d+(?:\.\d+)?)`)
 
 func gitVersion() (string, error) {
+	if cfg.RestrictedBuild() {
+		return "v0", errors.New("VCS command git is not allowed when GORESTRICTEDBUILD=1")
+	}
 	gitOut, runErr := exec.Command("git", "version").CombinedOutput()
 	if runErr != nil {
 		return "v0", fmt.Errorf("failed to execute git version: %w", runErr)

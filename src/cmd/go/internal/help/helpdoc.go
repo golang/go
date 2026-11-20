@@ -614,6 +614,12 @@ General-purpose environment variables:
 	GOPROXY
 		URL of Go module proxy. See https://go.dev/ref/mod#environment-variables
 		and https://go.dev/ref/mod#module-proxy for details.
+	GORESTRICTEDBUILD
+		Controls whether 'go build' runs in restricted mode, disabling direct
+		invocation of VCS and C toolchain binaries (forcing CGO_ENABLED=0
+		unless CGO_ENABLED=bindings is set, internal linking, no non-standard
+		.syso files, -buildvcs=false, and no VCS module fetches). May be "0"
+		(default) or "1".
 	GOROOT
 		The root of the go tree.
 	GOSUMDB

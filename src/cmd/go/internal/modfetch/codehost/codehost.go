@@ -312,6 +312,10 @@ func run(ctx context.Context, dir string, cmd *vcscmd.Command, env ...string) ([
 		}
 	}
 
+	if cfg.RestrictedBuild() {
+		return nil, fmt.Errorf("VCS command %s is not allowed when GORESTRICTEDBUILD=1", argv[0])
+	}
+
 	if dir != "" {
 		muIface, ok := dirLock.Load(dir)
 		if !ok {

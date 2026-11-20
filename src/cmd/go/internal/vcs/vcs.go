@@ -407,6 +407,9 @@ func (v *Cmd) runOutputVerboseOnly(dir string, cmd string, keyval ...string) ([]
 
 // run1 is the generalized implementation of run and runOutput.
 func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([]byte, error) {
+	if cfg.RestrictedBuild() {
+		return nil, fmt.Errorf("VCS command %s is not allowed when GORESTRICTEDBUILD=1", v.Cmd)
+	}
 	m := make(map[string]string)
 	for i := 0; i < len(keyval); i += 2 {
 		m[keyval[i]] = keyval[i+1]
@@ -729,6 +732,9 @@ func checkGOVCS(vcs *Cmd, root string) error {
 		// involve an external version control system
 		// and are always allowed.
 		return nil
+	}
+	if cfg.RestrictedBuild() {
+		return fmt.Errorf("VCS %s disallowed when GORESTRICTEDBUILD=1", vcs.Cmd)
 	}
 
 	govcsOnce.Do(func() {

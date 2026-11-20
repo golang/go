@@ -1,0 +1,195 @@
+# Test GORESTRICTEDBUILD=1 disables direct VCS and C toolchain invocations during 'go build'.
+
+# Default value is 0.
+go env GORESTRICTEDBUILD
+stdout '^0$'
+
+# Invalid values are rejected by go env -w and go build.
+! go env -w GORESTRICTEDBUILD=true
+stderr 'invalid GORESTRICTEDBUILD value'
+
+env GORESTRICTEDBUILD=invalid
+! go build ./pure
+stderr 'invalid GORESTRICTEDBUILD value'
+
+# Enable restricted build mode.
+env GORESTRICTEDBUILD=1
+go env GORESTRICTEDBUILD
+stdout '^1$'
+
+# Pure-Go build succeeds even with CGO_ENABLED=1 in the environment
+# and a fake broken CC / git in PATH.
+env CGO_ENABLED=1
+go build -o $WORK/pure.exe ./pure
+exists $WORK/pure.exe
+
+# -buildvcs=auto (default) is downgraded to false, so a .git directory does not invoke git.
+mkdir ./puregit/.git
+cp ./pure/main.go ./puregit/main.go
+go build -o $WORK/puregit.exe ./puregit
+exists $WORK/puregit.exe
+
+# Explicit -buildvcs=true is rejected.
+! go build -buildvcs=true -o $WORK/puregit2.exe ./puregit
+stderr '-buildvcs=true is not allowed when GORESTRICTEDBUILD=1'
+
+# Cgo files are ignored (CGO_ENABLED is forced to 0) even with CGO_ENABLED=1.
+! go build ./usecgopkg
+stderr 'build constraints exclude all Go files'
+
+# Non-standard .syso files are rejected.
+! go build ./usesyso
+stderr '\.syso files not allowed when GORESTRICTEDBUILD=1'
+
+# External linking via -ldflags is rejected.
+! go build -ldflags=-linkmode=external -o $WORK/ext.exe ./pure
+stderr 'external linking.*not allowed when GORESTRICTEDBUILD=1'
+
+# Direct cmd/link invocation with GORESTRICTEDBUILD=1 also rejects external linking.
+go tool compile -p main -o $WORK/main.o ./pure/main.go
+! go tool link -linkmode=external -o $WORK/ext2.exe $WORK/main.o
+stderr 'external linking is not allowed when GORESTRICTEDBUILD=1'
+
+# VCS module fetches are disallowed when GORESTRICTEDBUILD=1.
+env GOPROXY=direct
+env GOVCS=*:all
+! go build -mod=mod ./needvcs
+stderr 'VCS .* disallowed when GORESTRICTEDBUILD=1'
+env GOPROXY=off
+
+# C-dependent build flags and modes are rejected.
+! go build -compiler=gccgo ./pure
+stderr '-compiler=gccgo is not allowed when GORESTRICTEDBUILD=1'
+
+! go build -asan ./pure
+stderr '-asan is not allowed when GORESTRICTEDBUILD=1'
+
+! go build -msan ./pure
+stderr '-msan is not allowed when GORESTRICTEDBUILD=1'
+
+! go build -linkshared ./pure
+stderr '-linkshared is not allowed when GORESTRICTEDBUILD=1'
+
+! go build -buildmode=c-archive ./pure
+stderr '-buildmode=c-archive is not allowed when GORESTRICTEDBUILD=1'
+
+! go build -buildmode=c-shared ./pure
+stderr '-buildmode=c-shared is not allowed when GORESTRICTEDBUILD=1'
+
+! go build -buildmode=shared ./pure
+stderr '-buildmode=shared is not allowed when GORESTRICTEDBUILD=1'
+
+! go build -buildmode=plugin ./pure
+stderr '-buildmode=plugin is not allowed when GORESTRICTEDBUILD=1'
+
+# Other subcommands (e.g. go test) are not restricted by GORESTRICTEDBUILD=1.
+go test ./pure
+
+# CGO_ENABLED=bindings works together with GORESTRICTEDBUILD=1 without a C toolchain,
+# while still disallowing traditional cgo, pkg-config, .syso files, and external linking.
+env GOOS=linux
+env GOARCH=amd64
+env GOEXPERIMENT=runtimecgopurego,cgobindings
+env CGO_ENABLED=bindings
+env CC=nonexistent-cc
+
+go build -o $WORK/binding.exe ./usecgobindingpkg
+exists $WORK/binding.exe
+
+! go build ./usecgopkg
+stderr 'build constraints exclude all Go files'
+
+! go build -o $WORK/binding_pc.exe ./usecgobindingpkgconfig
+stderr 'pkg-config is not allowed when GORESTRICTEDBUILD=1'
+
+! go build -o $WORK/binding_syso.exe ./usecgobindingsyso
+stderr '\.syso files not allowed when GORESTRICTEDBUILD=1'
+
+env GOOS=android
+env GOARCH=amd64
+! go build -o $WORK/android_amd64_binding.exe ./usecgobindingpkg
+stderr 'requires external linking, which is not allowed when GORESTRICTEDBUILD=1'
+
+env GOOS=aix
+env GOARCH=ppc64
+! go build -o $WORK/aix_ppc64_binding.exe ./usecgobindingpkg
+stderr 'cgo bindings on aix/ppc64 require external linking, which is not allowed when GORESTRICTEDBUILD=1'
+
+-- go.mod --
+module example.com/restricted
+
+go 1.26
+
+-- pure/main.go --
+package main
+
+func main() {}
+
+-- purepkg/p.go --
+package purepkg
+
+func F() {}
+
+-- needvcs/main.go --
+package main
+
+import _ "vcs-test.golang.org/git/emptytest.git"
+
+func main() {}
+
+-- pure/main_test.go --
+package main
+
+import "testing"
+
+func TestOK(t *testing.T) {}
+
+-- usecgopkg/main.go --
+package main
+
+// #cgo LDFLAGS: -L.
+import "C"
+
+func main() {}
+
+-- usecgobindingpkg/main.go --
+package main
+
+import "C"
+
+//cgo:func puts puts libc
+func puts(s *byte) int32
+
+func main() { _ = puts }
+
+-- usecgobindingpkgconfig/main.go --
+package main
+
+// #cgo pkg-config: nonexistent
+import "C"
+
+//cgo:func puts puts libc
+func puts(s *byte) int32
+
+func main() { _ = puts }
+
+-- usecgobindingsyso/main.go --
+package main
+
+import "C"
+
+//cgo:func puts puts libc
+func puts(s *byte) int32
+
+func main() { _ = puts }
+
+-- usecgobindingsyso/dummy.syso --
+not an object
+
+-- usesyso/main.go --
+package main
+
+func main() {}
+
+-- usesyso/dummy.syso --
+not an object

@@ -220,6 +220,9 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	objabi.Flagparse(usage)
 	counter.CountFlags("link/flag:", *flag.CommandLine)
+	if restrictedBuild() && ctxt.LinkMode == LinkExternal {
+		Exitf("external linking is not allowed when GORESTRICTEDBUILD=1")
+	}
 
 	if ctxt.Debugvlog > 0 {
 		// dump symbol info on crash

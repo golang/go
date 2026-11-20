@@ -2068,6 +2068,11 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 		// code; see issue #16050).
 	}
 
+	if cfg.RestrictedBuild() && !p.Standard && len(p.SysoFiles) > 0 {
+		setError(fmt.Errorf(".syso files not allowed when GORESTRICTEDBUILD=1: %s", strings.Join(p.SysoFiles, " ")))
+		return
+	}
+
 	// The gc toolchain only permits C source files with cgo or SWIG.
 	if len(p.CFiles) > 0 && !p.UsesCgo() && !p.UsesSwig() && cfg.BuildContext.Compiler == "gc" {
 		setError(fmt.Errorf("C source files not allowed when not using cgo or SWIG: %s", strings.Join(p.CFiles, " ")))
@@ -2682,6 +2687,9 @@ func LinkerDeps(s *modload.Loader, p *Package) ([]string, error) {
 
 	// External linking mode forces an import of runtime/cgo.
 	if what := externalLinkingReason(s, p); what != "" && cfg.BuildContext.Compiler != "gccgo" {
+		if cfg.RestrictedBuild() {
+			return nil, fmt.Errorf("%s requires external linking, which is not allowed when GORESTRICTEDBUILD=1", what)
+		}
 		if cfg.BuildContext.CgoEnabled == build.CgoDisabled {
 			return nil, fmt.Errorf("%s requires external (cgo) linking, but cgo is not enabled", what)
 		}

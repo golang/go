@@ -503,6 +503,9 @@ func (ctxt *Link) extld() []string {
 // findLibPathCmd uses cmd command to find gcc library libname.
 // It returns library full path if found, or "none" if not found.
 func (ctxt *Link) findLibPathCmd(cmd, libname string) string {
+	if restrictedBuild() {
+		return "none"
+	}
 	extld := ctxt.extld()
 	name, args := extld[0], extld[1:]
 	args = append(args, hostlinkArchArgs(ctxt.Arch)...)
@@ -1396,6 +1399,9 @@ func (ctxt *Link) archive() {
 	if ctxt.BuildMode != BuildModeCArchive {
 		return
 	}
+	if restrictedBuild() {
+		Exitf("c-archive build mode is not allowed when GORESTRICTEDBUILD=1")
+	}
 
 	exitIfErrors()
 
@@ -1453,6 +1459,9 @@ func (ctxt *Link) archive() {
 func (ctxt *Link) hostlink() {
 	if ctxt.LinkMode != LinkExternal || nerrors > 0 {
 		return
+	}
+	if restrictedBuild() {
+		Exitf("external linking is not allowed when GORESTRICTEDBUILD=1")
 	}
 	if ctxt.BuildMode == BuildModeCArchive {
 		return
@@ -2268,6 +2277,9 @@ var createTrivialCOnce sync.Once
 // linkerFlagSupported reports whether the external linker command linker
 // (an argv slice, as returned by [Link.extld]) accepts the flag flag.
 func linkerFlagSupported(arch *sys.Arch, linker []string, altLinker, flag string) bool {
+	if restrictedBuild() {
+		Exitf("external linker invocation is not allowed when GORESTRICTEDBUILD=1")
+	}
 	createTrivialCOnce.Do(func() {
 		src := filepath.Join(*flagTmpdir, "trivial.c")
 		if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
@@ -2305,6 +2317,9 @@ func linkerFlagSupported(arch *sys.Arch, linker []string, altLinker, flag string
 // GNU ld gained this support in binutils 2.45. MSVC link.exe and
 // LLVM lld-link have always supported it.
 func peHasLoadConfigDirectorySupport(arch *sys.Arch, linker []string) bool {
+	if restrictedBuild() {
+		return false
+	}
 	src := filepath.Join(*flagTmpdir, "loadcfg_test.c")
 	if err := os.WriteFile(src, []byte(`
 #ifdef _WIN64
@@ -3257,6 +3272,9 @@ func captureHostObj(h *Hostobj) {
 // passing the name of the tool we're interested in, such as "strip",
 // "ar", or "dsymutil", and returns the path passed back from the command.
 func (ctxt *Link) findExtLinkTool(toolname string) string {
+	if restrictedBuild() {
+		Exitf("external linker tool %s is not allowed when GORESTRICTEDBUILD=1", toolname)
+	}
 	var cc []string
 	cc = append(cc, ctxt.extld()...)
 	cc = append(cc, hostlinkArchArgs(ctxt.Arch)...)
@@ -3272,6 +3290,9 @@ func (ctxt *Link) findExtLinkTool(toolname string) string {
 // isMSVC reports whether the C toolchain is clang with a -msvc target,
 // e.g. the clang bundled in MSVC.
 func (ctxt *Link) isMSVC() bool {
+	if restrictedBuild() {
+		return false
+	}
 	extld := ctxt.extld()
 	name, args := extld[0], extld[1:]
 	args = append(args, trimLinkerArgv(flagExtldflags)...)
@@ -3287,6 +3308,9 @@ func (ctxt *Link) isMSVC() bool {
 
 // isLLD reports whether the C toolchain is using LLD as the linker.
 func (ctxt *Link) isLLD() bool {
+	if restrictedBuild() {
+		return false
+	}
 	extld := ctxt.extld()
 	name, args := extld[0], extld[1:]
 	args = append(args, trimLinkerArgv(flagExtldflags)...)

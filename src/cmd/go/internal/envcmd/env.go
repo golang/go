@@ -115,6 +115,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOPATH", Value: cfg.BuildContext.GOPATH, Changed: cfg.GOPATHChanged},
 		{Name: "GOPRIVATE", Value: cfg.GOPRIVATE},
 		{Name: "GOPROXY", Value: cfg.GOPROXY, Changed: cfg.GOPROXYChanged},
+		{Name: "GORESTRICTEDBUILD", Value: cfg.GORESTRICTEDBUILD, Changed: cfg.GORESTRICTEDBUILDChanged},
 		{Name: "GOROOT", Value: cfg.GOROOT},
 		{Name: "GOSUMDB", Value: cfg.GOSUMDB, Changed: cfg.GOSUMDBChanged},
 		{Name: "GOTELEMETRY", Value: telemetry.Mode()},
@@ -666,6 +667,12 @@ func checkEnvWrite(key, val string) error {
 	case "GO111MODULE":
 		switch val {
 		case "", "auto", "on", "off":
+		default:
+			return fmt.Errorf("invalid %s value %q", key, val)
+		}
+	case "GORESTRICTEDBUILD":
+		switch val {
+		case "", "0", "1":
 		default:
 			return fmt.Errorf("invalid %s value %q", key, val)
 		}

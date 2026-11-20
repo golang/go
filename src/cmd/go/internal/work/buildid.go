@@ -237,6 +237,9 @@ func (b *Builder) gccgoToolID(name, language string) (id, exe string, err error)
 // probe under cfg.BuildToolexec. Callers should generally use the gccToolID
 // and gccgoToolID wrappers rather than calling gccToolIDPrefix directly.
 func (b *Builder) gccToolIDPrefix(name, language string, prefix []string) (id, exe string, err error) {
+	if cfg.RestrictedBuild() {
+		return "", "", fmt.Errorf("C compiler invocation (%s) is not allowed when GORESTRICTEDBUILD=1", name)
+	}
 	//TODO: Use par.Cache instead of a mutex and a map. See Builder.toolID.
 	key := name + "." + language
 	b.id.Lock()
@@ -340,6 +343,9 @@ func (b *Builder) gccToolIDPrefix(name, language string, prefix []string) (id, e
 
 // Check if assembler used by gccgo is GNU as.
 func assemblerIsGas() bool {
+	if cfg.RestrictedBuild() {
+		return false
+	}
 	cmd := exec.Command(BuildToolchain.compiler(), "-print-prog-name=as")
 	assembler, err := cmd.Output()
 	if err == nil {

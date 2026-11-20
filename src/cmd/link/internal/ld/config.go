@@ -8,7 +8,12 @@ import (
 	"fmt"
 	"internal/buildcfg"
 	"internal/platform"
+	"os"
 )
+
+func restrictedBuild() bool {
+	return os.Getenv("GORESTRICTEDBUILD") == "1"
+}
 
 // A BuildMode indicates the sort of object we are building.
 //
@@ -196,6 +201,17 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 func determineLinkMode(ctxt *Link) {
 	extNeeded, extReason := mustLinkExternal(ctxt)
 	via := ""
+
+	if restrictedBuild() {
+		if ctxt.LinkMode == LinkExternal {
+			Exitf("external linking is not allowed when GORESTRICTEDBUILD=1")
+		}
+		ctxt.LinkMode = LinkInternal
+		if extNeeded {
+			Exitf("GORESTRICTEDBUILD=1 requires internal linking, but external linking is required: %s", extReason)
+		}
+		return
+	}
 
 	if ctxt.LinkMode == LinkAuto {
 		// The environment variable GO_EXTLINK_ENABLED controls the

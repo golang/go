@@ -493,10 +493,16 @@ var (
 	GOPRIVATE                   = Getenv("GOPRIVATE")
 	GONOPROXY, GONOPROXYChanged = EnvOrAndChanged("GONOPROXY", GOPRIVATE)
 	GONOSUMDB, GONOSUMDBChanged = EnvOrAndChanged("GONOSUMDB", GOPRIVATE)
-	GOINSECURE                  = Getenv("GOINSECURE")
-	GOVCS                       = Getenv("GOVCS")
-	GOAUTH, GOAUTHChanged       = EnvOrAndChanged("GOAUTH", "netrc")
+	GOINSECURE                                   = Getenv("GOINSECURE")
+	GORESTRICTEDBUILD, GORESTRICTEDBUILDChanged  = EnvOrAndChanged("GORESTRICTEDBUILD", "0")
+	GOVCS                                        = Getenv("GOVCS")
+	GOAUTH, GOAUTHChanged                        = EnvOrAndChanged("GOAUTH", "netrc")
 )
+
+// RestrictedBuild reports whether GORESTRICTEDBUILD=1 is active for 'go build'.
+func RestrictedBuild() bool {
+	return CmdName == "build" && GORESTRICTEDBUILD == "1"
+}
 
 // EnvOrAndChanged returns the environment variable value
 // and reports whether it differs from the default value.

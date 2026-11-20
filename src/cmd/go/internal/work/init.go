@@ -14,6 +14,7 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/modload"
 	"cmd/internal/quoted"
+	"errors"
 	"fmt"
 	"internal/platform"
 	"os"
@@ -57,6 +58,35 @@ func BuildInit(ld *modload.Loader) {
 	}
 	buildInitStarted = true
 	base.AtExit(closeBuilders)
+
+	if cfg.GORESTRICTEDBUILD != "0" && cfg.GORESTRICTEDBUILD != "1" {
+		base.Fatalf("go: invalid GORESTRICTEDBUILD value %q (must be 0 or 1)", cfg.GORESTRICTEDBUILD)
+	}
+	if cfg.RestrictedBuild() {
+		if cfg.BuildContext.CgoEnabled == build.CgoEnabled {
+			cfg.BuildContext.CgoEnabled = build.CgoDisabled
+		}
+		if cfg.BuildBuildvcs == "true" {
+			base.Fatalf("go: -buildvcs=true is not allowed when GORESTRICTEDBUILD=1")
+		}
+		cfg.BuildBuildvcs = "false"
+		if cfg.BuildToolchainName == "gccgo" {
+			base.Fatalf("go: -compiler=gccgo is not allowed when GORESTRICTEDBUILD=1")
+		}
+		if cfg.BuildASan {
+			base.Fatalf("go: -asan is not allowed when GORESTRICTEDBUILD=1")
+		}
+		if cfg.BuildMSan {
+			base.Fatalf("go: -msan is not allowed when GORESTRICTEDBUILD=1")
+		}
+		if cfg.BuildLinkshared {
+			base.Fatalf("go: -linkshared is not allowed when GORESTRICTEDBUILD=1")
+		}
+		switch cfg.BuildBuildmode {
+		case "c-archive", "c-shared", "shared", "plugin":
+			base.Fatalf("go: -buildmode=%s is not allowed when GORESTRICTEDBUILD=1", cfg.BuildBuildmode)
+		}
+	}
 
 	// Check CGO_ENABLED=bindings here rather than at startup, so that
 	// commands like go env, go version, and go help keep working with a
@@ -403,6 +433,9 @@ var compiler struct {
 // It returns a non-nil error if the compiler matches a known version schema but
 // the version could not be parsed, or if $(go env CC) could not be determined.
 func compilerVersion() (version, error) {
+	if cfg.RestrictedBuild() {
+		return version{}, errors.New("C compiler invocation is not allowed when GORESTRICTEDBUILD=1")
+	}
 	compiler.Once.Do(func() {
 		compiler.err = func() error {
 			compiler.name = "unknown"
