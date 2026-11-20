@@ -528,7 +528,7 @@ func TestNonCompressedBlockDoesntLeakDict(t *testing.T) {
 	}
 }
 
-// See https://golang.org/issue/2508
+// See https://go.dev/issue/2508
 func TestRegression2508(t *testing.T) {
 	if testing.Short() {
 		t.Logf("test disabled with -short")
@@ -545,6 +545,36 @@ func TestRegression2508(t *testing.T) {
 		}
 	}
 	w.Close()
+}
+
+// See https://go.dev/issue/81589
+func TestRegression81589(t *testing.T) {
+	in, err := os.ReadFile("testdata/regression-81589.in")
+	if err != nil {
+		t.Fatalf("reading input data: %v", err)
+	}
+	expect, err := os.ReadFile("testdata/regression-81589.expect")
+	if err != nil {
+		t.Fatalf("reading expected output: %v", err)
+	}
+
+	var buffer bytes.Buffer
+	w, err := NewWriter(&buffer, 3)
+	if err != nil {
+		t.Fatalf("NewWriter: %v", err)
+	}
+
+	if _, err := w.Write(in); err != nil {
+		t.Fatalf("writer failed: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	got := buffer.Bytes()
+
+	if !bytes.Equal(expect, got) {
+		t.Fatal("output does not match expected data")
+	}
 }
 
 func TestWriterReset(t *testing.T) {
