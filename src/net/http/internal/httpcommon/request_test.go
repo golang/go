@@ -718,6 +718,47 @@ func TestEncodeHeaderErrors(t *testing.T) {
 	}
 }
 
+func TestASCIIToLower(t *testing.T) {
+	for _, test := range []struct {
+		in   string
+		want string
+		ok   bool
+	}{
+		{"", "", true},
+		{"content-type", "content-type", true},
+		{"Content-Type", "content-type", true},
+		{"content-typE", "content-type", true},
+		{"A !@[`{~Z", "a !@[`{~z", true},
+		{strings.Repeat("Ab", 50), strings.Repeat("ab", 50), true},
+		{"content\x00Type", "", false},
+		{"Content-Type\x7f", "", false},
+		{"Ünicode", "", false},
+	} {
+		got, ok := asciiToLower(test.in)
+		if got != test.want || ok != test.ok {
+			t.Errorf("asciiToLower(%q) = %q, %v; want %q, %v", test.in, got, ok, test.want, test.ok)
+		}
+	}
+}
+
+func BenchmarkLowerHeader(b *testing.B) {
+	for _, name := range []string{
+		"Content-Type",
+		"X-Request-Id",
+		"x-request-id",
+		"X-Envoy-Upstream-Service-Time",
+		"X-Amz-Server-Side-Encryption-Customer-Algorithm",
+		"X-Very-Long-Custom-Header-Name-That-Does-Not-Fit-In-Sixty-Four-Bytes",
+	} {
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				LowerHeader(name)
+			}
+		})
+	}
+}
+
 func must[T any](v T, err error) T {
 	if err != nil {
 		panic(err)
