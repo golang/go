@@ -742,21 +742,28 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 		}
 	}
 	var lastErr error
+	originalName := stringslite.TrimSuffix(name, ".") + "."
 	for _, fqdn := range conf.nameList(name) {
 		for _, qtype := range qtypes {
 			queryFn(fqdn, qtype)
 		}
 		hitStrictError := false
+		hitFailure := false
 		for _, qtype := range qtypes {
 			result := responseFn(fqdn, qtype)
 			if result.error != nil {
+				dnsErr, ok := errors.AsType[*DNSError](result.error)
+				notFound := ok && dnsErr.IsNotFound
 				if nerr, ok := result.error.(Error); ok && nerr.Temporary() && r.strictErrors() {
 					// This error will abort the nameList loop.
 					hitStrictError = true
 					lastErr = result.error
-				} else if lastErr == nil || fqdn == name+"." {
+				} else if lastErr == nil || (fqdn == originalName && (!notFound || !hitFailure)) {
 					// Prefer error for original name.
 					lastErr = result.error
+				}
+				if !notFound {
+					hitFailure = true
 				}
 				continue
 			}
