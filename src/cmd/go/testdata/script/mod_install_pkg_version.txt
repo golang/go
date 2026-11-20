@@ -84,7 +84,7 @@ env GO111MODULE=auto
 ! go install std@v1.0.0
 stderr '^go: std@v1.0.0: argument must be a package path, not a meta-package$'
 ! go install fmt@v1.0.0
-stderr '^go: fmt@v1.0.0: argument must not be a package in the standard library$'
+stderr '^go: fmt@v1.0.0: cannot specify @version for a package in the standard library$'
 ! go install example.com//cmd/a@v1.0.0
 stderr '^go: example.com//cmd/a@v1.0.0: argument must be a clean package path$'
 ! go install example.com/cmd/a@v1.0.0 ./x@v1.0.0
