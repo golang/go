@@ -6,6 +6,7 @@ package template
 
 import (
 	"bytes"
+	"html"
 	"strings"
 )
 
@@ -14,36 +15,37 @@ import (
 // the updated context and the number of bytes consumed from the front of the
 // input.
 var transitionFunc = [...]func(context, []byte) (context, int){
-	stateText:           tText,
-	stateTag:            tTag,
-	stateAttrName:       tAttrName,
-	stateAfterName:      tAfterName,
-	stateBeforeValue:    tBeforeValue,
-	stateHTMLCmt:        tHTMLCmt,
-	stateRCDATA:         tSpecialTagEnd,
-	stateAttr:           tAttr,
-	stateURL:            tURL,
-	stateMetaContent:    tMetaContent,
-	stateMetaContentURL: tMetaContentURL,
-	stateSrcset:         tURL,
-	stateJS:             tJS,
-	stateJSDqStr:        tJSDelimited,
-	stateJSSqStr:        tJSDelimited,
-	stateJSRegexp:       tJSDelimited,
-	stateJSTmplLit:      tJSTmpl,
-	stateJSBlockCmt:     tBlockCmt,
-	stateJSLineCmt:      tLineCmt,
-	stateJSHTMLOpenCmt:  tLineCmt,
-	stateJSHTMLCloseCmt: tLineCmt,
-	stateCSS:            tCSS,
-	stateCSSDqStr:       tCSSStr,
-	stateCSSSqStr:       tCSSStr,
-	stateCSSDqURL:       tCSSStr,
-	stateCSSSqURL:       tCSSStr,
-	stateCSSURL:         tCSSStr,
-	stateCSSBlockCmt:    tBlockCmt,
-	stateCSSLineCmt:     tLineCmt,
-	stateError:          tError,
+	stateText:             tText,
+	stateTag:              tTag,
+	stateAttrName:         tAttrName,
+	stateAfterName:        tAfterName,
+	stateBeforeValue:      tBeforeValue,
+	stateHTMLCmt:          tHTMLCmt,
+	stateRCDATA:           tSpecialTagEnd,
+	stateAttr:             tAttr,
+	stateURL:              tURL,
+	stateMetaContentDelay: tMetaContentDelay,
+	stateMetaContent:      tMetaContent,
+	stateMetaContentURL:   tMetaContentURL,
+	stateSrcset:           tURL,
+	stateJS:               tJS,
+	stateJSDqStr:          tJSDelimited,
+	stateJSSqStr:          tJSDelimited,
+	stateJSRegexp:         tJSDelimited,
+	stateJSTmplLit:        tJSTmpl,
+	stateJSBlockCmt:       tBlockCmt,
+	stateJSLineCmt:        tLineCmt,
+	stateJSHTMLOpenCmt:    tLineCmt,
+	stateJSHTMLCloseCmt:   tLineCmt,
+	stateCSS:              tCSS,
+	stateCSSDqStr:         tCSSStr,
+	stateCSSSqStr:         tCSSStr,
+	stateCSSDqURL:         tCSSStr,
+	stateCSSSqURL:         tCSSStr,
+	stateCSSURL:           tCSSStr,
+	stateCSSBlockCmt:      tBlockCmt,
+	stateCSSLineCmt:       tLineCmt,
+	stateError:            tError,
 }
 
 var commentStart = []byte("<!--")
@@ -80,12 +82,14 @@ func tText(c context, s []byte) (context, int) {
 }
 
 var elementContentType = [...]state{
-	elementNone:     stateText,
-	elementScript:   stateJS,
-	elementStyle:    stateCSS,
-	elementTextarea: stateRCDATA,
-	elementTitle:    stateRCDATA,
-	elementMeta:     stateText,
+	elementNone:          stateText,
+	elementScript:        stateJS,
+	elementStyle:         stateCSS,
+	elementTextarea:      stateRCDATA,
+	elementTitle:         stateRCDATA,
+	elementMeta:          stateText,
+	elementMetaRefresh:   stateText,
+	elementMetaNoRefresh: stateText,
 }
 
 // tTag is the context transition function for the tag state.
@@ -98,7 +102,7 @@ func tTag(c context, s []byte) (context, int) {
 	if s[i] == '>' {
 		// Treat <meta> specially, because it doesn't have an end tag, and we
 		// want to transition into the correct state/element for it.
-		if c.element == elementMeta {
+		if isMeta(c.element) {
 			return context{state: stateText, element: elementNone}, i + 1
 		}
 		return context{
@@ -119,9 +123,13 @@ func tTag(c context, s []byte) (context, int) {
 	}
 
 	attrName := strings.ToLower(string(s[i:j]))
+	element := c.element
+	if isMeta(c.element) {
+		element = metaKind(c.element, attrName, s[j:])
+	}
 	if c.element == elementScript && attrName == "type" {
 		attr = attrScriptType
-	} else if c.element == elementMeta && attrName == "content" {
+	} else if isMeta(c.element) && attrName == "content" {
 		attr = attrMetaContent
 	} else {
 		switch attrType(attrName) {
@@ -141,7 +149,64 @@ func tTag(c context, s []byte) (context, int) {
 	} else {
 		state = stateAfterName
 	}
-	return context{state: state, element: c.element, attr: attr}, j
+	return context{state: state, element: element, attr: attr}, j
+}
+
+// metaKind returns the kind of the meta element e after an attribute named
+// attrName whose value, if any, starts in s. Only a refresh reads a URL after
+// its delay, so the escaper tracks before the content attribute whether the
+// element may be one. An http-equiv value that is not all literal text in s
+// may be "refresh". A name, property or itemprop attribute marks an element
+// that is not a refresh, unless an http-equiv attribute that may be "refresh"
+// came first.
+func metaKind(e element, attrName string, s []byte) element {
+	switch attrName {
+	case "http-equiv":
+		v, ok := literalAttrValue(s)
+		if !ok || strings.EqualFold(strings.TrimSpace(html.UnescapeString(v)), "refresh") {
+			return elementMetaRefresh
+		}
+		if e == elementMeta {
+			return elementMetaNoRefresh
+		}
+	case "name", "property", "itemprop":
+		if e == elementMeta {
+			return elementMetaNoRefresh
+		}
+	}
+	return e
+}
+
+// literalAttrValue returns the value of the attribute whose name ends at the
+// start of s, and whether all of that value is literal text in s.
+func literalAttrValue(s []byte) (string, bool) {
+	i := eatWhiteSpace(s, 0)
+	if i == len(s) {
+		return "", false
+	}
+	if s[i] != '=' {
+		// An attribute without a value.
+		return "", true
+	}
+	i = eatWhiteSpace(s, i+1)
+	if i == len(s) {
+		return "", false
+	}
+	if q := s[i]; q == '"' || q == '\'' {
+		j := bytes.IndexByte(s[i+1:], q)
+		if j < 0 {
+			return "", false
+		}
+		return string(s[i+1 : i+1+j]), true
+	}
+	j := i
+	for j < len(s) && !isHTMLSpace(s[j]) && s[j] != '>' {
+		j++
+	}
+	if j == len(s) {
+		return "", false
+	}
+	return string(s[i:j]), true
 }
 
 // tAttrName is the context transition function for stateAttrName.
@@ -178,7 +243,7 @@ var attrStartStates = [...]state{
 	attrStyle:       stateCSS,
 	attrURL:         stateURL,
 	attrSrcset:      stateSrcset,
-	attrMetaContent: stateMetaContent,
+	attrMetaContent: stateMetaContentDelay,
 }
 
 // tBeforeValue is the context transition function for stateBeforeValue.
@@ -196,6 +261,10 @@ func tBeforeValue(c context, s []byte) (context, int) {
 		delim, i = delimDoubleQuote, i+1
 	}
 	c.state, c.delim = attrStartStates[c.attr], delim
+	if c.state == stateMetaContentDelay && c.element == elementMetaNoRefresh {
+		// Only a refresh reads a URL after its delay.
+		c.state = stateMetaContent
+	}
 	return c, i
 }
 
@@ -210,11 +279,13 @@ func tHTMLCmt(c context, s []byte) (context, int) {
 // specialTagEndMarkers maps element types to the character sequence that
 // case-insensitively signals the end of the special tag body.
 var specialTagEndMarkers = [...][]byte{
-	elementScript:   []byte("script"),
-	elementStyle:    []byte("style"),
-	elementTextarea: []byte("textarea"),
-	elementTitle:    []byte("title"),
-	elementMeta:     []byte(""),
+	elementScript:        []byte("script"),
+	elementStyle:         []byte("style"),
+	elementTextarea:      []byte("textarea"),
+	elementTitle:         []byte("title"),
+	elementMeta:          []byte(""),
+	elementMetaRefresh:   []byte(""),
+	elementMetaNoRefresh: []byte(""),
 }
 
 var (
@@ -633,6 +704,40 @@ func tCSSStr(c context, s []byte) (context, int) {
 // tError is the context transition function for the error state.
 func tError(c context, s []byte) (context, int) {
 	return c, len(s)
+}
+
+// tMetaContentDelay is the context transition function for the start of a meta
+// content attribute. The HTML standard's shared declarative refresh steps read
+// a refresh value as a delay of digits and periods, then a ';' or ',' or
+// whitespace, then the URL, with or without "url=" in front of it. If the
+// literal text so far is such a delay and its separator, a template action
+// that follows starts the URL, as in content="0; {{.}}" or content="0,{{.}}".
+func tMetaContentDelay(c context, s []byte) (context, int) {
+	i := eatWhiteSpace(s, 0)
+	j := i
+	for j < len(s) && ('0' <= s[j] && s[j] <= '9' || s[j] == '.') {
+		j++
+	}
+	if j == i || j == len(s) || !(s[j] == ';' || s[j] == ',' || isHTMLSpace(s[j])) {
+		// Not a delay, or a delay that ends in an action, which this
+		// transition cannot read: fall back to the general meta content state.
+		c.state = stateMetaContent
+		return tMetaContent(c, s)
+	}
+	k := eatWhiteSpace(s, j)
+	if k < len(s) && (s[k] == ';' || s[k] == ',') {
+		k = eatWhiteSpace(s, k+1)
+	}
+	if k < len(s) && (s[k] == '\'' || s[k] == '"') {
+		// The refresh steps skip one quote before the URL.
+		k++
+	}
+	if k == len(s) {
+		c.state = stateMetaContentURL
+		return c, len(s)
+	}
+	c.state = stateMetaContent
+	return c, k
 }
 
 // tMetaContent is the context transition function for the meta content attribute state.

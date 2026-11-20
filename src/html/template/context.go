@@ -168,6 +168,9 @@ const (
 	// stateError is an infectious error state outside any valid
 	// HTML/CSS/JS construct.
 	stateError
+	// stateMetaContentDelay occurs at the start of a HTML meta element content
+	// attribute, where a refresh value holds its delay.
+	stateMetaContentDelay
 	// stateMetaContent occurs inside a HTML meta element content attribute.
 	stateMetaContent
 	// stateMetaContentURL occurs inside a "url=" tag in a HTML meta element content attribute.
@@ -285,7 +288,19 @@ const (
 	elementTitle
 	// elementMeta corresponds to the HTML <meta> element.
 	elementMeta
+	// elementMetaRefresh corresponds to a <meta> element with an http-equiv
+	// attribute whose value is or may be "refresh".
+	elementMetaRefresh
+	// elementMetaNoRefresh corresponds to a <meta> element that a name,
+	// property or itemprop attribute, or an http-equiv attribute with
+	// another value, marks as not a refresh.
+	elementMetaNoRefresh
 )
+
+// isMeta reports whether e is a <meta> element.
+func isMeta(e element) bool {
+	return e == elementMeta || e == elementMetaRefresh || e == elementMetaNoRefresh
+}
 
 //go:generate stringer -type attr
 

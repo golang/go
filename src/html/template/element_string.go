@@ -14,11 +14,13 @@ func _() {
 	_ = x[elementTextarea-3]
 	_ = x[elementTitle-4]
 	_ = x[elementMeta-5]
+	_ = x[elementMetaRefresh-6]
+	_ = x[elementMetaNoRefresh-7]
 }
 
-const _element_name = "elementNoneelementScriptelementStyleelementTextareaelementTitleelementMeta"
+const _element_name = "elementNoneelementScriptelementStyleelementTextareaelementTitleelementMetaelementMetaRefreshelementMetaNoRefresh"
 
-var _element_index = [...]uint8{0, 11, 24, 36, 51, 63, 74}
+var _element_index = [...]uint8{0, 11, 24, 36, 51, 63, 74, 92, 112}
 
 func (i element) String() string {
 	idx := int(i) - 0
