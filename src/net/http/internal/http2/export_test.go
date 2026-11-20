@@ -132,6 +132,25 @@ func (cc *ClientConn) TestSetNextStreamID(id uint32) {
 	cc.nextStreamID = id
 }
 
+// TestPanicOnResponseData makes the connection's read loop panic when it
+// buffers response body data for the stream.
+func (cc *ClientConn) TestPanicOnResponseData(streamID uint32) {
+	cc.mu.Lock()
+	cs := cc.streams[streamID]
+	cc.mu.Unlock()
+	cs.bufPipe.mu.Lock()
+	cs.bufPipe.b = panicPipeBuffer{}
+	cs.bufPipe.mu.Unlock()
+}
+
+type panicPipeBuffer struct{}
+
+func (panicPipeBuffer) Len() int                 { return 0 }
+func (panicPipeBuffer) Read([]byte) (int, error) { return 0, nil }
+func (panicPipeBuffer) Write([]byte) (int, error) {
+	panic("test: response body buffer write")
+}
+
 func (cc *ClientConn) TestRoundTrip(req *ClientRequest, f func(stremaID uint32)) (*ClientResponse, error) {
 	return cc.roundTrip(req, func(cs *clientStream) {
 		f(cs.ID)
