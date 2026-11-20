@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
+	"math/rand"
 	"strconv"
 	"testing"
 )
@@ -197,6 +198,90 @@ const (
 	below1e23 = 99999999999999974834176
 	above1e23 = 100000000000000008388608
 )
+
+func TestFloatParseRounding(t *testing.T) {
+	// Issue 82232: the result must be correctly rounded and the accuracy
+	// must be that of the result relative to the exact value, even when
+	// 5**exp does not fit in the precision used for the conversion.
+	for _, test := range []struct {
+		s    string
+		prec uint
+		mode RoundingMode
+		want string
+		acc  Accuracy
+	}{
+		{"1.1102230246251565404236316680908203125e-16", 53, ToZero, "0x.8p-52", Exact}, // 2**-53
+		{"1.1102230246251565404236316680908203125e-16", 53, ToNearestEven, "0x.8p-52", Exact},
+		{"1.1102230246251565404236316680908203125e-16", 53, ToPositiveInf, "0x.8p-52", Exact},
+		{"1.818989403545856475830078125e-12", 24, ToZero, "0x.8p-38", Exact},                                          // 2**-39
+		{"1.00000000000000011102230246251565404236316680908203125", 53, ToNearestAway, "0x.80000000000008p+1", Above}, // 1 + 2**-53
+		{"1.00000000000000011102230246251565404236316680908203125", 53, ToNearestEven, "0x.8p+1", Below},
+		{"1.00000000000000011102230246251565404236316680908203125", 53, ToPositiveInf, "0x.80000000000008p+1", Above},
+		{"-1.00000000000000011102230246251565404236316680908203125", 53, ToPositiveInf, "-0x.8p+1", Above},
+		{"274497423737691809e-141", 53, ToNearestEven, "0x.b9d02b01afbdp-410", Above},
+		{"548994847475383618e-141", 53, ToNearestEven, "0x.b9d02b01afbdp-409", Above},
+		{"792644927852378159e79", 53, ToNearestEven, "0x.ed7f802479f638p+322", Below},
+		{"792644927852378159e79", 53, ToZero, "0x.ed7f802479f638p+322", Below},
+		{"2.43666953675221574422e+31", 24, ToNearestEven, "0x.99c685p+105", Below},
+		{"1e-1000", 64, ToNearestEven, "0x.868a9188a89e1467p-3321", Below},
+		{"1e1000000000", 53, ToNearestEven, "+Inf", Above},
+		{"-1e1000000000", 53, ToNearestEven, "-Inf", Below},
+		{"1e-1000000000", 53, ToNearestEven, "0", Below},
+		{"-1e-1000000000", 53, ToNearestEven, "-0", Above},
+	} {
+		x, _, err := ParseFloat(test.s, 10, test.prec, test.mode)
+		if err != nil {
+			t.Errorf("%s: %v", test.s, err)
+			continue
+		}
+		if got := x.Text('p', 0); got != test.want || x.Acc() != test.acc {
+			t.Errorf("ParseFloat(%s, 10, %d, %s) = %s (%s); want %s (%s)", test.s, test.prec, test.mode, got, x.Acc(), test.want, test.acc)
+		}
+	}
+
+	// Compare with the exact conversion through Rat for representable
+	// values, ties and their neighbors, written with decimal exponents
+	// so that the power of five needed is up to 5**340.
+	rnd := rand.New(rand.NewSource(1))
+	modes := []RoundingMode{ToNearestEven, ToNearestAway, ToZero, AwayFromZero, ToNegativeInf, ToPositiveInf}
+	for _, prec := range []uint{2, 3, 8, 11, 24, 53, 61, 64, 113} {
+		for i := 0; i < 300; i++ {
+			// m has prec, prec+1 or more bits; an odd m with prec+1
+			// bits is a tie.
+			nbits := int(prec) + rnd.Intn(3)
+			m := new(Int).Rand(rnd, new(Int).Lsh(intOne, uint(nbits)))
+			m.SetBit(m, nbits-1, 1)
+			if rnd.Intn(4) == 0 {
+				m.Add(m, NewInt(int64(rnd.Intn(3)-1)))
+			}
+			if rnd.Intn(2) == 0 {
+				m.Neg(m)
+			}
+			k := rnd.Intn(300)
+			r := new(Rat).SetFrac(m, new(Int).Lsh(intOne, uint(k)))
+			e := rnd.Intn(80) - 40
+			var s string
+			if e >= 0 {
+				// r = d * 10**e with d = r / 10**e, which has k+e fractional digits.
+				d := new(Rat).Quo(r, new(Rat).SetInt(new(Int).Exp(NewInt(10), NewInt(int64(e)), nil)))
+				s = d.FloatString(k+e) + "e" + strconv.Itoa(e)
+			} else {
+				d := new(Rat).Mul(r, new(Rat).SetInt(new(Int).Exp(NewInt(10), NewInt(int64(-e)), nil)))
+				s = d.FloatString(k) + "e" + strconv.Itoa(e)
+			}
+			for _, mode := range modes {
+				want := new(Float).SetPrec(prec).SetMode(mode).SetRat(r)
+				got, _, err := ParseFloat(s, 10, prec, mode)
+				if err != nil {
+					t.Fatalf("%s: %v", s, err)
+				}
+				if got.Cmp(want) != 0 || got.Acc() != want.Acc() {
+					t.Errorf("ParseFloat(%s, 10, %d, %s) = %s (%s); want %s (%s)", s, prec, mode, got.Text('p', 0), got.Acc(), want.Text('p', 0), want.Acc())
+				}
+			}
+		}
+	}
+}
 
 func TestFloat64Text(t *testing.T) {
 	for _, test := range []struct {
