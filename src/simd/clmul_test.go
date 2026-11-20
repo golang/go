@@ -314,7 +314,7 @@ func (x T) Or(y T) T {
 
 // MWL returns the 128-bit unsigned product
 // of x[0] times y[0].
-func (x T) MWL(y T) T { // MulWidenLo
+func (x T) MWL(y T) T { // MulWiden
 	hi, lo := bits.Mul64(x.a, y.a)
 	return T{a: lo, b: hi}
 }
@@ -322,7 +322,7 @@ func (x T) MWL(y T) T { // MulWidenLo
 // ClMul is a constant time implementation of carryless
 // multiply low-parts implemented in terms of bitwise
 // And, Or, and Xor, and MWL.
-// MWL is a short name for MulWidenLow.
+// MWL is a short name for MulWiden.
 func (x T) ClMul(y T) T {
 	m1 := newT(0x1084210842108421, 0x2108421084210842)
 	m2 := newT(0x2108421084210842, 0x4210842108421084)

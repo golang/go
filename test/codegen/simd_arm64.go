@@ -189,8 +189,8 @@ func orNot(x8, y8 archsimd.Uint8x16, x32, y32 archsimd.Uint32x4, m, n archsimd.M
 }
 
 func foldGetHiSetHiMuls(a, b archsimd.Uint16x8) archsimd.Uint16x8 {
-	wLo := a.MulWidenLo(b)                     // arm64: `VUMULL V0.H4, V1.H4, V[0-9].S4`
-	wHi := a.HiToLo().MulWidenLo(b.HiToLo())   // arm64: `VUMULL2 V1.H8, V0.H8, V[0-9].S4` -`VDUP`
+	wLo := a.MulWiden(b)                       // arm64: `VUMULL V0.H4, V1.H4, V[0-9].S4`
+	wHi := a.HiToLo().MulWiden(b.HiToLo())     // arm64: `VUMULL2 V1.H8, V0.H8, V[0-9].S4` -`VDUP`
 	narrowLo := wLo.TruncToUint16()            // arm64: `VXTN V[0-9]+.S4, V0.H4`
 	narrowHi := wHi.TruncToUint16()            // folded into next line
 	return loToHiUint16Vec(narrowLo, narrowHi) // arm64: `VXTN2 V[0-9]+.S4, V0.H8`

@@ -249,3 +249,93 @@ func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) (z Uint64x2) {
 func (x Uint64x2) CarrylessMultiplyEvenOdd(y Uint64x2) (z Uint64x2) {
 	return x.CarrylessMulEvenOdd(y)
 }
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int16(x[i]) * int16(y[i])
+//
+// Asm: VSMULL
+//
+// Deprecated: use x.MulWiden(y) instead.
+//
+//go:fix inline
+func (x Int8x16) MulWidenLo(y Int8x16) (z Int16x8) {
+	return x.MulWiden(y)
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int32(x[i]) * int32(y[i])
+//
+// Asm: VSMULL
+//
+// Deprecated: use x.MulWiden(y) instead.
+//
+//go:fix inline
+func (x Int16x8) MulWidenLo(y Int16x8) (z Int32x4) {
+	return x.MulWiden(y)
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int64(x[i]) * int64(y[i])
+//
+// Asm: VSMULL
+//
+// Deprecated: use x.MulWiden(y) instead.
+//
+//go:fix inline
+func (x Int32x4) MulWidenLo(y Int32x4) (z Int64x2) {
+	return x.MulWiden(y)
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint16(x[i]) * uint16(y[i])
+//
+// Asm: VUMULL
+//
+// Deprecated: use x.MulWiden(y) instead.
+//
+//go:fix inline
+func (x Uint8x16) MulWidenLo(y Uint8x16) (z Uint16x8) {
+	return x.MulWiden(y)
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint32(x[i]) * uint32(y[i])
+//
+// Asm: VUMULL
+//
+// Deprecated: use x.MulWiden(y) instead.
+//
+//go:fix inline
+func (x Uint16x8) MulWidenLo(y Uint16x8) (z Uint32x4) {
+	return x.MulWiden(y)
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint64(x[i]) * uint64(y[i])
+//
+// Asm: VUMULL
+//
+// Deprecated: use x.MulWiden(y) instead.
+//
+//go:fix inline
+func (x Uint32x4) MulWidenLo(y Uint32x4) (z Uint64x2) {
+	return x.MulWiden(y)
+}

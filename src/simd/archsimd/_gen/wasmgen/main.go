@@ -840,8 +840,8 @@ var (
 		// need to verify semantics
 		"extadd_pairwise_s": "?",
 		"extadd_pairwise_u": "?",
-		"extmul_low_s":      "MulWidenLo",
-		"extmul_low_u":      "MulWidenLo",
+		"extmul_low_s":      "MulWiden",
+		"extmul_low_u":      "MulWiden",
 		"extmul_high_s":     "MulWidenHi",
 		"extmul_high_u":     "MulWidenHi",
 		"dot_s":             "DotProductPairs",
@@ -1336,7 +1336,7 @@ var docForOp map[string]string = map[string]string{
 	"MulWidenHi": ` returns the doubled-width product of respective elements of the upper halves of x and y.
 //
 //	Result[i] = x[i+{{.Type.HalfCount}}] * y[i+{{.Type.HalfCount}}], for 0 <= i < {{.Type.HalfCount}} == |x|/2.`,
-	"MulWidenLo": ` returns the doubled-width product of respective elements of the lower halves of x and y.
+	"MulWiden": ` returns the doubled-width product of respective elements of the lower halves of x and y.
 //
 //	Result[i] = x[i] * y[i], for 0 <= i < {{.Type.HalfCount}} == |x|/2.`,
 	// Size-specific extend operations

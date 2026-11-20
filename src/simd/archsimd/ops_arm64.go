@@ -1960,9 +1960,9 @@ func (x Uint16x8) MulAdd(y Uint16x8, z Uint16x8) (w Uint16x8)
 // Asm: VMLA
 func (x Uint32x4) MulAdd(y Uint32x4, z Uint32x4) (w Uint32x4)
 
-/* MulWidenLo */
+/* MulWiden */
 
-// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// MulWiden multiplies corresponding elements in the lower half of x and y,
 // returning a vector of half as many elements, each with twice the input
 // element size.
 //
@@ -1972,9 +1972,9 @@ func (x Uint32x4) MulAdd(y Uint32x4, z Uint32x4) (w Uint32x4)
 // overflow.
 //
 // Asm: VSMULL
-func (x Int8x16) MulWidenLo(y Int8x16) (z Int16x8)
+func (x Int8x16) MulWiden(y Int8x16) (z Int16x8)
 
-// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// MulWiden multiplies corresponding elements in the lower half of x and y,
 // returning a vector of half as many elements, each with twice the input
 // element size.
 //
@@ -1984,9 +1984,9 @@ func (x Int8x16) MulWidenLo(y Int8x16) (z Int16x8)
 // overflow.
 //
 // Asm: VSMULL
-func (x Int16x8) MulWidenLo(y Int16x8) (z Int32x4)
+func (x Int16x8) MulWiden(y Int16x8) (z Int32x4)
 
-// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// MulWiden multiplies corresponding elements in the lower half of x and y,
 // returning a vector of half as many elements, each with twice the input
 // element size.
 //
@@ -1996,9 +1996,9 @@ func (x Int16x8) MulWidenLo(y Int16x8) (z Int32x4)
 // overflow.
 //
 // Asm: VSMULL
-func (x Int32x4) MulWidenLo(y Int32x4) (z Int64x2)
+func (x Int32x4) MulWiden(y Int32x4) (z Int64x2)
 
-// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// MulWiden multiplies corresponding elements in the lower half of x and y,
 // returning a vector of half as many elements, each with twice the input
 // element size.
 //
@@ -2008,9 +2008,9 @@ func (x Int32x4) MulWidenLo(y Int32x4) (z Int64x2)
 // overflow.
 //
 // Asm: VUMULL
-func (x Uint8x16) MulWidenLo(y Uint8x16) (z Uint16x8)
+func (x Uint8x16) MulWiden(y Uint8x16) (z Uint16x8)
 
-// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// MulWiden multiplies corresponding elements in the lower half of x and y,
 // returning a vector of half as many elements, each with twice the input
 // element size.
 //
@@ -2020,9 +2020,9 @@ func (x Uint8x16) MulWidenLo(y Uint8x16) (z Uint16x8)
 // overflow.
 //
 // Asm: VUMULL
-func (x Uint16x8) MulWidenLo(y Uint16x8) (z Uint32x4)
+func (x Uint16x8) MulWiden(y Uint16x8) (z Uint32x4)
 
-// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// MulWiden multiplies corresponding elements in the lower half of x and y,
 // returning a vector of half as many elements, each with twice the input
 // element size.
 //
@@ -2032,7 +2032,7 @@ func (x Uint16x8) MulWidenLo(y Uint16x8) (z Uint32x4)
 // overflow.
 //
 // Asm: VUMULL
-func (x Uint32x4) MulWidenLo(y Uint32x4) (z Uint64x2)
+func (x Uint32x4) MulWiden(y Uint32x4) (z Uint64x2)
 
 /* Neg */
 

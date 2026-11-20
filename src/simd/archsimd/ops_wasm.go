@@ -1544,6 +1544,78 @@ func (x Uint64x2) Mul(y Uint64x2) (z Uint64x2)
 // Asm: F64x2Mul
 func (x Float64x2) Mul(y Float64x2) (z Float64x2)
 
+// MulWiden multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int16(x[i]) * int16(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+//
+// Asm: I16x8ExtmulLowI8x16S
+func (x Int8x16) MulWiden(y Int8x16) (z Int16x8)
+
+// MulWiden multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint16(x[i]) * uint16(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+//
+// Asm: I16x8ExtmulLowI8x16U
+func (x Uint8x16) MulWiden(y Uint8x16) (z Uint16x8)
+
+// MulWiden multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int32(x[i]) * int32(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+//
+// Asm: I32x4ExtmulLowI16x8S
+func (x Int16x8) MulWiden(y Int16x8) (z Int32x4)
+
+// MulWiden multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint32(x[i]) * uint32(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+//
+// Asm: I32x4ExtmulLowI16x8U
+func (x Uint16x8) MulWiden(y Uint16x8) (z Uint32x4)
+
+// MulWiden multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int64(x[i]) * int64(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+//
+// Asm: I64x2ExtmulLowI32x4S
+func (x Int32x4) MulWiden(y Int32x4) (z Int64x2)
+
+// MulWiden multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint64(x[i]) * uint64(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+//
+// Asm: I64x2ExtmulLowI32x4U
+func (x Uint32x4) MulWiden(y Uint32x4) (z Uint64x2)
+
 // MulWidenHi multiplies corresponding elements in the upper half of x and y,
 // returning a vector of half as many elements, each with twice the input
 // element size.
@@ -1615,78 +1687,6 @@ func (x Int32x4) MulWidenHi(y Int32x4) (z Int64x2)
 //
 // Asm: I64x2ExtmulHighI32x4U
 func (x Uint32x4) MulWidenHi(y Uint32x4) (z Uint64x2)
-
-// MulWidenLo multiplies corresponding elements in the lower half of x and y,
-// returning a vector of half as many elements, each with twice the input
-// element size.
-//
-//	z[i] = int16(x[i]) * int16(y[i])
-//
-// The doubled element width is sufficient to hold every product without
-// overflow.
-//
-// Asm: I16x8ExtmulLowI8x16S
-func (x Int8x16) MulWidenLo(y Int8x16) (z Int16x8)
-
-// MulWidenLo multiplies corresponding elements in the lower half of x and y,
-// returning a vector of half as many elements, each with twice the input
-// element size.
-//
-//	z[i] = uint16(x[i]) * uint16(y[i])
-//
-// The doubled element width is sufficient to hold every product without
-// overflow.
-//
-// Asm: I16x8ExtmulLowI8x16U
-func (x Uint8x16) MulWidenLo(y Uint8x16) (z Uint16x8)
-
-// MulWidenLo multiplies corresponding elements in the lower half of x and y,
-// returning a vector of half as many elements, each with twice the input
-// element size.
-//
-//	z[i] = int32(x[i]) * int32(y[i])
-//
-// The doubled element width is sufficient to hold every product without
-// overflow.
-//
-// Asm: I32x4ExtmulLowI16x8S
-func (x Int16x8) MulWidenLo(y Int16x8) (z Int32x4)
-
-// MulWidenLo multiplies corresponding elements in the lower half of x and y,
-// returning a vector of half as many elements, each with twice the input
-// element size.
-//
-//	z[i] = uint32(x[i]) * uint32(y[i])
-//
-// The doubled element width is sufficient to hold every product without
-// overflow.
-//
-// Asm: I32x4ExtmulLowI16x8U
-func (x Uint16x8) MulWidenLo(y Uint16x8) (z Uint32x4)
-
-// MulWidenLo multiplies corresponding elements in the lower half of x and y,
-// returning a vector of half as many elements, each with twice the input
-// element size.
-//
-//	z[i] = int64(x[i]) * int64(y[i])
-//
-// The doubled element width is sufficient to hold every product without
-// overflow.
-//
-// Asm: I64x2ExtmulLowI32x4S
-func (x Int32x4) MulWidenLo(y Int32x4) (z Int64x2)
-
-// MulWidenLo multiplies corresponding elements in the lower half of x and y,
-// returning a vector of half as many elements, each with twice the input
-// element size.
-//
-//	z[i] = uint64(x[i]) * uint64(y[i])
-//
-// The doubled element width is sufficient to hold every product without
-// overflow.
-//
-// Asm: I64x2ExtmulLowI32x4U
-func (x Uint32x4) MulWidenLo(y Uint32x4) (z Uint64x2)
 
 // Neg returns the elementwise negation of x.
 //

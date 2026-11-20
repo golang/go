@@ -915,22 +915,22 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpMulWidenHiUint8x16:
 		v.Op = ssaop.OpWasmI16x8ExtmulHighI8x16U
 		return true
-	case ssaop.OpMulWidenLoInt16x8:
+	case ssaop.OpMulWidenInt16x8:
 		v.Op = ssaop.OpWasmI32x4ExtmulLowI16x8S
 		return true
-	case ssaop.OpMulWidenLoInt32x4:
+	case ssaop.OpMulWidenInt32x4:
 		v.Op = ssaop.OpWasmI64x2ExtmulLowI32x4S
 		return true
-	case ssaop.OpMulWidenLoInt8x16:
+	case ssaop.OpMulWidenInt8x16:
 		v.Op = ssaop.OpWasmI16x8ExtmulLowI8x16S
 		return true
-	case ssaop.OpMulWidenLoUint16x8:
+	case ssaop.OpMulWidenUint16x8:
 		v.Op = ssaop.OpWasmI32x4ExtmulLowI16x8U
 		return true
-	case ssaop.OpMulWidenLoUint32x4:
+	case ssaop.OpMulWidenUint32x4:
 		v.Op = ssaop.OpWasmI64x2ExtmulLowI32x4U
 		return true
-	case ssaop.OpMulWidenLoUint8x16:
+	case ssaop.OpMulWidenUint8x16:
 		v.Op = ssaop.OpWasmI16x8ExtmulLowI8x16U
 		return true
 	case ssaop.OpNeg16:
