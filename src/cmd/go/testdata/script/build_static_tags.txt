@@ -1,0 +1,37 @@
+# Test that -static enables osusergo and netgo build tags.
+# Verify by building a package that has netgo-constrained source.
+
+go build -static -o $WORK/static_tags_bin .
+
+-- go.mod --
+module example.com/static
+go 1.24
+
+-- main.go --
+package main
+
+func main() {
+	printMode()
+}
+
+-- mode_static.go --
+//go:build netgo && osusergo
+
+package main
+
+import "fmt"
+
+func printMode() {
+	fmt.Println("static mode: pure-Go net and os/user")
+}
+
+-- mode_default.go --
+//go:build !netgo || !osusergo
+
+package main
+
+import "fmt"
+
+func printMode() {
+	fmt.Println("default mode: system resolver")
+}

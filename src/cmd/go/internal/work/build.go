@@ -80,6 +80,15 @@ and test commands:
 		Supported only on darwin/amd64, darwin/arm64, freebsd/amd64, linux/amd64,
 		linux/arm64 (only for 48-bit VMA), linux/ppc64le, linux/riscv64 and
 		windows/amd64.
+	-static
+		produce a statically linked binary. On Linux, this passes
+		-extldflags=-static to the linker and enables the osusergo and netgo
+		build tags to avoid dynamic linking of libc for name resolution and
+		user lookup. On macOS, iOS, FreeBSD, OpenBSD, and NetBSD, only the
+		pure-Go net and os/user implementations are selected (full static
+		linking is not supported by the system linker).
+		Cannot be used with -buildmode=c-shared, -buildmode=shared,
+		-buildmode=plugin, or -linkshared.
 	-msan
 		enable interoperation with memory sanitizer.
 		Supported only on linux/amd64, linux/arm64, linux/loong64, freebsd/amd64
@@ -354,6 +363,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.StringVar(&cfg.BuildPGO, "pgo", "auto", "specify the `file` path of a profile for profile-guided optimization (PGO); special name \"auto\" selects default.pgo, \"off\" turns off PGO")
 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "install and load all packages from `dir` instead of the usual locations")
 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "enable data race detection")
+	cmd.Flag.BoolVar(&cfg.BuildStatic, "static", false, "produce a statically linked binary where supported and use pure-Go net and os/user implementations")
 	cmd.Flag.Var((*tagsFlag)(&cfg.BuildContext.BuildTags), "tags", "a comma-separated list of additional build `tags` to consider satisfied during the build")
 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "a `program` to use to invoke toolchain programs like vet and asm; see 'go help build'")
 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "remove all file system paths from the resulting executable")
