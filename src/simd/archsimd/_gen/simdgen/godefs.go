@@ -780,10 +780,17 @@ func writeGoDefs(cl unify.Closure) error {
 			phaseExperiment: files.NewGoFile(simdPackage + "/cpu_exp.go"),
 		}, deduped, specIdx)
 	}
+	// Experimental public ops go in their own file, except on SVE, which is
+	// entirely experimental.
+	var opsExp *bytes.Buffer
+	if !archInfo.isSVE() {
+		opsExp = files.NewGoFile(simdPackage + "/ops_exp_gen_" + goTypeArch + ".go")
+	}
 	writeSIMDStubs(
 		files.NewGoFile(simdPackage+"/ops_"+goTypeArch+".go"),
+		opsExp,
 		files.NewGoFile(simdPackage+"/ops_internal_"+goTypeArch+".go"),
-		deduped, typeMap,
+		deduped, typeMap, specIdx,
 	)
 	writeSIMDIntrinsics(files.NewGoFile("cmd/compile/internal/ssagen/simd"+simdTag+"intrinsics.go"), deduped, typeMap)
 	writeSIMDGenericOps(files.NewGoFile("cmd/compile/internal/ssa/_gen/simd"+simdTag+"genericOps_gen.go"), deduped)

@@ -1416,15 +1416,23 @@ func opStub(op Operation) ([]byte, bool) {
 	return buf.Bytes(), true
 }
 
-// writeSIMDStubs returns two bytes.Buffers containing the declarations for the public
-// and internal-use vector intrinsics.
-func writeSIMDStubs(f, fI *bytes.Buffer, ops []Operation, typeMap simdTypeMap) {
+// writeSIMDStubs writes the declarations for the public vector intrinsics to
+// f, the experimental public vector intrinsics to fExp, and the internal-use
+// vector intrinsics to fI. If fExp is nil, the experimental public vector
+// intrinsics go to f.
+func writeSIMDStubs(f, fExp, fI *bytes.Buffer, ops []Operation, typeMap simdTypeMap, specIdx *specgen.Index) {
 	f.WriteString(simdPackageHeader())
+	if fExp != nil {
+		fExp.WriteString(simdPackageHeader())
+	}
 	fI.WriteString(simdPackageHeader())
 
 	slices.SortFunc(ops, compareOperations)
 
-	for i, op := range ops {
+	// We write an /* op */ header above the first instance of each op in
+	// each file. lastGo records the last op written to each file.
+	lastGo := make(map[*bytes.Buffer]string)
+	for _, op := range ops {
 		stub, ok := opStub(op)
 		if !ok {
 			continue
@@ -1432,9 +1440,13 @@ func writeSIMDStubs(f, fI *bytes.Buffer, ops []Operation, typeMap simdTypeMap) {
 		out := fI
 		if unicode.IsUpper([]rune(op.Go)[0]) {
 			out = f
+			if fExp != nil && opPhase(op, specIdx) == phaseExperiment {
+				out = fExp
+			}
 		}
-		if i == 0 || op.Go != ops[i-1].Go {
+		if op.Go != lastGo[out] {
 			fmt.Fprintf(out, "\n/* %s */\n", op.Go)
+			lastGo[out] = op.Go
 		}
 		out.Write(stub)
 	}
