@@ -307,6 +307,16 @@ func simdV01Imm(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	return p
 }
 
+// simdV01Imm64 generates a VMOVI-like instruction with 64-bit imm, e.g. VMOVI $(0xFF<<56|0xFF), V0.D2
+func simdV01Imm64(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = v.AuxInt
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arrangement)
+	return p
+}
+
 // simdV11Asm generates element-wise unary vector operations with explicit asm, e.g. VMOV V1.B16, V0.B16
 func simdV11Asm(s *ssagen.State, asm obj.As, src, dst int16, arrangement int16) *obj.Prog {
 	p := s.Prog(asm)
@@ -649,6 +659,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// nothing to do
 	case ssaop.OpARM64VMOVI16B:
 		simdV01Imm(s, v, arm64.ARNG_16B)
+	case ssaop.OpARM64VMOVI8H:
+		simdV01Imm64(s, v, arm64.ARNG_8H)
+	case ssaop.OpARM64VMOVI4S:
+		simdV01Imm64(s, v, arm64.ARNG_4S)
+	case ssaop.OpARM64VMOVI2D:
+		simdV01Imm64(s, v, arm64.ARNG_2D)
 	case ssaop.OpLoadReg:
 		if v.Type.IsFlags() {
 			v.Fatalf("load flags not implemented: %v", v.LongString())

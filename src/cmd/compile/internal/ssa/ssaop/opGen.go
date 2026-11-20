@@ -4756,6 +4756,9 @@ const (
 	OpARM64DMB
 	OpARM64ZERO
 	OpARM64VMOVI16B
+	OpARM64VMOVI8H
+	OpARM64VMOVI4S
+	OpARM64VMOVI2D
 	OpARM64ZLDRload
 	OpARM64ZSTRstore
 	OpARM64ZSELB
@@ -85626,6 +85629,39 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "VMOVI16B",
 		AuxType: AuxTypeUInt8,
+		ArgLen:  0,
+		asm:     arm64.AVMOVI,
+		Reg: RegInfo{
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:    "VMOVI8H",
+		AuxType: AuxTypeInt64,
+		ArgLen:  0,
+		asm:     arm64.AVMOVI,
+		Reg: RegInfo{
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:    "VMOVI4S",
+		AuxType: AuxTypeInt64,
+		ArgLen:  0,
+		asm:     arm64.AVMOVI,
+		Reg: RegInfo{
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:    "VMOVI2D",
+		AuxType: AuxTypeInt64,
 		ArgLen:  0,
 		asm:     arm64.AVMOVI,
 		Reg: RegInfo{

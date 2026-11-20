@@ -82,6 +82,59 @@ func broadcastConstImmFold(k int) {
 	}
 }
 
+func broadcastConstImmFoldWide(k int) {
+	switch k {
+	case 0:
+		// arm64:`VMOVI [$]66, V\d+\.H8` -`VDUP`
+		sinkU16 = archsimd.BroadcastUint16x8(0x42)
+	case 1:
+		// arm64:`VMOVI [$]16896, V\d+\.H8` -`VDUP`
+		sinkU16 = archsimd.BroadcastUint16x8(0x4200)
+	case 2:
+		// arm64:`VMOVI [$]65280, V\d+\.H8` -`VDUP`
+		sinkU16 = archsimd.BroadcastUint16x8(0xFF00)
+	case 3:
+		// arm64:`VMOVI [$]66, V\d+\.S4` -`VDUP`
+		sinkU32 = archsimd.BroadcastUint32x4(0x42)
+	case 4:
+		// arm64:`VMOVI [$]16896, V\d+\.S4` -`VDUP`
+		sinkU32 = archsimd.BroadcastUint32x4(0x4200)
+	case 5:
+		// arm64:`VMOVI [$]4325376, V\d+\.S4` -`VDUP`
+		sinkU32 = archsimd.BroadcastUint32x4(0x420000)
+	case 6:
+		// arm64:`VMOVI [$]1107296256, V\d+\.S4` -`VDUP`
+		sinkU32 = archsimd.BroadcastUint32x4(0x42000000)
+	case 7:
+		// arm64:`VMOVI [$]17151, V\d+\.S4` -`VDUP`
+		sinkU32 = archsimd.BroadcastUint32x4(0x42FF)
+	case 8:
+		// arm64:`VMOVI [$]196607, V\d+\.S4` -`VDUP`
+		sinkU32 = archsimd.BroadcastUint32x4(0x2FFFF)
+	case 9:
+		// arm64:`VMOVI [$]0, V\d+\.S4` -`VDUP`
+		sinkU32 = archsimd.BroadcastUint32x4(0)
+	case 10:
+		// arm64:`VMOVI [$]-71777214294589696, V\d+\.D2` -`VDUP`
+		sinkU64 = archsimd.BroadcastUint64x2(0xFF00FF00FF00FF00)
+	case 11:
+		// arm64:`VMOVI [$]-1, V\d+\.D2` -`VDUP`
+		sinkU64 = archsimd.BroadcastUint64x2(0xFFFFFFFFFFFFFFFF)
+	case 12:
+		// arm64:`VMOVI [$]0, V\d+\.D2` -`VDUP`
+		sinkU64 = archsimd.BroadcastUint64x2(0)
+	case 13:
+		// arm64:`VMOVI [$]4278190080, V\d+\.S4` -`VDUP`
+		sinkU32 = archsimd.BroadcastUint32x4(0xFF000000)
+	case 14:
+     		// arm64:`VMOV R\d+, V\d+\.H` `VDUP`
+     		sinkU16 = archsimd.BroadcastUint16x8(0x4201)
+	default:
+		// arm64:`VMOV R\d+, V\d+\.S\[0\]` `VDUP`
+		sinkU32 = archsimd.BroadcastUint32x4(0x7F7F7F7F)
+	}
+}
+
 func shiftAllImmFold(k int) {
 	switch k {
 	case 100:

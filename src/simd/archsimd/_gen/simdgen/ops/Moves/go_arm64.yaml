@@ -118,6 +118,8 @@
   asm: "VDUP"
   ssaVariant: "bcast"
   constImm: 0
+  peepholeRules:
+  - !string "(%h [i] (VMOV%sins [j] _ (MOVDconst [c]))) && i == j && c>=-32768 && c<=65535 && (uint16(c)<=255 || uint16(c)&255==0) => (VMOVI%a [int64(uint16(c))])"
   in:
   - *immLane0
   - &bcast16
@@ -132,6 +134,8 @@
   asm: "VDUP"
   ssaVariant: "bcast"
   constImm: 0
+  peepholeRules:
+  - !string "(%h [i] (VMOV%sins [j] _ (MOVDconst [c]))) && i == j && c>=-2147483648 && c<=4294967295 && (uint32(c)<=255 || (uint32(c)&255==0 && uint32(c)>>8<=255) || (uint32(c)&65535==0 && uint32(c)>>16<=255) || (uint32(c)&16777215==0 && uint32(c)>>24<=255) || (uint32(c)&255==255 && uint32(c)>>8<=255) || (uint32(c)&65535==65535 && uint32(c)>>16<=255)) => (VMOVI%a [int64(uint32(c))])"
   in:
   - *immLane0
   - &bcast32
@@ -146,6 +150,8 @@
   asm: "VDUP"
   ssaVariant: "bcast"
   constImm: 0
+  peepholeRules:
+  - !string "(%h [i] (VMOV%sins [j] _ (MOVDconst [c]))) && i == j && c == (c&0x0101010101010101)*0xFF => (VMOVI%a [c])"
   in:
   - *immLane0
   - &bcast64

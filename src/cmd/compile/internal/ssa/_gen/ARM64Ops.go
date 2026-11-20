@@ -842,9 +842,11 @@ func init() {
 		{name: "DMB", argLength: 1, aux: "Int64", asm: "DMB", hasSideEffects: true},       // Do data barrier. arg0=memory, aux=option.
 		{name: "ZERO", zeroWidth: true, fixedReg: true, earlyOk: true, zeroUpperBits: 56}, // reads-as-zero register
 
-		// Broadcast constant to each lane of a SIMD register. aux=constant.
-		// TODO: add the other arrangements after assembler supports them, to be used in simdgen-generated opt rules.
+		// Broadcast constant to each lane of a SIMD register. aux=pre-shifted lane value.
 		{name: "VMOVI16B", argLength: 0, reg: fp01, asm: "VMOVI", aux: "UInt8", commutative: false, typ: "Vec128", resultInArg0: false},
+		{name: "VMOVI8H", argLength: 0, reg: fp01, asm: "VMOVI", aux: "Int64", commutative: false, typ: "Vec128", resultInArg0: false},
+		{name: "VMOVI4S", argLength: 0, reg: fp01, asm: "VMOVI", aux: "Int64", commutative: false, typ: "Vec128", resultInArg0: false},
+		{name: "VMOVI2D", argLength: 0, reg: fp01, asm: "VMOVI", aux: "Int64", commutative: false, typ: "Vec128", resultInArg0: false},
 
 		// SVE whole-register (unpredicated, VL-scaled) load/store of a scalable
 		// vector. These lower generic Load/Store of a 256-bit SIMD value; the
