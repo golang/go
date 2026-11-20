@@ -9,6 +9,7 @@ import (
 
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
+	"cmd/internal/sys"
 )
 
 // loopRotate converts loops with a check-loop-condition-at-beginning
@@ -103,9 +104,28 @@ func loopRotate(f *ssa.Func) {
 		}
 	})
 
+	// On wasm, a loop without calls becomes a WebAssembly loop,
+	// which can only be entered at its header.
+	var keep map[*ssa.Loop]bool
+	if f.Config.Ctxt.Arch.Arch == sys.ArchWasm {
+		keep = make(map[*ssa.Loop]bool)
+		hasCall := loopsWithCalls(f)
+		for _, l := range loopnest.Loops {
+			if hasCall[l] {
+				continue
+			}
+			for ; l != nil && !keep[l]; l = l.Outer {
+				keep[l] = true
+			}
+		}
+	}
+
 	// Check each loop header and decide if we want to move it.
 	for _, loopIdx := range loopOrder {
 		loop := loopnest.Loops[loopIdx]
+		if keep[loop] {
+			continue
+		}
 		b := loop.Header
 		var p *ssa.Block // b's in-loop predecessor
 		for _, e := range b.Preds {
@@ -192,4 +212,20 @@ func loopRotate(f *ssa.Func) {
 	if j != len(oldOrder) {
 		f.Fatalf("bad reordering in looprotate")
 	}
+}
+
+// loopsWithCalls returns the loops of f that contain a call.
+func loopsWithCalls(f *ssa.Func) map[*ssa.Loop]bool {
+	loopnest := f.Loopnest()
+	hasCall := make(map[*ssa.Loop]bool)
+	for _, b := range f.Blocks {
+		l := loopnest.B2L[b.ID]
+		if l == nil || hasCall[l] || !slices.ContainsFunc(b.Values, func(v *ssa.Value) bool { return v.Op.IsCall() }) {
+			continue
+		}
+		for ; l != nil && !hasCall[l]; l = l.Outer {
+			hasCall[l] = true
+		}
+	}
+	return hasCall
 }
