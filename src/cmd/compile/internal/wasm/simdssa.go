@@ -76,7 +76,9 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value, extend bool) bool {
 			// the rest of the backend expects booleans to be i64s.
 			s.Prog(wasm.AI64ExtendI32U)
 		}
-	case ssaop.OpWasmI16x8Q15MulrSatS, ssaop.OpWasmI16x8RelaxedQ15MulrS, ssaop.OpWasmF32x4Pmax,
+	case ssaop.OpWasmI16x8ExtmulHighI8x16S, ssaop.OpWasmI16x8ExtmulHighI8x16U, ssaop.OpWasmI32x4ExtmulHighI16x8S,
+		ssaop.OpWasmI16x8Q15MulrSatS, ssaop.OpWasmI16x8RelaxedQ15MulrS, ssaop.OpWasmI32x4ExtmulHighI16x8U,
+		ssaop.OpWasmI64x2ExtmulHighI32x4S, ssaop.OpWasmI64x2ExtmulHighI32x4U, ssaop.OpWasmF32x4Pmax,
 		ssaop.OpWasmF32x4Pmin, ssaop.OpWasmF32x4RelaxedMax, ssaop.OpWasmF32x4RelaxedMin,
 		ssaop.OpWasmF64x2Pmax, ssaop.OpWasmF64x2Pmin, ssaop.OpWasmF64x2RelaxedMax,
 		ssaop.OpWasmF64x2RelaxedMin, ssaop.OpWasmI8x16Add, ssaop.OpWasmI16x8Add,
@@ -108,9 +110,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value, extend bool) bool {
 		ssaop.OpWasmI32x4Mul, ssaop.OpWasmF32x4Mul, ssaop.OpWasmI64x2Mul,
 		ssaop.OpWasmF64x2Mul, ssaop.OpWasmI16x8ExtmulLowI8x16S, ssaop.OpWasmI16x8ExtmulLowI8x16U,
 		ssaop.OpWasmI32x4ExtmulLowI16x8S, ssaop.OpWasmI32x4ExtmulLowI16x8U, ssaop.OpWasmI64x2ExtmulLowI32x4S,
-		ssaop.OpWasmI64x2ExtmulLowI32x4U, ssaop.OpWasmI16x8ExtmulHighI8x16S, ssaop.OpWasmI16x8ExtmulHighI8x16U,
-		ssaop.OpWasmI32x4ExtmulHighI16x8S, ssaop.OpWasmI32x4ExtmulHighI16x8U, ssaop.OpWasmI64x2ExtmulHighI32x4S,
-		ssaop.OpWasmI64x2ExtmulHighI32x4U, ssaop.OpWasmI8x16Ne, ssaop.OpWasmI16x8Ne,
+		ssaop.OpWasmI64x2ExtmulLowI32x4U, ssaop.OpWasmI8x16Ne, ssaop.OpWasmI16x8Ne,
 		ssaop.OpWasmI32x4Ne, ssaop.OpWasmF32x4Ne, ssaop.OpWasmI64x2Ne,
 		ssaop.OpWasmF64x2Ne, ssaop.OpWasmV128Or, ssaop.OpWasmI8x16Sub,
 		ssaop.OpWasmI16x8Sub, ssaop.OpWasmI32x4Sub, ssaop.OpWasmF32x4Sub,

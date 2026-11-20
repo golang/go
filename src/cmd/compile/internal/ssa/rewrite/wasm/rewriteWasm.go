@@ -897,24 +897,6 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpMulUint64x2:
 		v.Op = ssaop.OpWasmI64x2Mul
 		return true
-	case ssaop.OpMulWidenHiInt16x8:
-		v.Op = ssaop.OpWasmI32x4ExtmulHighI16x8S
-		return true
-	case ssaop.OpMulWidenHiInt32x4:
-		v.Op = ssaop.OpWasmI64x2ExtmulHighI32x4S
-		return true
-	case ssaop.OpMulWidenHiInt8x16:
-		v.Op = ssaop.OpWasmI16x8ExtmulHighI8x16S
-		return true
-	case ssaop.OpMulWidenHiUint16x8:
-		v.Op = ssaop.OpWasmI32x4ExtmulHighI16x8U
-		return true
-	case ssaop.OpMulWidenHiUint32x4:
-		v.Op = ssaop.OpWasmI64x2ExtmulHighI32x4U
-		return true
-	case ssaop.OpMulWidenHiUint8x16:
-		v.Op = ssaop.OpWasmI16x8ExtmulHighI8x16U
-		return true
 	case ssaop.OpMulWidenInt16x8:
 		v.Op = ssaop.OpWasmI32x4ExtmulLowI16x8S
 		return true
@@ -1401,10 +1383,18 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpWasmI16x8ExtendLowI8x16S(v)
 	case ssaop.OpWasmI16x8ExtendLowI8x16U:
 		return rewriteValue_OpWasmI16x8ExtendLowI8x16U(v)
+	case ssaop.OpWasmI16x8ExtmulLowI8x16S:
+		return rewriteValue_OpWasmI16x8ExtmulLowI8x16S(v)
+	case ssaop.OpWasmI16x8ExtmulLowI8x16U:
+		return rewriteValue_OpWasmI16x8ExtmulLowI8x16U(v)
 	case ssaop.OpWasmI32x4ExtendLowI16x8S:
 		return rewriteValue_OpWasmI32x4ExtendLowI16x8S(v)
 	case ssaop.OpWasmI32x4ExtendLowI16x8U:
 		return rewriteValue_OpWasmI32x4ExtendLowI16x8U(v)
+	case ssaop.OpWasmI32x4ExtmulLowI16x8S:
+		return rewriteValue_OpWasmI32x4ExtmulLowI16x8S(v)
+	case ssaop.OpWasmI32x4ExtmulLowI16x8U:
+		return rewriteValue_OpWasmI32x4ExtmulLowI16x8U(v)
 	case ssaop.OpWasmI64Add:
 		return rewriteValue_OpWasmI64Add(v)
 	case ssaop.OpWasmI64AddConst:
@@ -1467,6 +1457,10 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpWasmI64x2ExtendLowI32x4S(v)
 	case ssaop.OpWasmI64x2ExtendLowI32x4U:
 		return rewriteValue_OpWasmI64x2ExtendLowI32x4U(v)
+	case ssaop.OpWasmI64x2ExtmulLowI32x4S:
+		return rewriteValue_OpWasmI64x2ExtmulLowI32x4S(v)
+	case ssaop.OpWasmI64x2ExtmulLowI32x4U:
+		return rewriteValue_OpWasmI64x2ExtmulLowI32x4U(v)
 	case ssaop.OpXor16:
 		v.Op = ssaop.OpWasmI64Xor
 		return true
@@ -6093,6 +6087,72 @@ func rewriteValue_OpWasmI16x8ExtendLowI8x16U(v *ssa.Value) bool {
 	}
 	return false
 }
+func rewriteValue_OpWasmI16x8ExtmulLowI8x16S(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (I16x8ExtmulLowI8x16S (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] x)) (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] y)))
+	// result: (I16x8ExtmulHighI8x16S x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != ssaop.OpWasmF64x2ReplaceLane || ssa.AuxIntToUint8(v_0.AuxInt) != 0 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != ssaop.OpWasmF64x2ExtractLane || ssa.AuxIntToUint8(v_0_1.AuxInt) != 1 {
+				continue
+			}
+			x := v_0_1.Args[0]
+			if v_1.Op != ssaop.OpWasmF64x2ReplaceLane || ssa.AuxIntToUint8(v_1.AuxInt) != 0 {
+				continue
+			}
+			_ = v_1.Args[1]
+			v_1_1 := v_1.Args[1]
+			if v_1_1.Op != ssaop.OpWasmF64x2ExtractLane || ssa.AuxIntToUint8(v_1_1.AuxInt) != 1 {
+				continue
+			}
+			y := v_1_1.Args[0]
+			v.Reset(ssaop.OpWasmI16x8ExtmulHighI8x16S)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
+	return false
+}
+func rewriteValue_OpWasmI16x8ExtmulLowI8x16U(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (I16x8ExtmulLowI8x16U (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] x)) (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] y)))
+	// result: (I16x8ExtmulHighI8x16U x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != ssaop.OpWasmF64x2ReplaceLane || ssa.AuxIntToUint8(v_0.AuxInt) != 0 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != ssaop.OpWasmF64x2ExtractLane || ssa.AuxIntToUint8(v_0_1.AuxInt) != 1 {
+				continue
+			}
+			x := v_0_1.Args[0]
+			if v_1.Op != ssaop.OpWasmF64x2ReplaceLane || ssa.AuxIntToUint8(v_1.AuxInt) != 0 {
+				continue
+			}
+			_ = v_1.Args[1]
+			v_1_1 := v_1.Args[1]
+			if v_1_1.Op != ssaop.OpWasmF64x2ExtractLane || ssa.AuxIntToUint8(v_1_1.AuxInt) != 1 {
+				continue
+			}
+			y := v_1_1.Args[0]
+			v.Reset(ssaop.OpWasmI16x8ExtmulHighI8x16U)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
+	return false
+}
 func rewriteValue_OpWasmI32x4ExtendLowI16x8S(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (I32x4ExtendLowI16x8S (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] x)))
@@ -6130,6 +6190,72 @@ func rewriteValue_OpWasmI32x4ExtendLowI16x8U(v *ssa.Value) bool {
 		v.Reset(ssaop.OpWasmI32x4ExtendHighI16x8U)
 		v.AddArg(x)
 		return true
+	}
+	return false
+}
+func rewriteValue_OpWasmI32x4ExtmulLowI16x8S(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (I32x4ExtmulLowI16x8S (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] x)) (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] y)))
+	// result: (I32x4ExtmulHighI16x8S x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != ssaop.OpWasmF64x2ReplaceLane || ssa.AuxIntToUint8(v_0.AuxInt) != 0 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != ssaop.OpWasmF64x2ExtractLane || ssa.AuxIntToUint8(v_0_1.AuxInt) != 1 {
+				continue
+			}
+			x := v_0_1.Args[0]
+			if v_1.Op != ssaop.OpWasmF64x2ReplaceLane || ssa.AuxIntToUint8(v_1.AuxInt) != 0 {
+				continue
+			}
+			_ = v_1.Args[1]
+			v_1_1 := v_1.Args[1]
+			if v_1_1.Op != ssaop.OpWasmF64x2ExtractLane || ssa.AuxIntToUint8(v_1_1.AuxInt) != 1 {
+				continue
+			}
+			y := v_1_1.Args[0]
+			v.Reset(ssaop.OpWasmI32x4ExtmulHighI16x8S)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
+	return false
+}
+func rewriteValue_OpWasmI32x4ExtmulLowI16x8U(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (I32x4ExtmulLowI16x8U (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] x)) (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] y)))
+	// result: (I32x4ExtmulHighI16x8U x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != ssaop.OpWasmF64x2ReplaceLane || ssa.AuxIntToUint8(v_0.AuxInt) != 0 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != ssaop.OpWasmF64x2ExtractLane || ssa.AuxIntToUint8(v_0_1.AuxInt) != 1 {
+				continue
+			}
+			x := v_0_1.Args[0]
+			if v_1.Op != ssaop.OpWasmF64x2ReplaceLane || ssa.AuxIntToUint8(v_1.AuxInt) != 0 {
+				continue
+			}
+			_ = v_1.Args[1]
+			v_1_1 := v_1.Args[1]
+			if v_1_1.Op != ssaop.OpWasmF64x2ExtractLane || ssa.AuxIntToUint8(v_1_1.AuxInt) != 1 {
+				continue
+			}
+			y := v_1_1.Args[0]
+			v.Reset(ssaop.OpWasmI32x4ExtmulHighI16x8U)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
 	}
 	return false
 }
@@ -7524,6 +7650,72 @@ func rewriteValue_OpWasmI64x2ExtendLowI32x4U(v *ssa.Value) bool {
 		v.Reset(ssaop.OpWasmI64x2ExtendHighI32x4U)
 		v.AddArg(x)
 		return true
+	}
+	return false
+}
+func rewriteValue_OpWasmI64x2ExtmulLowI32x4S(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (I64x2ExtmulLowI32x4S (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] x)) (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] y)))
+	// result: (I64x2ExtmulHighI32x4S x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != ssaop.OpWasmF64x2ReplaceLane || ssa.AuxIntToUint8(v_0.AuxInt) != 0 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != ssaop.OpWasmF64x2ExtractLane || ssa.AuxIntToUint8(v_0_1.AuxInt) != 1 {
+				continue
+			}
+			x := v_0_1.Args[0]
+			if v_1.Op != ssaop.OpWasmF64x2ReplaceLane || ssa.AuxIntToUint8(v_1.AuxInt) != 0 {
+				continue
+			}
+			_ = v_1.Args[1]
+			v_1_1 := v_1.Args[1]
+			if v_1_1.Op != ssaop.OpWasmF64x2ExtractLane || ssa.AuxIntToUint8(v_1_1.AuxInt) != 1 {
+				continue
+			}
+			y := v_1_1.Args[0]
+			v.Reset(ssaop.OpWasmI64x2ExtmulHighI32x4S)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
+	return false
+}
+func rewriteValue_OpWasmI64x2ExtmulLowI32x4U(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (I64x2ExtmulLowI32x4U (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] x)) (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] y)))
+	// result: (I64x2ExtmulHighI32x4U x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != ssaop.OpWasmF64x2ReplaceLane || ssa.AuxIntToUint8(v_0.AuxInt) != 0 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != ssaop.OpWasmF64x2ExtractLane || ssa.AuxIntToUint8(v_0_1.AuxInt) != 1 {
+				continue
+			}
+			x := v_0_1.Args[0]
+			if v_1.Op != ssaop.OpWasmF64x2ReplaceLane || ssa.AuxIntToUint8(v_1.AuxInt) != 0 {
+				continue
+			}
+			_ = v_1.Args[1]
+			v_1_1 := v_1.Args[1]
+			if v_1_1.Op != ssaop.OpWasmF64x2ExtractLane || ssa.AuxIntToUint8(v_1_1.AuxInt) != 1 {
+				continue
+			}
+			y := v_1_1.Args[0]
+			v.Reset(ssaop.OpWasmI64x2ExtmulHighI32x4U)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
 	}
 	return false
 }

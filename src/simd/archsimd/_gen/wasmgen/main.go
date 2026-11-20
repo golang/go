@@ -842,10 +842,12 @@ var (
 		"extadd_pairwise_u": "?",
 		"extmul_low_s":      "MulWiden",
 		"extmul_low_u":      "MulWiden",
-		"extmul_high_s":     "MulWidenHi",
-		"extmul_high_u":     "MulWidenHi",
-		"dot_s":             "DotProductPairs",
-		"relaxed_dot_s":     "?",
+		// extmul_high has no API. It's used only by the rules that fold
+		// x.HiToLo().MulWiden(y.HiToLo()) into it.
+		"extmul_high_s": "-",
+		"extmul_high_u": "-",
+		"dot_s":         "DotProductPairs",
+		"relaxed_dot_s": "?",
 
 		// widen integer types
 		"extend_low_s": "ExtendTo%s",
@@ -1333,9 +1335,6 @@ var docForOp map[string]string = map[string]string{
 // saturation and packs them into the low and high halves of the result.`,
 	"concatSaturateToUint16": ` converts the signed elements of x and y to uint16 with
 // saturation and packs them into the low and high halves of the result.`,
-	"MulWidenHi": ` returns the doubled-width product of respective elements of the upper halves of x and y.
-//
-//	Result[i] = x[i+{{.Type.HalfCount}}] * y[i+{{.Type.HalfCount}}], for 0 <= i < {{.Type.HalfCount}} == |x|/2.`,
 	"MulWiden": ` returns the doubled-width product of respective elements of the lower halves of x and y.
 //
 //	Result[i] = x[i] * y[i], for 0 <= i < {{.Type.HalfCount}} == |x|/2.`,
@@ -1724,6 +1723,18 @@ func genSSARules(f *bytes.Buffer) {
 		}
 		hi := op.T().Methods[strings.Replace(op.op, "low", "high", 1)]
 		fmt.Fprintf(f, "(%s (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] x))) => (%s x)\n", op.SsaWasmOp(), hi.SsaWasmOp())
+	}
+
+	// Likewise, fold x.HiToLo().MulWiden(y.HiToLo()) into extmul_high.
+	// extmul_low reads only the low 64 bits of each operand.
+	fmt.Fprintln(f)
+	fmt.Fprintln(f, "// x.HiToLo().MulWiden(y.HiToLo()) => extmul_high")
+	for _, op := range wasmOps {
+		if !strings.HasPrefix(op.op, "extmul_low") {
+			continue
+		}
+		hi := op.T().Methods[strings.Replace(op.op, "low", "high", 1)]
+		fmt.Fprintf(f, "(%s (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] x)) (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] y))) => (%s x y)\n", op.SsaWasmOp(), hi.SsaWasmOp())
 	}
 }
 

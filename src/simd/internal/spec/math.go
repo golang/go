@@ -348,27 +348,6 @@ func MulWidenEven[E Ints | Uints, W Width, zE Ints | Uints](x, y Vec[E, W]) (z V
 	return z
 }
 
-// MulWidenHi multiplies corresponding elements in the upper half of x and y,
-// returning a vector of half as many elements, each with twice the input
-// element size.
-//
-//	z[i] = {{.zE}}(x[{{lanes .z "z"}}+i]) * {{.zE}}(y[{{lanes .z "z"}}+i])
-//
-// The doubled element width is sufficient to hold every product without
-// overflow.
-//
-//specgen:experiment
-//specgen:commutative
-//specgen:require z={xB}{xN*2}x{xL/2}
-func MulWidenHi[E Ints | Uints, W Width, zE Ints | Uints](x, y Vec[E, W]) (z Vec[zE, W]) {
-	z = makeVec[zE, W]()
-	half := z.len()
-	for i := range z {
-		z[i] = zE(x[half+i]) * zE(y[half+i])
-	}
-	return z
-}
-
 // MulHigh multiplies corresponding elements of x and y and returns the high
 // half of each double-width product.
 //
