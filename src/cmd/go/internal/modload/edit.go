@@ -316,6 +316,7 @@ func editRequirements(ld *Loader, ctx context.Context, rs *Requirements, tryUpgr
 		// with a path to each conflict from one or more roots that introduce it.
 		// Now we need to identify those roots and change their versions
 		// (if possible) in order to resolve the conflicts.
+		var conflictUpgrades map[string]bool
 		rootsDirty = false
 		for _, m := range roots {
 			path, err := t.path(m, extendedRootPruning[m])
@@ -383,7 +384,11 @@ func editRequirements(ld *Loader, ctx context.Context, rs *Requirements, tryUpgr
 				}
 				if !t.check(u, uPruning).isDisqualified() && !rejectedRoot[u] {
 					// Applying the upgrade from m to u will resolve the conflict,
-					// so plan to do that if there are no other conflicts to resolve.
+					// so plan to do that if no root needs a downgrade.
+					if conflictUpgrades == nil {
+						conflictUpgrades = make(map[string]bool)
+					}
+					conflictUpgrades[m.Path] = true
 					continue
 				}
 			}
@@ -472,6 +477,11 @@ func editRequirements(ld *Loader, ctx context.Context, rs *Requirements, tryUpgr
 		// requirement edges are pruned out).
 		var upgradedFrom []module.Version // for logging only
 		for p, v := range selectedRoot {
+			// Resolve conflicts first: removing the conflicting roots can also
+			// remove the requirements that raised other selected versions.
+			if len(conflictUpgrades) != 0 && !conflictUpgrades[p] {
+				continue
+			}
 			if _, ok := mustSelectVersion[p]; !ok {
 				if actual := mg.Selected(p); actual != v {
 					if cfg.BuildV {
