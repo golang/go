@@ -9,7 +9,28 @@ import (
 	"internal/trace/testtrace"
 	"io"
 	"testing"
+	"time"
 )
+
+func TestSummarizeOverlappingSyscalls(t *testing.T) {
+	summaries := summarizeTraceTest(t, "testdata/tests/go122-syscall-overlap.test").Goroutines
+	for _, test := range []struct {
+		id          trace.GoID
+		exec, block time.Duration
+	}{
+		{1, 128 * time.Nanosecond, 320 * time.Nanosecond},
+		{2, 256 * time.Nanosecond, 192 * time.Nanosecond},
+	} {
+		g := summaries[test.id]
+		if g == nil {
+			t.Fatalf("missing goroutine %d", test.id)
+		}
+		if g.SyscallTime != test.exec || g.SyscallBlockTime != test.block {
+			t.Errorf("goroutine %d: syscall execution/block time = %s/%s, want %s/%s", test.id, g.SyscallTime, g.SyscallBlockTime, test.exec, test.block)
+		}
+		basicGoroutineSummaryChecks(t, g)
+	}
+}
 
 func TestSummarizeGoroutinesTrace(t *testing.T) {
 	summaries := summarizeTraceTest(t, "testdata/tests/go122-gc-stress.test").Goroutines
