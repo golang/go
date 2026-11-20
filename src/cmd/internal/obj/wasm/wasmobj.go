@@ -1459,13 +1459,25 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			writeSleb128(w, p.From.Offset)
 
 		case AF32Const:
+			var f float32
+			if p.From.Type == obj.TYPE_CONST {
+				f = float32(p.From.Offset) // integer constant, such as $0
+			} else {
+				f = float32(p.From.Val.(float64))
+			}
 			b := make([]byte, 4)
-			binary.LittleEndian.PutUint32(b, math.Float32bits(float32(p.From.Val.(float64))))
+			binary.LittleEndian.PutUint32(b, math.Float32bits(f))
 			w.Write(b)
 
 		case AF64Const:
+			var f float64
+			if p.From.Type == obj.TYPE_CONST {
+				f = float64(p.From.Offset) // integer constant, such as $0
+			} else {
+				f = p.From.Val.(float64)
+			}
 			b := make([]byte, 8)
-			binary.LittleEndian.PutUint64(b, math.Float64bits(p.From.Val.(float64)))
+			binary.LittleEndian.PutUint64(b, math.Float64bits(f))
 			w.Write(b)
 
 		case AI32Load, AI64Load, AF32Load, AF64Load, AI32Load8S, AI32Load8U, AI32Load16S, AI32Load16U,
