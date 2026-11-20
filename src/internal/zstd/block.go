@@ -273,7 +273,7 @@ func (r *Reader) execSeqs(data block, off int, litbuf []byte, seqCount int) erro
 
 	seq := 0
 	for seq < seqCount {
-		if len(r.buffer)+len(litbuf) > 128<<10 {
+		if len(r.buffer)+len(litbuf) > blockMaximumSize {
 			return rbr.makeError("uncompressed size too big")
 		}
 
