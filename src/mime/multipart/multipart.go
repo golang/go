@@ -167,8 +167,7 @@ func newPart(mr *Reader, rawPart bool, maxMIMEHeaderSize, maxMIMEHeaders int64) 
 }
 
 func (p *Part) populateHeaders(maxMIMEHeaderSize, maxMIMEHeaders int64) error {
-	r := textproto.NewReader(p.mr.bufReader)
-	header, err := readMIMEHeader(r, maxMIMEHeaderSize, maxMIMEHeaders)
+	header, err := p.mr.readHeader(maxMIMEHeaderSize, maxMIMEHeaders)
 	if err == nil {
 		p.Header = header
 	}
@@ -177,6 +176,14 @@ func (p *Part) populateHeaders(maxMIMEHeaderSize, maxMIMEHeaders int64) error {
 		err = ErrMessageTooLarge
 	}
 	return err
+}
+
+// readHeader reads the headers of the next part.
+func (r *Reader) readHeader(maxMIMEHeaderSize, maxMIMEHeaders int64) (textproto.MIMEHeader, error) {
+	r.tr.R = r.bufReader
+	// Let the buffer of a large folded header be collected.
+	defer func() { r.tr = textproto.Reader{} }()
+	return readMIMEHeader(&r.tr, maxMIMEHeaderSize, maxMIMEHeaders)
 }
 
 // Read reads the body of a part, after its headers and before the
@@ -332,7 +339,8 @@ func (p *Part) Close() error {
 // isn't supported.
 type Reader struct {
 	bufReader *bufio.Reader
-	tempDir   string // used in tests
+	tr        textproto.Reader // reads part headers from bufReader
+	tempDir   string           // used in tests
 
 	currentPart *Part
 	partsRead   int
