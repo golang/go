@@ -7,9 +7,16 @@
 package http
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
+	"io"
+	"math"
+	"net"
 	"net/url"
+	"os"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 )
@@ -266,6 +273,42 @@ func TestCleanPath(t *testing.T) {
 		if got != test.want {
 			t.Errorf("%s: got %q, want %q", test.in, got, test.want)
 		}
+	}
+}
+
+func TestIsCommonNetReadErrorWrapped(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"EOF", fmt.Errorf("wrapped: %w", io.EOF), true},
+		{"timeout", fmt.Errorf("wrapped: %w", &net.OpError{
+			Op: "read", Err: os.ErrDeadlineExceeded,
+		}), true},
+		{"read error", fmt.Errorf("wrapped: %w", &net.OpError{
+			Op: "read", Err: errors.New("reset"),
+		}), true},
+		{"write error", fmt.Errorf("wrapped: %w", &net.OpError{
+			Op: "write", Err: errors.New("reset"),
+		}), false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isCommonNetReadError(tt.err); got != tt.want {
+				t.Errorf("isCommonNetReadError(%v) = %v, want %v", tt.err, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestReadRequestLimitRequestLineError(t *testing.T) {
+	input := bufio.NewReader(strings.NewReader("not a valid request line\r\n"))
+
+	_, err := readRequestLimit(input, math.MaxInt64)
+	if !errors.Is(err, errReadingRequestLine) {
+		t.Fatalf("readRequestLimit error = %v, want errReadingRequestLine", err)
 	}
 }
 
