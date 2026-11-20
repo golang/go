@@ -16,10 +16,8 @@ Usage:
 Flags:
 
 	-B note
-		Add an ELF_NT_GNU_BUILD_ID note when using ELF.
-		The value should start with 0x and be an even number of hex digits.
-		Alternatively, you can pass "gobuildid" in order to derive the
-		GNU build ID from the Go build ID.
+		Set ELF NT_GNU_BUILD_ID note or Mach-O UUID.
+		Use "gobuildid" to derive it from the Go build ID, or "none" to disable it.
 	-E entry
 		Set entry symbol name.
 	-H type
@@ -33,6 +31,8 @@ Flags:
 		after consulting $GOROOT/pkg/$GOOS_$GOARCH.
 	-R quantum
 		Set address rounding quantum.
+	-D address
+		Set the start address of data symbols.
 	-T address
 		Set the start address of text symbols.
 	-V
@@ -53,6 +53,43 @@ Flags:
 		Record id as Go toolchain build id.
 	-buildmode mode
 		Set build mode (default exe).
+
+	-a
+		No-op (deprecated).
+
+	-n
+		No-op (deprecated).
+
+	-h
+		Halt on error.
+
+	-debugtramp N
+		Debug trampolines.
+
+	-debugtextsize N
+		Debug text section max size.
+
+	-debugnosplit
+		Dump nosplit call graph.
+
+	-strictdups N
+		Sanity check duplicate symbol contents during object file reading (1=warn, 2=err).
+
+	-pruneweakmap
+		Prune weak mapinit references (default true).
+
+	-randlayout value
+		Randomize function layout.
+
+	-capturehostobjs dir
+		Capture host object files loaded during internal linking into the specified directory.
+
+	-benchmark mem|cpu
+		Set to "mem" or "cpu" to enable phase benchmarking.
+
+	-benchmarkprofile base
+		Emit phase profiles to base_phase.{cpu,mem}prof.
+
 	-c
 		Dump call graphs.
 	-checklinkname=value
@@ -116,6 +153,8 @@ Flags:
 		Write output to file (default a.out, or a.out.exe on Windows).
 	-pluginpath path
 		The path name used to prefix exported plugin symbols.
+	-fipso file
+		Write FIPS module to file.
 	-r dir1:dir2:...
 		Set the ELF dynamic linker search path.
 	-race
