@@ -5,6 +5,7 @@
 package routebsd
 
 import (
+	"internal/stringslite"
 	"syscall"
 	"unsafe"
 )
@@ -25,26 +26,9 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
 	// to know the underlying kernel's architecture because the
 	// alignment for routing facilities are set at the build time
 	// of the kernel.
-	conf, _ := syscall.Sysctl("kern.conftxt")
-	for i, j := 0, 0; j < len(conf); j++ {
-		if conf[j] != '\n' {
-			continue
-		}
-		s := conf[i:j]
-		i = j + 1
-		if len(s) > len("machine") && s[:len("machine")] == "machine" {
-			s = s[len("machine"):]
-			for k := 0; k < len(s); k++ {
-				if s[k] == ' ' || s[k] == '\t' {
-					s = s[1:]
-				}
-				break
-			}
-			if s == "amd64" {
-				align = 8
-			}
-			break
-		}
+	arches, _ := syscall.Sysctl("hw.supported_archs")
+	if stringslite.Index(arches, "amd64") >= 0 {
+		align = 8
 	}
 	ifm := &wireFormat{extOff: 16, bodyOff: sizeofIfMsghdr}
 	ifm.parse = ifm.parseInterfaceMessage
