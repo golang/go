@@ -6,8 +6,6 @@
 //
 // The syntax of the regular expressions accepted is the same
 // general syntax used by Perl, Python, and other languages.
-// More precisely, it is the syntax accepted by RE2 and described at
-// https://golang.org/s/re2syntax, except for \C.
 // For an overview of the syntax, see the [regexp/syntax] package.
 //
 // The regexp implementation provided by this package is
