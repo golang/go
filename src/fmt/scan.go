@@ -770,6 +770,76 @@ func hasX(s string) bool {
 	return false
 }
 
+// mulPow2 returns the decimal number str, which has at most 800 bytes
+// and is valid for strconv.ParseFloat, multiplied by 2**exp, in decimal,
+// so that converting it to a float rounds only once.
+func mulPow2(str string, exp int) string {
+	digits := make([]byte, 0, len(str)) // least significant first
+	frac := 0                           // number of digits after the decimal point
+	sign := ""
+	for i := len(str) - 1; i >= 0; i-- {
+		switch c := str[i]; c {
+		case '-':
+			sign = "-"
+		case '.':
+			frac = len(digits)
+		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+			digits = append(digits, c-'0')
+		}
+	}
+	for len(digits) > 0 && digits[len(digits)-1] == 0 {
+		digits = digits[:len(digits)-1]
+	}
+	if len(digits) == 0 {
+		return sign + "0"
+	}
+	// With at most 800 digits, the result is within a factor of 2**16
+	// of 2**e, so far outside the range of float64 it is 0 or ±Inf.
+	exp = max(min(exp, 1<<20), -1<<20)
+	switch e := exp + (len(digits)-frac)*10/3; {
+	case e > 1200:
+		return sign + "Inf"
+	case e < -1200:
+		return sign + "0"
+	}
+	// Multiply by 2**exp, or by 5**-exp and 10**exp. Each step keeps
+	// digit*mul + carry < 10*mul within a uint64.
+	digits = append(make([]byte, 0, len(digits)+max(exp, -exp)), digits...)
+	for exp != 0 {
+		var mul uint64
+		if exp > 0 {
+			k := min(exp, 60)
+			mul = 1 << k
+			exp -= k
+		} else {
+			k := min(-exp, 26)
+			mul = 1
+			for range k {
+				mul *= 5
+			}
+			exp += k
+			frac += k
+		}
+		var carry uint64
+		for i, d := range digits {
+			x := uint64(d)*mul + carry
+			digits[i] = byte(x % 10)
+			carry = x / 10
+		}
+		for ; carry > 0; carry /= 10 {
+			digits = append(digits, byte(carry%10))
+		}
+	}
+	buf := make([]byte, 0, len(sign)+len(digits)+8)
+	buf = append(buf, sign...)
+	for i := len(digits) - 1; i >= 0; i-- {
+		buf = append(buf, '0'+digits[i])
+	}
+	buf = append(buf, 'e')
+	buf = strconv.AppendInt(buf, int64(-frac), 10)
+	return string(buf)
+}
+
 // convertFloat converts the string to a float64value.
 func (s *ss) convertFloat(str string, n int) float64 {
 	// strconv.ParseFloat will handle "+0x1.fp+2",
@@ -794,7 +864,26 @@ func (s *ss) convertFloat(str string, n int) float64 {
 			}
 			s.error(err)
 		}
-		return math.Ldexp(f, m)
+		minNormal := 0x1p-1022
+		if n == 32 {
+			minNormal = 0x1p-126
+		}
+		r := math.Ldexp(f, m)
+		if p > 800 {
+			// Bound the work for very long mantissas.
+			return r
+		}
+		if math.Abs(f) >= minNormal && math.Abs(r) >= minNormal {
+			// Ldexp is exact, so f was rounded only once.
+			return r
+		}
+		if i, err := strconv.ParseInt(str[:p], 10, 64); err == nil && i != 0 && -1<<53 <= i && i <= 1<<53 {
+			// The mantissa is exact as a float64, so only Ldexp rounds.
+			return math.Ldexp(float64(i), m)
+		}
+		// The only possible error is overflow, which gives ±Inf.
+		f, _ = strconv.ParseFloat(mulPow2(str[:p], m), n)
+		return f
 	}
 	f, err := strconv.ParseFloat(str, n)
 	if err != nil {
