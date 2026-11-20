@@ -142,12 +142,15 @@ func main() {
 
 	archSimdPath := filepath.Join(genFlags.GOROOT, "src", "simd", "archsimd")
 
-	// Hardcoded list of files
+	// Hardcoded list of files. These are the files with generally
+	// available API, since the simd package is built from that alone:
+	// deprecated and other simd-only files are left out, and checkSpec
+	// below rejects any experimental methods in these files.
 	amd64Files := []string{"ops_amd64.go", "compare_gen_amd64.go", "types_amd64.go",
-		"other_gen_amd64.go", "extra_amd64.go", "maskmerge_gen_amd64.go",
-		"shuffles_amd64.go", "clmul_amd64.go", "slice_gen_amd64.go", "slicepart_amd64.go",
+		"other_gen_amd64.go", "maskmerge_gen_amd64.go",
+		"clmul_amd64.go", "slice_gen_amd64.go", "slicepart_amd64.go",
 		"slicepart_128.go", "ops_emulated_amd64.go", "maskrange_amd64.go",
-		"deprecated_amd64.go", "converts_emulated_amd64.go",
+		"converts_emulated_amd64.go",
 		"converts_gen_amd64.go"}
 	wasmFiles := []string{"ops_wasm.go", "types_wasm.go", "slicepart_wasm.go",
 		"slicepart_128.go", "ops_emulated_wasm.go", "maskrange_128.go", "other_gen_wasm.go",
@@ -155,8 +158,7 @@ func main() {
 	neonFiles := []string{"clmul_arm64.go", "compare_gen_arm64.go",
 		"maskmerge_gen_arm64.go", "ops_arm64.go", "slicepart_128.go",
 		"ops_internal_arm64.go", "other_gen_arm64.go", "slice_gen_arm64.go",
-		"slicepart_arm64.go", "types_arm64.go", "ops_emulated_arm64.go", "maskrange_128.go",
-		"deprecated_arm64.go"}
+		"slicepart_arm64.go", "types_arm64.go", "ops_emulated_arm64.go", "maskrange_128.go"}
 
 	emulatedFile := genFlags.InputPath("simd/simd_emulated.go")
 
@@ -510,14 +512,22 @@ package simd
 
 `)
 
+		// checkSpec checks that recv.name is in the generally available
+		// spec API. Everything in the simd package must be, since the
+		// simd package is the intersection of the generally available
+		// archsimd APIs.
+		//
+		// TODO: Support emitting experimental methods in simd if they're
+		// experimental in all inputs.
 		checkSpec := func(recv string, name string) {
-			if specIdx.Lookup(recv, name) == nil {
-				fullName := name
-				if recv != "" {
-					fullName = recv + "." + name
-
-				}
-				pw("Missing from spec: %s\n", fullName)
+			fullName := name
+			if recv != "" {
+				fullName = recv + "." + name
+			}
+			if f := specIdx.Lookup(recv, name); f == nil {
+				log.Fatalf("%s is missing from spec", fullName)
+			} else if f.Experiment {
+				log.Fatalf("%s is experimental in spec", fullName)
 			}
 		}
 
