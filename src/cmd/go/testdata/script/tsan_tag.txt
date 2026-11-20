@@ -1,0 +1,101 @@
+# Test that cmd/go adds the "tsan" tool tag when -fsanitize=thread is present
+# in CC, CGO_CPPFLAGS, or CGO_CFLAGS, and that runtime/cgo selects C files
+# under msan and tsan even when GOEXPERIMENT=runtimecgopurego is enabled.
+
+env GOOS=linux
+env GOARCH=amd64
+env CGO_ENABLED=1
+env GOEXPERIMENT=runtimecgopurego
+env CC=
+env CGO_CPPFLAGS=
+env CGO_CFLAGS=
+
+# Default: no tsan tag, pure-Go runtime/cgo (no C files).
+go list -f '{{context.ToolTags}}'
+! stdout '\btsan\b'
+go list -f '{{.CFiles}}' runtime/cgo
+stdout '^\[\]$'
+
+# CGO_CFLAGS=-fsanitize=thread enables tsan tag and selects C runtime/cgo files.
+env CGO_CFLAGS=-fsanitize=thread
+go list -f '{{context.ToolTags}}'
+stdout '\btsan\b'
+go list -f '{{.CFiles}}' runtime/cgo
+stdout 'gcc_libinit_unix.c'
+
+# Comma-separated sanitizer list containing thread.
+env CGO_CFLAGS='-O2 -fsanitize=undefined,thread'
+go list -f '{{context.ToolTags}}'
+stdout '\btsan\b'
+go list -f '{{.CFiles}}' runtime/cgo
+stdout 'gcc_libinit_unix.c'
+
+# Later -fno-sanitize=thread disables tsan tag.
+env CGO_CFLAGS='-fsanitize=thread -fno-sanitize=thread'
+go list -f '{{context.ToolTags}}'
+! stdout '\btsan\b'
+go list -f '{{.CFiles}}' runtime/cgo
+stdout '^\[\]$'
+
+# Later -fno-sanitize=all disables tsan tag.
+env CGO_CFLAGS='-fsanitize=thread -fno-sanitize=all'
+go list -f '{{context.ToolTags}}'
+! stdout '\btsan\b'
+
+# Later -fsanitize=thread re-enables tsan tag.
+env CGO_CFLAGS='-fno-sanitize=thread -fsanitize=thread'
+go list -f '{{context.ToolTags}}'
+stdout '\btsan\b'
+
+# Non-thread sanitizer does not set tsan tag.
+env CGO_CFLAGS=-fsanitize=address
+go list -f '{{context.ToolTags}}'
+! stdout '\btsan\b'
+
+# CGO_CPPFLAGS=-fsanitize=thread enables tsan tag.
+env CGO_CFLAGS=
+env CGO_CPPFLAGS=-fsanitize=thread
+go list -f '{{context.ToolTags}}'
+stdout '\btsan\b'
+go list -f '{{.CFiles}}' runtime/cgo
+stdout 'gcc_libinit_unix.c'
+
+# CGO_CFLAGS=-fno-sanitize=thread overrides CGO_CPPFLAGS=-fsanitize=thread.
+env CGO_CFLAGS=-fno-sanitize=thread
+go list -f '{{context.ToolTags}}'
+! stdout '\btsan\b'
+
+# CC with -fsanitize=thread enables tsan tag.
+env CGO_CPPFLAGS=
+env CGO_CFLAGS=
+env CC='clang -fsanitize=thread'
+go list -f '{{context.ToolTags}}'
+stdout '\btsan\b'
+go list -f '{{.CFiles}}' runtime/cgo
+stdout 'gcc_libinit_unix.c'
+
+# CGO_CFLAGS=-fno-sanitize=thread overrides CC with -fsanitize=thread.
+env CGO_CFLAGS=-fno-sanitize=thread
+go list -f '{{context.ToolTags}}'
+! stdout '\btsan\b'
+
+# CGO_ENABLED=0 does not set tsan tag.
+env CC=
+env CGO_CFLAGS=-fsanitize=thread
+env CGO_ENABLED=0
+go list -f '{{context.ToolTags}}'
+! stdout '\btsan\b'
+
+# -msan selects C runtime/cgo files.
+env CGO_ENABLED=1
+env CGO_CFLAGS=
+go list -msan -f '{{context.ToolTags}}'
+stdout '\bmsan\b'
+go list -msan -f '{{.CFiles}}' runtime/cgo
+stdout 'gcc_libinit_unix.c'
+
+-- go.mod --
+module m
+
+-- p.go --
+package p

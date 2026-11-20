@@ -7,7 +7,6 @@
 package sanitizers_test
 
 import (
-	"internal/goexperiment"
 	"internal/testenv"
 	"os/exec"
 	"strings"
@@ -62,9 +61,6 @@ func TestTSAN(t *testing.T) {
 	for _, tc := range cases {
 		name := strings.TrimSuffix(tc.src, ".go")
 		t.Run(name, func(t *testing.T) {
-			if (tc.src == "tsan13.go" || tc.src == "tsan_tracebackctxt") && goexperiment.RuntimeCgoPurego {
-				t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=runtimecgopurego")
-			}
 			t.Parallel()
 
 			dir := newTempDir(t)

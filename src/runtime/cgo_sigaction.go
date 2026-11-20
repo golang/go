@@ -44,12 +44,7 @@ func sigaction(sig uint32, new, old *sigactiont) {
 	if asanenabled && new != nil {
 		asanwrite(unsafe.Pointer(new), unsafe.Sizeof(*new))
 	}
-	var haveCgoSigaction bool
-	if goexperiment.RuntimeCgoPurego {
-		haveCgoSigaction = cgoSigaction != nil
-	} else {
-		haveCgoSigaction = _cgo_sigaction != nil
-	}
+	haveCgoSigaction := (goexperiment.RuntimeCgoPurego && cgoSigaction != nil) || _cgo_sigaction != nil
 	if !haveCgoSigaction || inForkedChild {
 		sysSigaction(sig, new, old)
 	} else {
@@ -115,7 +110,7 @@ func sigaction(sig uint32, new, old *sigactiont) {
 //go:nosplit
 //go:nowritebarrierrec
 func doCgoSigaction(sig uintptr, new, old *sigactiont, noG bool) int32 {
-	if goexperiment.RuntimeCgoPurego {
+	if goexperiment.RuntimeCgoPurego && cgoSigaction != nil {
 		return cgoSigaction(sig, noEscapePtr(new), noEscapePtr(old), noG)
 	}
 	return callCgoSigaction(sig, new, old)

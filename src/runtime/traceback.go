@@ -1718,7 +1718,7 @@ func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer)
 		panic("unsupported version")
 	}
 
-	if goexperiment.RuntimeCgoPurego {
+	if goexperiment.RuntimeCgoPurego && _cgo_set_traceback_functions == nil {
 		return
 	}
 
@@ -1867,7 +1867,6 @@ func callCgoSymbolizer(arg *cgoSymbolizerArg) {
 	}
 	fn := _cgo_call_symbolizer_function
 	if goexperiment.RuntimeCgoPurego && fn == nil {
-		// TODO: wrap with TSAN acquire/release when TSAN support is added for runtimecgopurego.
 		fn = cgoSymbolizer
 	}
 	call(fn, noescape(unsafe.Pointer(arg)))
@@ -1896,7 +1895,6 @@ func cgoContextPCs(ctxt uintptr, buf []uintptr) {
 	}
 	fn := _cgo_call_traceback_function
 	if goexperiment.RuntimeCgoPurego && fn == nil {
-		// TODO: wrap with TSAN acquire/release when TSAN support is added for runtimecgopurego.
 		fn = cgoTraceback
 	}
 	call(fn, noescape(unsafe.Pointer(&arg)))

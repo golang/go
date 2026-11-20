@@ -17,7 +17,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"internal/buildcfg"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -484,9 +483,6 @@ int LLVMFuzzerTestOneInput(char *data, size_t size) {
 `)
 
 func (c *config) checkCSanitizer() (skip bool, err error) {
-	if buildcfg.Experiment.RuntimeCgoPurego && (c.sanitizer == "memory" || c.sanitizer == "thread") {
-		return true, fmt.Errorf("%s sanitizer is not yet supported with GOEXPERIMENT=runtimecgopurego", c.sanitizer)
-	}
 	// The sanitizer probes compile and run tiny C programs. If either step
 	// takes longer than this, treat the C sanitizer configuration as broken
 	// instead of letting the package-level test timeout fire.

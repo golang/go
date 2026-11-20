@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.cgobindings && (((amd64 || arm64) && (darwin || (linux && !android))) || (windows && amd64))
+//go:build goexperiment.runtimecgopurego && !msan && !tsan && (((amd64 || arm64) && (darwin || (linux && !android))) || (windows && amd64))
 
 package cgo
 
@@ -22,7 +22,7 @@ func TestTrampolineCallers(t *testing.T) {
 	defer pin.Unpin()
 	n := asmcgocall(abi.FuncPCABI0(trampolineCallers), uintptr(unsafe.Pointer(&pcs[0])), uintptr(len(pcs)), abi.FuncPCABIInternal(runtime.Callers), 0, 0, 0)
 	caller := "runtime.asmcgocall"
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == "windows" && runtime.GOARCH == "amd64" {
 		// The Windows landing pad calls the trampoline instead of tail-calling it.
 		caller = "runtime.asmcgocall_landingpad"
 	}
