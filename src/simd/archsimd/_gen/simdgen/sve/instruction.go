@@ -37,6 +37,7 @@ package sve
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"golang.org/x/arch/arm64/instgen/xmlspec"
@@ -96,6 +97,9 @@ type predVariant struct {
 	// predicate: 1 on every encoding grouped today, but recorded rather than
 	// assumed — PTEST, with no destination, governs from position 0.
 	predAsmPos int
+	// predRegBits is the bit width of the governing predicate field (e.g. 3 for
+	// P0-P7, 4 for P0-P15), or 0 if unknown.
+	predRegBits int
 }
 
 // ic returns the iclass this logical instruction represents, defaulting to the
@@ -325,6 +329,28 @@ func (inst *Instruction) findExplanation(link string) *xmlspec.Explanation {
 	return nil
 }
 
+// regFieldWidth returns the bit width of the register field encoding symbol
+// <regName> from the instruction's xmlspec RegDiagram, or 0 if not found.
+func (inst *Instruction) regFieldWidth(regName string) int {
+	boxName := regName
+	want := "<" + regName + ">"
+	for i := range inst.Explanations.Explanations {
+		e := &inst.Explanations.Explanations[i]
+		if strings.TrimSpace(e.Symbol.Value) == want && e.Account.Encodedin != "" {
+			boxName = e.Account.Encodedin
+			break
+		}
+	}
+	for _, box := range inst.ic().RegDiagram.Boxes {
+		if box.Name == boxName && len(box.Cs) == 1 && box.Cs[0].ColSpan != "" {
+			if w, err := strconv.Atoi(box.Cs[0].ColSpan); err == nil {
+				return w
+			}
+		}
+	}
+	return 0
+}
+
 // symbolIsGoverning reports whether this instruction's explanation for
 // register symbol name (e.g. "Pg") describes it as the governing predicate —
 // the spec writes "the governing scalable predicate register" for exactly the
@@ -488,6 +514,11 @@ func (inst *Instruction) allEncodingOperands() [][]Operand {
 		}()
 		if len(ops) > 0 {
 			inst.fixMemoryDirection(ops)
+			for i := range ops {
+				if ops[i].Type == OperandPReg {
+					ops[i].regBits = inst.regFieldWidth(ops[i].regName)
+				}
+			}
 			out = append(out, ops)
 		}
 	}

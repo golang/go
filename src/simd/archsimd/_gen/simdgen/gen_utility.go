@@ -286,7 +286,7 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 func (op *Operation) regShape(mem memShape) (string, error) {
 	_, _, _, _, gOp, _ := op.shape()
 	var regInfo, fixedName string
-	var vRegInCnt, gRegInCnt, fpRegInCnt, kMaskInCnt, vRegOutCnt, gRegOutCnt, fpRegOutCnt, kMaskOutCnt, memInCnt, memOutCnt int
+	var vRegInCnt, gRegInCnt, fpRegInCnt, kMaskInCnt, k07MaskInCnt, vRegOutCnt, gRegOutCnt, fpRegOutCnt, kMaskOutCnt, memInCnt, memOutCnt int
 	for i, in := range gOp.In {
 		switch in.Class {
 		case "vreg":
@@ -296,7 +296,11 @@ func (op *Operation) regShape(mem memShape) (string, error) {
 		case "fpreg":
 			fpRegInCnt++
 		case "mask":
-			kMaskInCnt++
+			if in.RegBits != nil && *in.RegBits == 3 {
+				k07MaskInCnt++
+			} else {
+				kMaskInCnt++
+			}
 		case "mem":
 			if mem != VregMemIn {
 				panic("simdgen only knows VregMemIn in regShape")
@@ -345,17 +349,17 @@ func (op *Operation) regShape(mem memShape) (string, error) {
 	inRegs = rmAbbrev("v", vRegInCnt)
 	inRegs += rmAbbrev("gp", gRegInCnt)
 	inRegs += rmAbbrev("fp", fpRegInCnt)
-	inMasks = rmAbbrev("k", kMaskInCnt)
+	inMasks = rmAbbrev("k07", k07MaskInCnt) + rmAbbrev("k", kMaskInCnt)
 
 	outRegs = rmAbbrev("v", vRegOutCnt)
 	outRegs += rmAbbrev("gp", gRegOutCnt)
 	outRegs += rmAbbrev("fp", fpRegOutCnt)
 	outMasks = rmAbbrev("k", kMaskOutCnt)
 
-	if kMaskInCnt == 0 && kMaskOutCnt == 0 && gRegInCnt == 0 && gRegOutCnt == 0 && fpRegInCnt == 0 && fpRegOutCnt == 0 {
+	if kMaskInCnt == 0 && k07MaskInCnt == 0 && kMaskOutCnt == 0 && gRegInCnt == 0 && gRegOutCnt == 0 && fpRegInCnt == 0 && fpRegOutCnt == 0 {
 		// For pure v we can abbreviate it as v%d%d.
 		regInfo = fmt.Sprintf("v%d%d", vRegInCnt, vRegOutCnt)
-	} else if kMaskInCnt == 0 && kMaskOutCnt == 0 {
+	} else if kMaskInCnt == 0 && k07MaskInCnt == 0 && kMaskOutCnt == 0 {
 		regInfo = fmt.Sprintf("%s%s", inRegs, outRegs)
 	} else {
 		regInfo = fmt.Sprintf("%s%s%s%s", inRegs, inMasks, outRegs, outMasks)

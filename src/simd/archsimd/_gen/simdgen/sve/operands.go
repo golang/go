@@ -129,6 +129,9 @@ type Operand struct {
 	// fixedBits is the fixed total width of a SIMD&FP scalar named by a size
 	// letter (<Dd> -> 64, <Sd> -> 32, ...), or 0 for an element-sized <V><d>.
 	fixedBits int
+	// regBits is the bit width of the register field in the instruction's
+	// encoding diagram (e.g. 3 for P0-P7, 4 for P0-P15), or 0 if unknown.
+	regBits int
 	// isList reports that this register came from a single-register list
 	// ("{ <Zt>.<T> }"). It is a distinct assembler encoding from a bare register,
 	// so it is preserved (emitted as listNumber) even though the register is
@@ -226,6 +229,9 @@ type tok struct {
 	// fixedBits is the fixed total width of a SIMD&FP scalar named by a size
 	// letter (<Dd> -> 64, <Sd> -> 32, ...), or 0 for an element-sized <V><d>.
 	fixedBits int
+	// regBits is the bit width of the register field in the instruction's
+	// encoding diagram (e.g. 3 for P0-P7, 4 for P0-P15), or 0 if unknown.
+	regBits int
 	// isList reports that this register came from a single-register list
 	isList bool
 	// immLink is the <a> link of an immediate's symbol, e.g. "const__10",

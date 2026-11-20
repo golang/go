@@ -141,6 +141,7 @@ type Operand struct {
 	Base       *string // Base Go type ("int", "uint", "float")
 	EncodeBase *regexp.Regexp
 	ElemBits   *int       // Element bit width (omitted for greg)
+	RegBits    *int       // Optional register field bit width when narrower than the register file (e.g., 3 for SVE P0-P7)
 	Bits       VectorSize // Total bit width of the register, or scalable (see also [GoBits])
 	EncodeBits *VectorSize
 

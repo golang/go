@@ -406,7 +406,7 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 			groupCases := arrangementGroups[arrangement]
 			data := tplSSAData{
 				Cases:  strings.Join(groupCases, ",\n\t\t"),
-				Helper: "simd" + capitalizeFirst(regShape),
+				Helper: "simd" + capitalizeFirst(strings.ReplaceAll(regShape, "k07", "k")),
 			}
 			if arrangement != "" {
 				data.Arrangement = arrangement

@@ -555,3 +555,43 @@ func sveManyLiveMasks(a archsimd.Int32s, x int32, c0, c1, c2, c3, c4, c5, c6, c7
 	a = archsimd.BroadcastInt32s(x).IfElse(m9, a)
 	return a
 }
+
+// Keep >8 Mask32s values live simultaneously across simdgen-generated Pg1013
+// operations (ZFABS /M) so regalloc must restrict <Pg> to P0-P7.
+func sveManyLiveMasksGen(a, y archsimd.Float32s, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9 int) archsimd.Float32s {
+	m0 := archsimd.Mask32sFromCount(c0)
+	m1 := archsimd.Mask32sFromCount(c1)
+	m2 := archsimd.Mask32sFromCount(c2)
+	m3 := archsimd.Mask32sFromCount(c3)
+	m4 := archsimd.Mask32sFromCount(c4)
+	m5 := archsimd.Mask32sFromCount(c5)
+	m6 := archsimd.Mask32sFromCount(c6)
+	m7 := archsimd.Mask32sFromCount(c7)
+	m8 := archsimd.Mask32sFromCount(c8)
+	m9 := archsimd.Mask32sFromCount(c9)
+	a = a.Abs().IfElse(m0, y)
+	a = a.Abs().IfElse(m1, y)
+	a = a.Abs().IfElse(m2, y)
+	a = a.Abs().IfElse(m3, y)
+	a = a.Abs().IfElse(m4, y)
+	a = a.Abs().IfElse(m5, y)
+	a = a.Abs().IfElse(m6, y)
+	a = a.Abs().IfElse(m7, y)
+	// arm64:`ZFABS\s+Z[0-9]+\.S, P[0-7]\.M, Z[0-9]+\.S` -`P(?:[89]|1[0-5])\.M`
+	a = a.Abs().IfElse(m8, y)
+	// arm64:`ZFABS\s+Z[0-9]+\.S, P[0-7]\.M, Z[0-9]+\.S` -`P(?:[89]|1[0-5])\.M`
+	a = a.Abs().IfElse(m9, y)
+	a = a.Abs().IfElse(m0, y)
+	a = a.Abs().IfElse(m1, y)
+	a = a.Abs().IfElse(m2, y)
+	a = a.Abs().IfElse(m3, y)
+	a = a.Abs().IfElse(m4, y)
+	a = a.Abs().IfElse(m5, y)
+	a = a.Abs().IfElse(m6, y)
+	a = a.Abs().IfElse(m7, y)
+	// arm64:`ZFABS\s+Z[0-9]+\.S, P[0-7]\.M, Z[0-9]+\.S` -`P(?:[89]|1[0-5])\.M`
+	a = a.Abs().IfElse(m8, y)
+	// arm64:`ZFABS\s+Z[0-9]+\.S, P[0-7]\.M, Z[0-9]+\.S` -`P(?:[89]|1[0-5])\.M`
+	a = a.Abs().IfElse(m9, y)
+	return a
+}

@@ -639,3 +639,25 @@ func TestGroupPredicatedOnly(t *testing.T) {
 		}
 	}
 }
+
+func TestRegFieldWidth(t *testing.T) {
+	inst3 := parse(t, `<instructionsection id="add_3bit" title="ADD" type="instruction">
+  <classes><iclass name="add"><regdiagram form="32">
+    <box hibit="12" name="Pg"><c colspan="3">Pg</c></box>
+  </regdiagram><encoding name="add"><asmtemplate><text>ADD  </text><a link="zdn">&lt;Zdn&gt;</a><text>.S, </text><a link="pg">&lt;Pg&gt;</a><text>/M, </text><a link="zdn">&lt;Zdn&gt;</a><text>.S, </text><a link="zm">&lt;Zm&gt;</a><text>.S</text></asmtemplate></encoding></iclass></classes>
+  <explanations><explanation><symbol link="pg">&lt;Pg&gt;</symbol><account encodedin="Pg"><intro><para>Is the name of the governing scalable predicate register.</para></intro></account></explanation></explanations>
+</instructionsection>`)
+	if got := inst3.regFieldWidth("Pg"); got != 3 {
+		t.Errorf("3-bit Pg regFieldWidth = %d, want 3", got)
+	}
+
+	inst4 := parse(t, `<instructionsection id="sel_4bit" title="SEL" type="instruction">
+  <classes><iclass name="sel"><regdiagram form="32">
+    <box hibit="13" name="Pg"><c colspan="4">Pg</c></box>
+  </regdiagram><encoding name="sel"><asmtemplate><text>SEL  </text><a link="zd">&lt;Zd&gt;</a><text>.S, </text><a link="pg">&lt;Pg&gt;</a><text>, </text><a link="zn">&lt;Zn&gt;</a><text>.S, </text><a link="zm">&lt;Zm&gt;</a><text>.S</text></asmtemplate></encoding></iclass></classes>
+  <explanations><explanation><symbol link="pg">&lt;Pg&gt;</symbol><account encodedin="Pg"><intro><para>Is the name of the governing scalable predicate register.</para></intro></account></explanation></explanations>
+</instructionsection>`)
+	if got := inst4.regFieldWidth("Pg"); got != 4 {
+		t.Errorf("4-bit Pg regFieldWidth = %d, want 4", got)
+	}
+}

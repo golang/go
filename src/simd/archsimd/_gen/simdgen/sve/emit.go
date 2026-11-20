@@ -81,6 +81,9 @@ func (op *Operand) encode() types.Operand {
 	if op.ElemBits > 0 {
 		out.ElemBits = new(op.ElemBits)
 	}
+	if op.Class == "mask" && op.regBits > 0 && op.regBits < 4 {
+		out.RegBits = new(op.regBits)
+	}
 	if op.Class == "immediate" {
 		// An immediate's range is stated in prose, which is passed on for
 		// simdgen to resolve.
@@ -212,12 +215,16 @@ func (inst *Instruction) emitOne(asm string, ops []Operand, widthAgnostic bool) 
 	var inVar []types.Operand
 	for _, pv := range inst.predVariants {
 		// The governing predicate of the paired predicated encoding.
-		inVar = append(inVar, types.Operand{
+		v := types.Operand{
 			Class:       "mask",
 			Bits:        types.VectorSize{Scalable: true},
 			Predication: new(pv.quals),
 			AsmPos:      pv.predAsmPos,
-		})
+		}
+		if pv.predRegBits > 0 && pv.predRegBits < 4 {
+			v.RegBits = new(pv.predRegBits)
+		}
+		inVar = append(inVar, v)
 	}
 	db.Add("inVariant", unify.Encode(inVar))
 	db.Add("out", unify.Encode(out))
