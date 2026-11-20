@@ -22,6 +22,11 @@ func dnsReadConfig(filename string) *dnsConfig {
 		timeout:  5 * time.Second,
 		attempts: 2,
 	}
+
+	// `searchSet` distinguishes an empty list from `search .`
+	// from a missing `search` directive; in the former case,
+	// no default domain is appended to hostnames.
+	searchSet := false
 	file, err := open(filename)
 	if err != nil {
 		conf.servers = defaultNS
@@ -60,10 +65,12 @@ func dnsReadConfig(filename string) *dnsConfig {
 
 		case "domain": // set search path to just this domain
 			if len(f) > 1 {
+				searchSet = true
 				conf.search = []string{ensureRooted(f[1])}
 			}
 
 		case "search": // set search path to given servers
+			searchSet = true
 			conf.search = make([]string, 0, len(f)-1)
 			for i := 1; i < len(f); i++ {
 				name := ensureRooted(f[i])
@@ -84,12 +91,14 @@ func dnsReadConfig(filename string) *dnsConfig {
 						n = 15
 					}
 					conf.ndots = n
+
 				case stringslite.HasPrefix(s, "timeout:"):
 					n, _, _ := dtoi(s[8:])
 					if n < 1 {
 						n = 1
 					}
 					conf.timeout = time.Duration(n) * time.Second
+
 				case stringslite.HasPrefix(s, "attempts:"):
 					n, _, _ := dtoi(s[9:])
 					if n < 1 {
@@ -138,7 +147,7 @@ func dnsReadConfig(filename string) *dnsConfig {
 	if len(conf.servers) == 0 {
 		conf.servers = defaultNS
 	}
-	if len(conf.search) == 0 {
+	if len(conf.search) == 0 && !searchSet {
 		conf.search = dnsDefaultSearch()
 	}
 	return conf
