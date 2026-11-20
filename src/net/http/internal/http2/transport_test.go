@@ -2632,6 +2632,93 @@ func TestTransportReturnsUnusedFlowControlMultipleWrites(t *testing.T) {
 	})
 }
 
+// blockingCloseBody is a request body whose Read blocks until Close is
+// called, and whose Close blocks until unblock is closed.
+type blockingCloseBody struct {
+	closing chan struct{}
+	unblock chan struct{}
+}
+
+func newBlockingCloseBody(t testing.TB) *blockingCloseBody {
+	b := &blockingCloseBody{closing: make(chan struct{}), unblock: make(chan struct{})}
+	t.Cleanup(func() {
+		select {
+		case <-b.unblock:
+		default:
+			close(b.unblock)
+		}
+	})
+	return b
+}
+
+func (b *blockingCloseBody) Read(p []byte) (int, error) {
+	<-b.closing
+	return 0, errors.New("request body closed")
+}
+
+func (b *blockingCloseBody) Close() error {
+	close(b.closing)
+	<-b.unblock
+	return nil
+}
+
+// Issue 82677: the flow control for response data received after RoundTrip
+// gave up on a request, while its stream is still registered, must be
+// returned to the connection.
+func TestTransportReturnsFlowControlAfterCancel(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		testTransportReturnsFlowControlAfterAbort(t, func(tc *testClientConn, cancel context.CancelFunc) {
+			cancel()
+		}, true)
+	})
+}
+func TestTransportReturnsFlowControlAfterGoAway(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		testTransportReturnsFlowControlAfterAbort(t, func(tc *testClientConn, cancel context.CancelFunc) {
+			tc.writeGoAway(0, ErrCodeNo, nil)
+		}, false)
+	})
+}
+func testTransportReturnsFlowControlAfterAbort(t *testing.T, abort func(*testClientConn, context.CancelFunc), ping bool) {
+	tc := newTestClientConn(t)
+	tc.greet()
+	initialInflow := tc.inflowWindow(0)
+
+	// Blocking the close of the request body keeps the stream registered,
+	// and RoundTrip waiting, while the response arrives.
+	body := newBlockingCloseBody(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	req, _ := http.NewRequestWithContext(ctx, "POST", "https://dummy.tld/", body)
+	rt := tc.roundTrip(req)
+	tc.wantFrameType(FrameHeaders)
+	abort(tc, cancel)
+	if rt.done() {
+		t.Fatal("RoundTrip returned before the request body was closed")
+	}
+
+	tc.writeHeaders(HeadersFrameParam{
+		StreamID:      rt.streamID(),
+		EndHeaders:    true,
+		EndStream:     false,
+		BlockFragment: tc.makeHeaderBlockFragment(":status", "200"),
+	})
+	const dataLen = 5000
+	tc.writeData(rt.streamID(), true, make([]byte, dataLen))
+	tc.wantWindowUpdate(0, dataLen)
+
+	close(body.unblock)
+	if err := rt.err(); err == nil {
+		t.Fatal("RoundTrip succeeded; want an error")
+	}
+	tc.wantFrameType(FrameRSTStream)
+	if ping {
+		tc.wantFrameType(FramePing)
+	}
+	if got := tc.inflowWindow(0); got != initialInflow {
+		t.Fatalf("connection inflow window = %v; want %v", got, initialInflow)
+	}
+}
+
 // Issue 16612: adjust flow control on open streams when transport
 // receives SETTINGS with INITIAL_WINDOW_SIZE from server.
 func TestTransportAdjustsFlowControl(t *testing.T) { synctest.Test(t, testTransportAdjustsFlowControl) }
