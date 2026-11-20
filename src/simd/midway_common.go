@@ -44,9 +44,18 @@ var maxVectorSize int
 var emulated = false
 var hwClmul = true
 
+// clmulImpl names the archsimd carryless multiply that the CarrylessMul
+// methods use at maxVectorSize: an archsimd type, such as "Uint64x2", whose
+// CarrylessMul methods are a single instruction, or "software". If it is
+// narrower than maxVectorSize, the methods apply it to each part.
+var clmulImpl = "software"
+
 func init() {
 	maxVectorSize, emulated = configure(archMaxVectorSize(), simd.Value())
-	hwClmul = !emulated && archHasHwClmul(maxVectorSize)
+	hwClmul = false
+	if !emulated {
+		clmulImpl, hwClmul = archClmulImpl(maxVectorSize)
+	}
 }
 
 type fromArchError string

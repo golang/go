@@ -10,11 +10,16 @@ import (
 	"internal/cpu"
 )
 
-// archHasHwClmul reports whether carryless multiply on vectors of the given
-// bit size is a single hardware instruction. Without PMULL, archsimd emulates
-// it using other Neon instructions.
-func archHasHwClmul(size int) bool {
-	return cpu.ARM64.HasPMULL
+// archClmulImpl returns how archsimd implements carryless multiply on vectors
+// of the given bit size (see clmulImpl), and whether that is a single
+// instruction on the whole vector. This mirrors the dispatch in archsimd's
+// clmul_arm64.go: the 64-bit PMULL if the CPU has it, otherwise an emulation
+// using the 8-bit PMULL on Uint8x16. Vectors are always 128 bits.
+func archClmulImpl(size int) (impl string, full bool) {
+	if cpu.ARM64.HasPMULL {
+		return "Uint64x2", true
+	}
+	return "Uint8x16", false
 }
 
 // archMaxVectorSize returns the bit size of the largest vectors the CPU

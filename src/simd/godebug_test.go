@@ -143,26 +143,26 @@ func godebugSettings() []godebugSetting {
 		// fallback.
 		for bits := simd.VectorBits(); bits >= 128; bits /= 2 {
 			size := prefix + fmt.Sprintf("simd=%d,", bits)
-			want := fmt.Sprintf("VectorBits=%d Emulated=false HardwareCLMUL=false", bits)
+			want := fmt.Sprintf("VectorBits=%d Emulated=false", bits)
 			if bits > 128 && cpu.X86.HasVPCLMULQDQ {
 				// Without VPCLMULQDQ, archsimd applies the Uint64x2
 				// instruction to each 128-bit part of wider vectors.
-				settings = append(settings, godebugSetting{godebug: size + "cpu.vpclmulqdq=off", wantConfig: want})
+				settings = append(settings, godebugSetting{godebug: size + "cpu.vpclmulqdq=off", wantConfig: want + " CLMUL=Uint64x2"})
 			}
 			if cpu.X86.HasPCLMULQDQ {
 				// Without PCLMULQDQ, archsimd uses software.
-				settings = append(settings, godebugSetting{godebug: size + "cpu.pclmulqdq=off", wantConfig: want})
+				settings = append(settings, godebugSetting{godebug: size + "cpu.pclmulqdq=off", wantConfig: want + " CLMUL=software"})
 			}
 		}
 	case "arm64":
 		// Without PMULL, archsimd emulates carryless multiply using
-		// other Neon instructions. If PMULL is already off, because
+		// the 8-bit PMULL on Uint8x16. If PMULL is already off, because
 		// the CPU lacks it or because GODEBUG turns it off, the
 		// current setting tests that.
 		if cpu.ARM64.HasPMULL {
 			settings = append(settings, godebugSetting{
 				godebug:    prefix + "cpu.pmull=off",
-				wantConfig: "Emulated=false HardwareCLMUL=false",
+				wantConfig: "Emulated=false CLMUL=Uint8x16",
 			})
 		}
 	}
@@ -183,8 +183,8 @@ func cpuOptionsWork() bool {
 
 // config returns how the simd package is configured in this process.
 func config() string {
-	return fmt.Sprintf("VectorBits=%d Emulated=%t HardwareCLMUL=%t",
-		simd.VectorBits(), simd.Emulated(), simd.HasHardwareCarrylessMultiply())
+	return fmt.Sprintf("VectorBits=%d Emulated=%t CLMUL=%s",
+		simd.VectorBits(), simd.Emulated(), simd.InternalCLMULImpl())
 }
 
 // TestGODEBUGSettings checks that each of the godebugSettings configures the

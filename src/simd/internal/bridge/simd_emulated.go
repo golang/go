@@ -21,6 +21,7 @@ const (
 	maxVectorSize = 128
 	emulated      = true
 	hwClmul       = false
+	clmulImpl     = "software"
 )
 
 // LoadInt8s loads a slice into a vector. If len(s) < z.Len(), it panics.

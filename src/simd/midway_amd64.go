@@ -11,18 +11,21 @@ import (
 	"simd/archsimd"
 )
 
-// archHasHwClmul reports whether carryless multiply on vectors of the given
-// bit size is a single hardware instruction.
-func archHasHwClmul(size int) bool {
-	switch size {
-	case 128:
-		return cpu.X86.HasPCLMULQDQ
-	case 256:
-		return cpu.X86.HasVPCLMULQDQ
-	case 512:
-		return cpu.X86.HasAVX512VPCLMULQDQ
+// archClmulImpl returns how archsimd implements carryless multiply on vectors
+// of the given bit size (see clmulImpl), and whether that is a single
+// instruction on the whole vector. This mirrors the dispatch in archsimd's
+// clmul_amd64.go: the full-width instruction if the CPU has it, otherwise
+// PCLMULQDQ on each 128-bit part, otherwise software.
+func archClmulImpl(size int) (impl string, full bool) {
+	switch {
+	case size == 256 && cpu.X86.HasVPCLMULQDQ:
+		return "Uint64x4", true
+	case size == 512 && cpu.X86.HasAVX512VPCLMULQDQ:
+		return "Uint64x8", true
+	case cpu.X86.HasPCLMULQDQ:
+		return "Uint64x2", size == 128
 	}
-	return false
+	return "software", false
 }
 
 // archMaxVectorSize returns the bit size of the largest vectors the CPU

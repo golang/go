@@ -6,11 +6,12 @@
 
 package simd
 
-// archHasHwClmul reports whether carryless multiply on vectors of the given
-// bit size is a single hardware instruction. WebAssembly has no such
-// instruction.
-func archHasHwClmul(size int) bool {
-	return false
+// archClmulImpl returns how archsimd implements carryless multiply on vectors
+// of the given bit size (see clmulImpl), and whether that is a single
+// instruction on the whole vector. WebAssembly has no carryless multiply
+// instruction, so archsimd implements it in software.
+func archClmulImpl(size int) (impl string, full bool) {
+	return "software", false
 }
 
 // archMaxVectorSize returns the bit size of the largest vectors the CPU
