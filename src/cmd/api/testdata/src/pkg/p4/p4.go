@@ -25,3 +25,10 @@ func (p Pair[_, X2]) Second() X2 {
 func Clone[S ~[]T, T any](s S) S {
 	return append(S(nil), s...)
 }
+
+type Elem struct{}
+
+// Constraint of a single type.
+func Single[T Elem](v T) T {
+	return v
+}

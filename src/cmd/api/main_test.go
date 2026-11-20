@@ -735,13 +735,13 @@ func sortedMethodNames(typ *types.Interface) []string {
 func (w *Walker) sortedEmbeddeds(typ *types.Interface) []string {
 	n := typ.NumEmbeddeds()
 	list := make([]string, 0, n)
+	var buf bytes.Buffer
 	for i := 0; i < n; i++ {
 		emb := typ.EmbeddedType(i)
 		switch emb := emb.(type) {
 		case *types.Interface:
 			list = append(list, w.sortedEmbeddeds(emb)...)
 		case *types.Union:
-			var buf bytes.Buffer
 			nu := emb.Len()
 			for i := 0; i < nu; i++ {
 				if i > 0 {
@@ -754,6 +754,20 @@ func (w *Walker) sortedEmbeddeds(typ *types.Interface) []string {
 				w.writeType(&buf, term.Type())
 			}
 			list = append(list, buf.String())
+			buf.Reset()
+		default:
+			// A single type term, as in [T P.Type]. Emit the single term
+			// the same way we would if it had been in a union.
+			//
+			// An embedded named interface type is also neither an
+			// *types.Interface nor a *types.Union, but it isn't a type
+			// term: its methods are already in typ's method set, which
+			// the caller prints, so skip it.
+			if !types.IsInterface(emb) {
+				w.writeType(&buf, emb)
+				list = append(list, buf.String())
+				buf.Reset()
+			}
 		}
 	}
 	slices.Sort(list)
