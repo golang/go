@@ -329,13 +329,14 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 		case AEnd:
 			if explicitBlockDepth == 0 {
-				panic("End without block")
+				ctxt.Diag("%v: End without block", p)
+				break
 			}
 			explicitBlockDepth--
 
 		case ARESUMEPOINT:
 			if explicitBlockDepth != 0 {
-				panic("RESUME can only be used on toplevel")
+				ctxt.Diag("%v: RESUMEPOINT can only be used on toplevel", p)
 			}
 			p.As = AEnd
 			for tablePC <= pc {
@@ -347,7 +348,8 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 		case obj.ACALL:
 			if explicitBlockDepth != 0 {
-				panic("CALL can only be used on toplevel, try CALLNORESUME instead")
+				ctxt.Diag("%v: CALL can only be used on toplevel, try CALLNORESUME instead", p)
+				break
 			}
 			appendp(p, ARESUMEPOINT)
 		}
@@ -1360,7 +1362,12 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			writeUleb128(w, uint64(p.To.Offset))
 
 		case ABrTable:
-			idxs := p.To.Val.([]uint64)
+			// Only preprocess builds the table of branch targets.
+			idxs, ok := p.To.Val.([]uint64)
+			if !ok {
+				ctxt.Diag("%v: BrTable is not supported in assembly", p)
+				continue
+			}
 			writeUleb128(w, uint64(len(idxs)-1))
 			for _, idx := range idxs {
 				writeUleb128(w, idx)
@@ -1470,23 +1477,18 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 		case AI32Load, AI64Load, AF32Load, AF64Load, AI32Load8S, AI32Load8U, AI32Load16S, AI32Load16U,
 			AI64Load8S, AI64Load8U, AI64Load16S, AI64Load16U, AI64Load32S, AI64Load32U, AV128Load:
-			if p.From.Offset < 0 {
-				panic("negative offset for *Load")
-			}
 			if p.From.Type != obj.TYPE_CONST {
-				panic(fmt.Errorf("bad type for *Load, wanted TYPE_CONST, got %v", p.From.Type))
+				ctxt.Diag("%v: bad type for *Load, wanted TYPE_CONST, got %v", p, p.From.Type)
+				continue
 			}
-			if p.From.Offset > math.MaxUint32 {
+			if p.From.Offset < 0 || p.From.Offset > math.MaxUint32 {
 				ctxt.Diag("bad offset in %v", p)
 			}
 			writeUleb128(w, align(p.As))
 			writeUleb128(w, uint64(p.From.Offset))
 
 		case AI32Store, AI64Store, AF32Store, AF64Store, AI32Store8, AI32Store16, AI64Store8, AI64Store16, AI64Store32, AV128Store:
-			if p.To.Offset < 0 {
-				panic("negative offset")
-			}
-			if p.To.Offset > math.MaxUint32 {
+			if p.To.Offset < 0 || p.To.Offset > math.MaxUint32 {
 				ctxt.Diag("bad offset in %v", p)
 			}
 			writeUleb128(w, align(p.As))

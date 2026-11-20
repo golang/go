@@ -548,3 +548,7 @@ func TestRISCV64Validation(t *testing.T) {
 func TestS390XEndToEnd(t *testing.T) {
 	testEndToEnd(t, "s390x", "s390x")
 }
+
+func TestWasmErrors(t *testing.T) {
+	testErrors(t, "wasm", "wasmerror")
+}
