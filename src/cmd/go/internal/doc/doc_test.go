@@ -659,6 +659,51 @@ var tests = []test{
 		},
 	},
 
+	// Standalone comments before interface methods and struct fields.
+	{
+		"interface with standalone comments",
+		[]string{p, "InterfaceWithComments"},
+		[]string{
+			`First group of methods\.\n\s*//\n\s*// First does something\.\n\s*First\(\) // First line comment\.`,
+			`Second group of methods\.\n\s*//\n\s*// Another heading\.\n\s*Second\(\)`,
+			`Embedded interfaces\.\n\s*error`,
+			`Has unexported methods`,
+		},
+		[]string{`Hidden group`, `Hidden line comment`, `hidden\(`, `Trailing interface`, `ignore:directive`},
+	},
+	{
+		"interface with standalone comments and -u",
+		[]string{"-u", p, "InterfaceWithComments"},
+		[]string{`First group of methods`, `Hidden group of methods\.\n\s*hidden\(\)`, `Second group of methods`},
+		[]string{`Has unexported methods`, `Trailing interface`, `ignore:directive`},
+	},
+	{
+		"interface with standalone comments and -src",
+		[]string{"-src", p, "InterfaceWithComments"},
+		[]string{
+			`First group of methods\.\n\n\s*// First does something\.`,
+			`Hidden group of methods`, `Trailing interface comment`, `ignore:directive`,
+		},
+		[]string{`Has unexported methods`},
+	},
+	{
+		"interface with standalone comments and -short",
+		[]string{"-short", p, "InterfaceWithComments"},
+		[]string{`type InterfaceWithComments interface{ ... }`},
+		[]string{`First group`, `Hidden group`, `Second group`, `Trailing interface`},
+	},
+	{
+		"struct with standalone comments",
+		[]string{p, "StructWithComments"},
+		[]string{
+			`First group of fields\.\n\s*//\n\s*// First is a field\.\n\s*First int // First field line comment\.`,
+			`Second group of fields\.\n\s*Second int`,
+			`Embedded fields\.\n\s*\*ExportedType`,
+			`Has unexported fields`,
+		},
+		[]string{`Hidden group`, `Hidden field line comment`, `hidden int`, `Trailing struct`},
+	},
+
 	// Interface method.
 	{
 		"interface method",
