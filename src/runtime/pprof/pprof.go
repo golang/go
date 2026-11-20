@@ -1060,6 +1060,9 @@ func pprof_cyclesPerSecond() int64
 //go:linknamestd pprof_memProfileInternal
 func pprof_memProfileInternal(p []profilerecord.MemProfileRecord, inuseZero bool, metrics *profilerecord.MemProfileMetrics) (n int, ok bool)
 
+//go:linknamestd pprof_memoryProfileEnabled
+func pprof_memoryProfileEnabled() bool
+
 //go:linkname pprof_blockProfileInternal runtime.pprof_blockProfileInternal
 func pprof_blockProfileInternal(p []profilerecord.BlockProfileRecord) (n int, ok bool)
 

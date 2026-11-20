@@ -5,6 +5,7 @@
 package pprof
 
 import (
+	"errors"
 	"fmt"
 	"internal/profilerecord"
 	"io"
@@ -52,6 +53,9 @@ func countMemory() int { return 0 }
 func writeMemory(w io.Writer, debug int) error {
 	if debug != 0 {
 		return fmt.Errorf("memory profile: only debug=0 is supported")
+	}
+	if !pprof_memoryProfileEnabled() {
+		return errors.New("memory profile: disabled by GODEBUG=memoryprofile=0")
 	}
 	p, metrics := readMemProfileWithMetrics()
 	if err := validateRSSMetrics(&metrics); err != nil {

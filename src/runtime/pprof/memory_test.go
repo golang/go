@@ -7,6 +7,9 @@ package pprof
 import (
 	"bytes"
 	"internal/profile"
+	"internal/testenv"
+	"io"
+	"os"
 	"runtime"
 	"runtime/debug"
 	"slices"
@@ -28,6 +31,35 @@ func TestMemoryProfileRSSUnsupported(t *testing.T) {
 	}
 	if !slices.Contains(p.Comments, "RSS is unavailable on this system") {
 		t.Error("memory profile does not report unavailable RSS")
+	}
+}
+
+func TestMemoryProfileDisabled(t *testing.T) {
+	if os.Getenv("GO_TEST_MEMORYPROFILE_DISABLED") == "" {
+		// GODEBUG=memoryprofile is read at startup, so re-run this test
+		// in a subprocess with the setting applied.
+		cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.Executable(t),
+			"-test.run=^"+t.Name()+"$", "-test.v"))
+		cmd.Env = append(cmd.Env, "GO_TEST_MEMORYPROFILE_DISABLED=1", "GODEBUG=memoryprofile=0")
+		out, err := cmd.CombinedOutput()
+		if err != nil || !bytes.Contains(out, []byte("--- PASS: "+t.Name())) {
+			t.Fatalf("subprocess failed: %v\n%s", err, out)
+		}
+		return
+	}
+
+	err := Lookup("memory").WriteTo(io.Discard, 0)
+	if err == nil || !strings.Contains(err.Error(), "memoryprofile=0") {
+		t.Errorf("writing memory profile: got error %v, want error mentioning memoryprofile=0", err)
+	}
+
+	// The heap profile does not depend on the memory profile metrics.
+	var buf bytes.Buffer
+	if err := Lookup("heap").WriteTo(&buf, 0); err != nil {
+		t.Fatalf("writing heap profile: %v", err)
+	}
+	if _, err := profile.Parse(&buf); err != nil {
+		t.Fatalf("parsing heap profile: %v", err)
 	}
 }
 

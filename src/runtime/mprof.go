@@ -406,6 +406,9 @@ func mProf_AdvanceCycle(heapStats *heapStatsDelta) {
 	// current cycle, which is now ready to publish, describes the previous
 	// mark termination.
 	mProfCycle.increment()
+	if !memoryProfileEnabled() {
+		return
+	}
 	memstats.heapStats.unsafeRead(heapStats)
 	// Mark termination will flush stale mcaches after we return, so we need
 	// to reset this counter here.
@@ -432,6 +435,9 @@ func mProf_Publish() {
 // with the heap profile into out. Heap-related fields of out are derived from
 // the provided heapStats and mcacheStats collected during mark termination.
 func captureMProfMetrics(out *profilerecord.MemProfileMetrics, heapStats *heapStatsDelta, mcacheStats uint64) {
+	if !memoryProfileEnabled() {
+		return
+	}
 	*out = profilerecord.MemProfileMetrics{}
 
 	if rss, ok := sysRSS(); ok {
@@ -969,6 +975,14 @@ var MemProfileRate int = 512 * 1024
 // We check if the runtime.memProfileInternal symbol is present.
 var disableMemoryProfiling bool
 
+// memoryProfileEnabled reports whether the runtime collects the RSS and
+// runtime metrics that the runtime/pprof memory profile reports. This work is
+// done during GC, so it is skipped if memory profiling is disabled by the linker
+// or by GODEBUG=memoryprofile=0.
+func memoryProfileEnabled() bool {
+	return !disableMemoryProfiling && debug.memoryprofile != 0
+}
+
 // A MemProfileRecord describes the live objects allocated
 // by a particular call sequence (stack trace).
 type MemProfileRecord struct {
@@ -1144,6 +1158,14 @@ func pprof_memProfileInternal(p []profilerecord.MemProfileRecord, inuseZero bool
 		p[0] = r
 		p = p[1:]
 	}, metrics)
+}
+
+// pprof_memoryProfileEnabled reports whether the runtime collects the
+// metrics needed by the runtime/pprof memory profile.
+//
+//go:linknamestd pprof_memoryProfileEnabled runtime/pprof.pprof_memoryProfileEnabled
+func pprof_memoryProfileEnabled() bool {
+	return memoryProfileEnabled()
 }
 
 func iterate_memprof(fn func(*bucket, uintptr, *uintptr, uintptr, uintptr, uintptr)) {

@@ -316,6 +316,7 @@ var debug struct {
 	gctrace                  int32
 	invalidptr               int32
 	madvdontneed             int32 // for Linux; issue 28466
+	memoryprofile            int32 // set to 0 to disable the memory profile's GC work
 	scavtrace                int32
 	scheddetail              int32
 	schedtrace               int32
@@ -376,6 +377,7 @@ var dbgvars = []*dbgVar{
 	{name: "inittrace", value: &debug.inittrace},
 	{name: "invalidptr", value: &debug.invalidptr},
 	{name: "madvdontneed", value: &debug.madvdontneed},
+	{name: "memoryprofile", value: &debug.memoryprofile, def: 1},
 	{name: "panicnil", atomic: &debug.panicnil},
 	{name: "profstackdepth", value: &debug.profstackdepth, def: 128},
 	{name: "sbrk", value: &debug.sbrk},

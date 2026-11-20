@@ -348,7 +348,7 @@ func (c *mcache) releaseAll() {
 	// accounted for above are not included in the heap statistics snapshot
 	// the memory profiler collects during mark termination stop-the-world,
 	// so we collect them here.
-	if !disableMemoryProfiling && allocBytes != 0 && c.flushGen.Load() != sg {
+	if memoryProfileEnabled() && allocBytes != 0 && c.flushGen.Load() != sg {
 		// If we see a stale mcache, it means mark termination is
 		// ongoing and we're past the stop-the-world where
 		// mProfMCacheAllocBytes was reset and the sweep generation was
