@@ -303,22 +303,42 @@ func consumeValue(v string) (value, rest string) {
 	}
 
 	// parse a quoted-string
-	buffer := new(strings.Builder)
-	for i := 1; i < len(v); i++ {
+	i := 1
+scan:
+	for ; i < len(v); i++ {
+		switch v[i] {
+		case '"':
+			// Keep a small quoted value from retaining the entire input.
+			return strings.Clone(v[1:i]), v[i+1:]
+		case '\\':
+			// When MSIE sends a full file path (in "intranet mode"), it does not
+			// escape backslashes: "C:\dev\go\foo.txt", not "C:\\dev\\go\\foo.txt".
+			//
+			// No known MIME generators emit unnecessary backslash escapes
+			// for simple token characters like numbers and letters.
+			//
+			// If we see an unnecessary backslash escape, assume it is from MSIE
+			// and intended as a literal backslash. This makes Go servers deal better
+			// with MSIE without affecting the way they handle conforming MIME
+			// generators.
+			if i+1 < len(v) && isTSpecial(v[i+1]) {
+				break scan
+			}
+		case '\r', '\n':
+			return "", v
+		}
+	}
+	if i == len(v) {
+		return "", v
+	}
+
+	var buffer strings.Builder
+	buffer.WriteString(v[1:i])
+	for ; i < len(v); i++ {
 		r := v[i]
 		if r == '"' {
 			return buffer.String(), v[i+1:]
 		}
-		// When MSIE sends a full file path (in "intranet mode"), it does not
-		// escape backslashes: "C:\dev\go\foo.txt", not "C:\\dev\\go\\foo.txt".
-		//
-		// No known MIME generators emit unnecessary backslash escapes
-		// for simple token characters like numbers and letters.
-		//
-		// If we see an unnecessary backslash escape, assume it is from MSIE
-		// and intended as a literal backslash. This makes Go servers deal better
-		// with MSIE without affecting the way they handle conforming MIME
-		// generators.
 		if r == '\\' && i+1 < len(v) && isTSpecial(v[i+1]) {
 			buffer.WriteByte(v[i+1])
 			i++
