@@ -11,6 +11,49 @@ import (
 
 type CtrlGroup = ctrlGroup
 
+// Bit 7 denotes slot 7 in a packed mask and slot 0 in a byte-wise mask.
+func BitsetIsPacked() bool { return bitsetFirst(1<<7) == 7 }
+
+const CtrlEmpty = ctrlEmpty
+const CtrlDeleted = ctrlDeleted
+
+var H2 = h2
+
+// Function values keep these calls out of the compiler's intrinsic path.
+var ctrlMatchH2Portable = ctrlGroupMatchH2
+var ctrlMatchEmptyPortable = ctrlGroupMatchEmpty
+var ctrlMatchEmptyOrDeletedPortable = ctrlGroupMatchEmptyOrDeleted
+var ctrlMatchFullPortable = ctrlGroupMatchFull
+
+func CtrlGroupMatch(g CtrlGroup, h ctrl, portable bool) [4]uint64 {
+	if portable {
+		return [4]uint64{
+			uint64(ctrlMatchH2Portable(g, h)),
+			uint64(ctrlMatchEmptyPortable(g)),
+			uint64(ctrlMatchEmptyOrDeletedPortable(g)),
+			uint64(ctrlMatchFullPortable(g)),
+		}
+	}
+	return [4]uint64{
+		uint64(g.matchH2(h)),
+		uint64(g.matchEmpty()),
+		uint64(g.matchEmptyOrDeleted()),
+		uint64(g.matchFull()),
+	}
+}
+
+func CtrlGroupAnyFull(g CtrlGroup) bool { return g.anyFull() }
+
+func CtrlGroupSetEmpty(g CtrlGroup) CtrlGroup {
+	g.setEmpty()
+	return g
+}
+
+func CtrlGroupSet(g CtrlGroup, i uintptr, c uint8) (CtrlGroup, uint8) {
+	g.set(i, ctrl(c))
+	return g, uint8(g.get(i))
+}
+
 const DebugLog = debugLog
 
 var AlignUpPow2 = alignUpPow2

@@ -6,7 +6,6 @@ package ssagen
 
 import (
 	"fmt"
-	"internal/abi"
 	"internal/buildcfg"
 
 	"cmd/compile/internal/base"
@@ -1541,171 +1540,68 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			// byte N matched).
 			//
 			// NOTE: See comment above on bitsetFirst.
+			if buildcfg.GOAMD64 >= 2 {
+				// The broadcast fills all sixteen bytes with encoded h2,
+				// which cannot match the zero upper eight bytes of gfp.
+				return s.newValue1(ssaop.OpAMD64PMOVMSKB, types.Types[types.TUINT64], eq)
+			}
+
+			// The v1 broadcast fills only the lower eight bytes. The
+			// upper bytes may match gfp and must be discarded.
 			out := s.newValue1(ssaop.OpAMD64PMOVMSKB, types.Types[types.TUINT8], eq)
-
-			// g is only 64-bits so the upper 64-bits of the
-			// 128-bit register will be zero. If h2 is also zero,
-			// then we'll get matches on those bytes. Truncate the
-			// upper bits to ignore such matches.
-			ret := s.newValue1(ssaop.OpZeroExt8to64, types.Types[types.TUINT64], out)
-
-			return ret
+			return s.newValue1(ssaop.OpZeroExt8to64, types.Types[types.TUINT64], out)
 		},
 		sys.AMD64)
 
 	addF("internal/runtime/maps", "ctrlGroupMatchEmpty",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			// An empty slot is   1000 0000
-			// A deleted slot is  1111 1110
-			// A full slot is     0??? ????
-
+			// Empty slots have zero control bytes. Deleted slots are
+			// 0111 1110, and full slots are 1??? ????.
 			g := args[0]
 
 			// Explicit copy to fp register. See
 			// https://go.dev/issue/70451.
 			gfp := s.newValue1(ssaop.OpAMD64MOVQi2f, types.TypeInt128, g)
+			zero := s.newValue0(ssaop.OpAMD64Zero128, types.TypeInt128)
+			eq := s.newValue2(ssaop.OpAMD64PCMPEQB, types.TypeInt128, zero, gfp)
 
-			if buildcfg.GOAMD64 >= 2 {
-				// "PSIGNB negates each data element of the
-				// destination operand (the first operand) if
-				// the signed integer value of the
-				// corresponding data element in the source
-				// operand (the second operand) is less than
-				// zero. If the signed integer value of a data
-				// element in the source operand is positive,
-				// the corresponding data element in the
-				// destination operand is unchanged. If a data
-				// element in the source operand is zero, the
-				// corresponding data element in the
-				// destination operand is set to zero" - Intel SDM
-				//
-				// If we pass the group control word as both
-				// arguments:
-				// - Full slots are unchanged.
-				// - Deleted slots are negated, becoming
-				//   0000 0010.
-				// - Empty slots are negated, becoming
-				//   1000 0000 (unchanged!).
-				//
-				// The result is that only empty slots have the
-				// sign bit set. We then use PMOVMSKB to
-				// extract the sign bits.
-				sign := s.newValue2(ssaop.OpAMD64PSIGNB, types.TypeInt128, gfp, gfp)
-
-				// Construct a "byte mask": each output bit is
-				// equal to the sign bit each input byte. The
-				// sign bit is only set for empty or deleted
-				// slots.
-				//
-				// This results in a packed output (bit N set
-				// means byte N matched).
-				//
-				// NOTE: See comment above on bitsetFirst.
-				ret := s.newValue1(ssaop.OpAMD64PMOVMSKB, types.Types[types.TUINT64], sign)
-
-				// g is only 64-bits so the upper 64-bits of
-				// the 128-bit register will be zero. PSIGNB
-				// will keep all of these bytes zero, so no
-				// need to truncate.
-
-				return ret
-			}
-
-			// No PSIGNB, simply do byte equality with ctrlEmpty.
-
-			// Load ctrlEmpty into each byte of a control word.
-			var ctrlsEmpty uint64 = abi.MapCtrlEmpty
-			e := s.constInt64(types.Types[types.TUINT64], int64(ctrlsEmpty))
-			// Explicit copy to fp register. See
-			// https://go.dev/issue/70451.
-			efp := s.newValue1(ssaop.OpAMD64MOVQi2f, types.TypeInt128, e)
-
-			// Compare each byte of the control word with ctrlEmpty. Each
-			// matching byte has every bit set.
-			eq := s.newValue2(ssaop.OpAMD64PCMPEQB, types.TypeInt128, efp, gfp)
-
-			// Construct a "byte mask": each output bit is equal to
-			// the sign bit each input byte.
-			//
-			// This results in a packed output (bit N set means
-			// byte N matched).
-			//
-			// NOTE: See comment above on bitsetFirst.
+			// Extract each byte's sign bit into a packed slot mask.
 			out := s.newValue1(ssaop.OpAMD64PMOVMSKB, types.Types[types.TUINT8], eq)
 
-			// g is only 64-bits so the upper 64-bits of the
-			// 128-bit register will be zero. The upper 64-bits of
-			// efp are also zero, so we'll get matches on those
-			// bytes. Truncate the upper bits to ignore such
-			// matches.
+			// The upper eight bytes of gfp are also zero and match.
+			// Truncate the mask to the eight slots in the group.
 			return s.newValue1(ssaop.OpZeroExt8to64, types.Types[types.TUINT64], out)
 		},
 		sys.AMD64)
 
 	addF("internal/runtime/maps", "ctrlGroupMatchEmptyOrDeleted",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			// An empty slot is   1000 0000
-			// A deleted slot is  1111 1110
-			// A full slot is     0??? ????
-			//
-			// A slot is empty or deleted iff bit 7 (sign bit) is
-			// set.
-
+			// A slot is empty or deleted iff its sign bit is unset.
 			g := args[0]
 
 			// Explicit copy to fp register. See
 			// https://go.dev/issue/70451.
 			gfp := s.newValue1(ssaop.OpAMD64MOVQi2f, types.TypeInt128, g)
+			mask := s.newValue1(ssaop.OpAMD64PMOVMSKB, types.Types[types.TUINT64], gfp)
 
-			// Construct a "byte mask": each output bit is equal to
-			// the sign bit each input byte. The sign bit is only
-			// set for empty or deleted slots.
-			//
-			// This results in a packed output (bit N set means
-			// byte N matched).
-			//
-			// NOTE: See comment above on bitsetFirst.
-			ret := s.newValue1(ssaop.OpAMD64PMOVMSKB, types.Types[types.TUINT64], gfp)
-
-			// g is only 64-bits so the upper 64-bits of the
-			// 128-bit register will be zero. Zero will never match
-			// ctrlEmpty or ctrlDeleted, so no need to truncate.
-
-			return ret
+			// The upper eight bytes of gfp are zero, so the mask has
+			// only eight bits. Invert those bits with a single XOR.
+			allSlots := s.constInt64(types.Types[types.TUINT64], 0xff)
+			return s.newValue2(ssaop.OpXor64, types.Types[types.TUINT64], mask, allSlots)
 		},
 		sys.AMD64)
 
 	addF("internal/runtime/maps", "ctrlGroupMatchFull",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			// An empty slot is   1000 0000
-			// A deleted slot is  1111 1110
-			// A full slot is     0??? ????
-			//
-			// A slot is full iff bit 7 (sign bit) is unset.
-
+			// A slot is full iff its sign bit is set.
 			g := args[0]
 
 			// Explicit copy to fp register. See
 			// https://go.dev/issue/70451.
 			gfp := s.newValue1(ssaop.OpAMD64MOVQi2f, types.TypeInt128, g)
 
-			// Construct a "byte mask": each output bit is equal to
-			// the sign bit each input byte. The sign bit is only
-			// set for empty or deleted slots.
-			//
-			// This results in a packed output (bit N set means
-			// byte N matched).
-			//
-			// NOTE: See comment above on bitsetFirst.
-			mask := s.newValue1(ssaop.OpAMD64PMOVMSKB, types.Types[types.TUINT8], gfp)
-
-			// Invert the mask to set the bits for the full slots.
-			out := s.newValue1(ssaop.OpCom8, types.Types[types.TUINT8], mask)
-
-			// g is only 64-bits so the upper 64-bits of the
-			// 128-bit register will be zero, with bit 7 unset.
-			// Truncate the upper bits to ignore these.
-			return s.newValue1(ssaop.OpZeroExt8to64, types.Types[types.TUINT64], out)
+			// The upper eight bytes of gfp are zero and cannot match.
+			return s.newValue1(ssaop.OpAMD64PMOVMSKB, types.Types[types.TUINT64], gfp)
 		},
 		sys.AMD64)
 

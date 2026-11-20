@@ -104,11 +104,6 @@ func (t *table) reset(typ *abi.MapType, capacity uint16) {
 	t.groups = newGroups(typ, groupCount)
 	t.capacity = capacity
 	t.growthLeft = t.maxGrowthLeft()
-
-	for i := uint64(0); i <= t.groups.lengthMask; i++ {
-		g := t.groups.group(typ, i)
-		g.ctrls().setEmpty()
-	}
 }
 
 // maxGrowthLeft is the number of inserts we can do before
@@ -694,7 +689,6 @@ func (t *table) Clear(typ *abi.MapType) {
 		for i := uint64(0); i <= t.groups.lengthMask; i++ {
 			g := t.groups.group(typ, i)
 			typedmemclr(typ.Group, g.data)
-			g.ctrls().setEmpty()
 		}
 	}
 	t.used = 0
@@ -888,7 +882,7 @@ func (it *Iter) Next() {
 		for ; it.entryIdx < abi.MapGroupSlots; it.entryIdx++ {
 			k := uintptr(it.entryIdx+it.entryOffset) % abi.MapGroupSlots
 
-			if (it.group.ctrls().get(k) & ctrlEmpty) == ctrlEmpty {
+			if (it.group.ctrls().get(k) & ctrlFull) == 0 {
 				// Empty or deleted.
 				continue
 			}
@@ -1033,7 +1027,7 @@ func (it *Iter) Next() {
 			it.group = it.tab.groups.group(it.typ, groupIdx)
 		}
 
-		if (it.group.ctrls().get(slotIdx) & ctrlEmpty) == 0 {
+		if (it.group.ctrls().get(slotIdx) & ctrlFull) != 0 {
 			// Slot full.
 
 			key := it.group.key(it.typ, slotIdx)
@@ -1253,7 +1247,7 @@ func (t *table) split(typ *abi.MapType, m *Map) {
 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
 		g := t.groups.group(typ, i)
 		for j := uintptr(0); j < abi.MapGroupSlots; j++ {
-			if (g.ctrls().get(j) & ctrlEmpty) == ctrlEmpty {
+			if (g.ctrls().get(j) & ctrlFull) == 0 {
 				// Empty or deleted
 				continue
 			}
@@ -1294,7 +1288,7 @@ func (t *table) grow(typ *abi.MapType, m *Map, newCapacity uint16) {
 		for i := uint64(0); i <= t.groups.lengthMask; i++ {
 			g := t.groups.group(typ, i)
 			for j := uintptr(0); j < abi.MapGroupSlots; j++ {
-				if (g.ctrls().get(j) & ctrlEmpty) == ctrlEmpty {
+				if (g.ctrls().get(j) & ctrlFull) == 0 {
 					// Empty or deleted
 					continue
 				}

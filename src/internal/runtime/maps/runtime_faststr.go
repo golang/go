@@ -35,7 +35,7 @@ func (m *Map) getWithoutKeySmallFastStr(typ *abi.MapType, key string) unsafe.Poi
 		// String hashing and equality might be expensive. Do a quick check first.
 		j := abi.MapGroupSlots
 		for i := range abi.MapGroupSlots {
-			if ctrls&(1<<7) == 0 && longStringQuickEqualityTest(key, *(*string)(slotKey)) {
+			if ctrls&(1<<7) != 0 && longStringQuickEqualityTest(key, *(*string)(slotKey)) {
 				if j < abi.MapGroupSlots {
 					// 2 strings both passed the quick equality test.
 					// Break out of this loop and do it the slow way.

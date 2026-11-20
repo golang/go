@@ -126,16 +126,14 @@ func (m *Map) putSlotSmallFast64(typ *abi.MapType, hash uintptr, key uint64) uns
 		match = match.removeFirst()
 	}
 
-	// There can't be deleted slots, small maps can't have them
-	// (see deleteSmall). Use matchEmptyOrDeleted as it is a bit
-	// more efficient than matchEmpty.
-	match = g.ctrls().matchEmptyOrDeleted()
-	if match == 0 {
+	// Small maps have no deleted slots (see deleteSmall).
+	empty := ^uint64(*g.ctrls()) & bitsetMSB
+	if empty == 0 {
 		// No empty slot found. Need to grow the map.
 		return nil
 	}
 
-	i := match.first()
+	i := uintptr(sys.TrailingZeros64(empty)) >> 3
 
 	slotKey := g.key(typ, i)
 	*(*uint64)(slotKey) = key

@@ -203,11 +203,10 @@ func h1(h uintptr) uintptr {
 	return h >> 7
 }
 
-// Extracts the H2 portion of a hash: the 7 bits not used for h1.
-//
-// These are used as an occupied control byte.
-func h2(h uintptr) uintptr {
-	return h & 0x7f
+// Extracts the H2 portion of a hash, the 7 bits not used for h1, and sets
+// the full bit to produce an occupied control byte.
+func h2(h uintptr) ctrl {
+	return ctrl(h) | ctrlFull
 }
 
 // Note: changes here must be reflected in cmd/compile/internal/reflectdata/map.go:MapType.
@@ -470,7 +469,7 @@ func (m *Map) growTo(typ *abi.MapType, dirSize uint64, targetCapacity uintptr) {
 		base := uintptr(oldIndex) << orders
 		mask := uintptr(1)<<(newGlobalDepth-oldDepth) - 1
 		for j := uintptr(0); j < abi.MapGroupSlots; j++ {
-			if (g.ctrls().get(j) & ctrlEmpty) == ctrlEmpty {
+			if (g.ctrls().get(j) & ctrlFull) == 0 {
 				// Empty or deleted.
 				continue
 			}
@@ -791,11 +790,6 @@ func (m *Map) putSlotSmall(typ *abi.MapType, hash uintptr, key unsafe.Pointer) u
 func (m *Map) growToSmall(typ *abi.MapType) {
 	grp := newGroups(typ, 1)
 	m.dirPtr = grp.data
-
-	g := groupReference{
-		data: m.dirPtr,
-	}
-	g.ctrls().setEmpty()
 }
 
 func (m *Map) growToTable(typ *abi.MapType) *table {
@@ -806,7 +800,7 @@ func (m *Map) growToTable(typ *abi.MapType) *table {
 	}
 
 	for i := uintptr(0); i < abi.MapGroupSlots; i++ {
-		if (g.ctrls().get(i) & ctrlEmpty) == ctrlEmpty {
+		if (g.ctrls().get(i) & ctrlFull) == 0 {
 			// Empty
 			continue
 		}
@@ -970,7 +964,6 @@ func (m *Map) clearSmall(typ *abi.MapType) {
 	}
 
 	typedmemclr(typ.Group, g.data)
-	g.ctrls().setEmpty()
 
 	m.used = 0
 }
