@@ -12,6 +12,14 @@ grep '^require example.com/deprecated/b v1.9.0$' go.mod
 go build ./...
 go mod tidy -diff
 
+# With no tagged releases, @latest falls back to pseudo-versions.
+env GOPROXY=off
+go mod edit -replace=example.com/local@v0.0.0-20220101000000-aaaaaaaaaaaa=./local -replace=example.com/local@v0.0.0-20230101000000-bbbbbbbbbbbb=./local -exclude=example.com/local@v0.0.0-20230101000000-bbbbbbbbbbbb
+go list -m example.com/local@latest
+stdout '^example.com/local v0.0.0-20220101000000-aaaaaaaaaaaa$'
+
+-- local/go.mod --
+module example.com/local
 -- go.mod --
 module example.com/app
 

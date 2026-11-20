@@ -370,11 +370,26 @@ func queryProxy(ld *Loader, ctx context.Context, proxy, path, query, current str
 		if latest != nil {
 			origin = mergeOrigin(origin, latest.Origin)
 		}
-		if err == nil {
-			if qm.allowsVersion(ctx, latest.Version) {
-				return lookup(latest.Version)
+		var latestVersion string
+		if err == nil && qm.allowsVersion(ctx, latest.Version) {
+			latestVersion = latest.Version
+		}
+		// A replacement can supply a version even if the repository has no
+		// tags. Compare only versions that are eligible for this query.
+		if ld.MainModules != nil {
+			for _, v := range ld.MainModules.replacedVersions[path] {
+				if latestVersion != "" && gover.ModCompare(path, v, latestVersion) <= 0 {
+					break
+				}
+				if qm.allowsVersion(ctx, v) {
+					return lookup(v)
+				}
 			}
-		} else if !errors.Is(err, fs.ErrNotExist) {
+		}
+		if latestVersion != "" {
+			return lookup(latestVersion)
+		}
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return revWithOrigin(nil), err
 		}
 	}
@@ -1190,14 +1205,9 @@ func (rr *replacementRepo) Versions(ctx context.Context, prefix string) (*modfet
 	}
 
 	versions := repoVersions.List
-	for _, mm := range rr.ld.MainModules.Versions() {
-		if index := rr.ld.MainModules.Index(mm); index != nil && len(index.replace) > 0 {
-			path := rr.ModulePath()
-			for m := range index.replace {
-				if m.Path == path && strings.HasPrefix(m.Version, prefix) && m.Version != "" && !module.IsPseudoVersion(m.Version) {
-					versions = append(versions, m.Version)
-				}
-			}
+	for _, v := range rr.ld.MainModules.replacedVersions[rr.ModulePath()] {
+		if strings.HasPrefix(v, prefix) && !module.IsPseudoVersion(v) {
+			versions = append(versions, v)
 		}
 	}
 
@@ -1218,16 +1228,6 @@ func (rr *replacementRepo) Stat(ctx context.Context, rev string) (*modfetch.RevI
 	if err == nil {
 		return info, err
 	}
-	var hasReplacements bool
-	for _, v := range rr.ld.MainModules.Versions() {
-		if index := rr.ld.MainModules.Index(v); index != nil && len(index.replace) > 0 {
-			hasReplacements = true
-		}
-	}
-	if !hasReplacements {
-		return info, err
-	}
-
 	v := module.CanonicalVersion(rev)
 	if v != rev {
 		// The replacements in the go.mod file list only canonical semantic versions,
@@ -1250,17 +1250,7 @@ func (rr *replacementRepo) Stat(ctx context.Context, rev string) (*modfetch.RevI
 }
 
 func (rr *replacementRepo) Latest(ctx context.Context) (*modfetch.RevInfo, error) {
-	info, err := rr.repo.Latest(ctx)
-	path := rr.ModulePath()
-
-	if versions := rr.ld.MainModules.replacedVersions[path]; len(versions) > 0 {
-		v := versions[0]
-		if err != nil || gover.ModCompare(path, v, info.Version) > 0 {
-			return rr.replacementStat(v)
-		}
-	}
-
-	return info, err
+	return rr.repo.Latest(ctx)
 }
 
 func (rr *replacementRepo) replacementStat(v string) (*modfetch.RevInfo, error) {
