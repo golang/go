@@ -7,6 +7,7 @@ package escape
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/types"
 	"fmt"
 )
 
@@ -115,10 +116,23 @@ func (e *escape) stmt(n ir.Node) {
 		if guard, ok := n.Tag.(*ir.TypeSwitchGuard); ok {
 			var ks []hole
 			if guard.Tag != nil {
+				var concreteType *types.Type
+				if conv, ok := e.reassignOracle(e.curfn).StaticValue(guard.X).(*ir.ConvExpr); ok && conv.Op() == ir.OCONVIFACE {
+					t := conv.X.Type()
+					if !t.IsInterface() && !t.HasShape() {
+						concreteType = t
+					}
+				}
 				for _, cas := range n.Cases {
 					cv := cas.Var
 					k := e.dcl(cv) // type switch variables have no ODCL.
 					if cv.Type().HasPointers() {
+						// A known concrete value cannot flow to a different concrete
+						// case. Keep interface and dynamically typed cases conservative.
+						if concreteType != nil && len(cas.List) == 1 && cas.List[0].Op() == ir.OTYPE &&
+							!cv.Type().IsInterface() && !cv.Type().HasShape() && !types.Identical(concreteType, cv.Type()) {
+							continue
+						}
 						ks = append(ks, k.dotType(cv.Type(), cas, "switch case"))
 					}
 				}
