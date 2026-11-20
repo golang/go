@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package rand provides cryptographically secure random bytes from the
+// Package sysrand provides cryptographically secure random bytes from the
 // operating system.
 package sysrand
 
