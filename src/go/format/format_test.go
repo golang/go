@@ -19,21 +19,31 @@ const testfile = "format_test.go"
 
 func TestNodeSortedImports(t *testing.T) {
 	for _, imports := range []string{
-		"import ()",
-		"import (\"a\")",
-		"import (\n\"a\"\n\"b\"\n)",
-		"import (\n// A\n\"a\" // a\nother \"b\" // b\n)",
-		"import (\n\"z\"\n\n\"a\"\n\"b\"\n)",
-		"import (\n\"a\"\n`b`\n\"\\x63\"\n)",
-		"import (\"z\")\nimport (\"a\")",
+		`import ()`,
+		`import ("a")`,
+		`import ("a"; "b")`,
+		`import (
+// A
+"a" // a
+other "b" // b
+)`,
+		`import (
+"z"
+
+"a"; "b"
+)`,
+		"import (\"a\"; `b`; \"\\x63\")",
+		`import ("z"); import ("a")`,
 	} {
 		t.Run(imports, func(t *testing.T) {
-			src := []byte("package p\n" + imports + "\n")
+			src := []byte("package p; " + imports)
 			fset := token.NewFileSet()
 			file, err := parser.ParseFile(fset, "", src, parserMode)
 			if err != nil {
 				t.Fatal(err)
 			}
+			// Reparsing into fset adds a file and advances its base offset.
+			// An unchanged base therefore shows that Node avoided reparsing.
 			base := fset.Base()
 			var out bytes.Buffer
 			if err := Node(&out, fset, file); err != nil {
@@ -55,16 +65,24 @@ func TestNodeSortedImports(t *testing.T) {
 
 func TestNodeImportOrder(t *testing.T) {
 	for _, imports := range []string{
-		"\"b\"; \"a\"",
-		"\"b\"\n\"a\"",
-		"b \"a\"\na \"a\"",
-		"\"a\"\n\"a\"",
-		"\"a\" // b\n\"a\" // a",
-		"\"b\" // b\n// A\n\"a\" // a",
-		"\"z\"\n\n\"b\"\n\"a\"",
-		"\"a\"\n\n",
+		`"b"; "a"`,
+		`"b"
+"a"`,
+		`b "a"; a "a"`,
+		`"a"; "a"`,
+		`"a" // b
+"a" // a`,
+		`"b" // b
+// A
+"a" // a`,
+		`"z"
+
+"b"; "a"`,
+		`"a"
+
+`,
 	} {
-		src := []byte("package p\nimport (\n" + imports + "\n)\n")
+		src := []byte("package p; import (\n" + imports + "\n)")
 		fset := token.NewFileSet()
 		file, err := parser.ParseFile(fset, "", src, parserMode)
 		if err != nil {
@@ -86,11 +104,11 @@ func TestNodeImportOrder(t *testing.T) {
 
 func BenchmarkNodeImports(b *testing.B) {
 	for _, test := range []struct{ name, imports string }{
-		{"Sorted", "import (\n\"bytes\"\n\"fmt\"\n\"io\"\n\"os\"\n)\n"},
-		{"Unsorted", "import (\n\"os\"\n\"io\"\n\"fmt\"\n\"bytes\"\n)\n"},
+		{"Sorted", `import ("bytes"; "fmt"; "io"; "os")`},
+		{"Unsorted", `import ("os"; "io"; "fmt"; "bytes")`},
 	} {
 		b.Run(test.name, func(b *testing.B) {
-			src := []byte("package p\n" + test.imports + "var x = 1\n")
+			src := []byte("package p; " + test.imports + "; var x = 1")
 			b.ReportAllocs()
 			for b.Loop() {
 				fset := token.NewFileSet()
