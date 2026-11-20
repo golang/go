@@ -236,3 +236,25 @@ func BenchmarkAdler32KB(b *testing.B) {
 		h.Sum(in)
 	}
 }
+
+// BenchmarkAdler32AndIndexByte covers a SIMD checksum followed by a short
+// search that selects the legacy SSE path on amd64.
+func BenchmarkAdler32AndIndexByte(b *testing.B) {
+	for _, size := range []int{63, 64, 65, 1024, 4096} {
+		b.Run(fmt.Sprint(size), func(b *testing.B) {
+			data := []byte(strings.Repeat("x", size))
+			sample := strings.Repeat("a", 15)
+			want := Checksum(data)
+			var checksum uint32
+			var index int
+			b.ReportAllocs()
+			for b.Loop() {
+				checksum = Checksum(data)
+				index = strings.IndexByte(sample, 'z')
+			}
+			if checksum != want || index != -1 {
+				b.Fatalf("got checksum=%#x index=%d, want checksum=%#x index=-1", checksum, index, want)
+			}
+		})
+	}
+}
