@@ -62,6 +62,9 @@ func TestFill(t *testing.T) {
 				// files, we expect there to already be spec-owned doc comments.
 				// Don't report these as errors.
 				AllowDocRewrite: true,
+				// Check that both hand-written and generated files declare
+				// only APIs that belong in them.
+				RejectUnknown: true,
 			})
 			var rep *specdoc.Report
 			if errors.As(err, &rep) {

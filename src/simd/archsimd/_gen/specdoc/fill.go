@@ -60,20 +60,46 @@ import (
 	"slices"
 	"strings"
 
+	"simd/archsimd/_gen/sgutil"
 	"simd/archsimd/_gen/specgen"
-	"simd/archsimd/_gen/specgen/specexpr"
 )
 
 // Options configures the behavior of [Fill].
 type Options struct {
-	// RejectUnknown controls whether an exported declaration with no matching
-	// spec entry is reported as an error.
+	// RejectUnknown controls whether exported declarations that aren't known
+	// to belong in the file are reported as errors. It's meant for generators
+	// and tools whose output should consist of APIs covered by spec, so that
+	// new APIs can't escape spec coverage, and so that generally available
+	// and experimental APIs end up in files of the right phase.
 	//
 	// When false, un-specced declarations are tolerated and omitted from
-	// signature and doc checks, and passed through the rewrite verbatim. When
-	// true, any exported declaration lacking a spec definition causes
-	// generation to fail, preventing new API operations from escaping spec
-	// coverage.
+	// signature and doc checks, and passed through the rewrite verbatim.
+	//
+	// When true, a declaration is known if spec describes it, or if it's one
+	// of the few APIs that spec doesn't describe but that may be generally
+	// available, listed by [sgutil.NonSpecAPI]. What else is required depends
+	// on the file's phase, as given by its //go:build constraint (see
+	// [sgutil.ParseBuildConstraints]):
+	//
+	//   - A file with no phase builds regardless of GOEXPERIMENT, so it must
+	//     not export anything: in the SIMD packages, that would be API that
+	//     exists even without GOEXPERIMENT=simdstable. Unknown declarations
+	//     are recorded in [Report.UnknownDecls], and the others in
+	//     [Report.PhaseViolations].
+	//   - A generally available file (goexperiment.simdstable) must declare
+	//     only generally available APIs. Every exported declaration must be
+	//     known, and nothing from spec may be marked //specgen:experiment. In
+	//     archsimd, APIs from spec must use only fixed-width vectors, and
+	//     the file must only be for architectures whose archsimd API can be
+	//     generally available. Unknown declarations are recorded in
+	//     [Report.UnknownDecls], and the others in [Report.PhaseViolations].
+	//   - An experimental file (goexperiment.simd) must not declare any
+	//     generally available API from spec. Experimental APIs needn't be in
+	//     spec, so unknown declarations are allowed. Violations are recorded
+	//     in [Report.PhaseViolations].
+	//
+	// The APIs listed by [sgutil.NonSpecAPI] are allowed in files of either
+	// phase. Test files aren't checked.
 	RejectUnknown bool
 
 	// AllowDocRewrite controls whether an exported declaration containing
@@ -151,19 +177,53 @@ func Fill(src []byte, spec *specgen.Index, opts Options) ([]byte, error) {
 		return src, fmt.Errorf("parsing %s: %w", filename, err)
 	}
 
-	f := &filler{fset: fset, src: src, spec: spec, opts: opts}
+	f := &filler{fset: fset, src: src, spec: spec, opts: opts, pkg: file.Name.Name}
+	f.test = strings.HasSuffix(filename, "_test.go")
+	if opts.RejectUnknown && !f.test {
+		c, err := sgutil.ParseBuildConstraints(fset, file)
+		if err != nil {
+			return src, fmt.Errorf("%s: %w", filename, err)
+		}
+		f.phase, f.stableArchOnly = c.Phase(), c.StableArchOnly()
+	}
 	for _, d := range file.Decls {
 		switch d := d.(type) {
 		case *ast.FuncDecl:
-			if err := f.fillFunc(d); err != nil {
+			decl, specFn, err := f.fillFunc(d)
+			if err != nil {
 				return src, err
 			}
-		case *ast.GenDecl:
-			if d.Tok != token.TYPE {
+			// Unexported functions, and methods of unexported types, aren't
+			// API.
+			if decl.Name == "" || decl.Recv != "" && !ast.IsExported(decl.Recv) {
 				break
 			}
-			for _, spec := range d.Specs {
-				f.fillType(d, spec.(*ast.TypeSpec))
+			f.detectUnknown(decl, specFn, nil)
+		case *ast.GenDecl:
+			switch d.Tok {
+			case token.IMPORT:
+			case token.TYPE:
+				for _, spec := range d.Specs {
+					decl, specType := f.fillType(d, spec.(*ast.TypeSpec))
+					if decl.Name == "" {
+						continue
+					}
+					f.detectUnknown(decl, nil, specType)
+				}
+			case token.VAR, token.CONST:
+				// Spec doesn't describe any variables or constants, but
+				// detectUnknown still checks that they belong in the file.
+				for _, spec := range d.Specs {
+					for _, name := range spec.(*ast.ValueSpec).Names {
+						if !name.IsExported() {
+							continue
+						}
+						decl := Decl{Pos: f.fset.Position(name.Pos()), Name: name.Name}
+						f.detectUnknown(decl, nil, nil)
+					}
+				}
+			default:
+				panic(fmt.Sprintf("unexpected declaration %s", d.Tok))
 			}
 		}
 	}
@@ -189,37 +249,41 @@ func Fill(src []byte, spec *specgen.Index, opts Options) ([]byte, error) {
 	return formatted, repErr
 }
 
-// filler holds the state of a single call to [Fill].
+// filler holds the state of [Fill] on a single file.
 type filler struct {
 	fset *token.FileSet
 	src  []byte
 	spec *specgen.Index
 	opts Options
 
+	pkg            string       // package name
+	test           bool         // whether this is a test file
+	phase          sgutil.Phase // file phase, if RejectUnknown is set
+	stableArchOnly bool         // whether the file is only for stable archsimd architectures
+
 	report Report
 	edits  []textEdit
 }
 
 // fillFunc checks the function or method declaration fd against spec and
-// records the edits to fill it in.
-func (f *filler) fillFunc(fd *ast.FuncDecl) error {
+// records the edits to fill it in. It returns fd's Decl and the matching spec
+// function, if any. If fd isn't exported, it does nothing and returns the
+// zero Decl.
+func (f *filler) fillFunc(fd *ast.FuncDecl) (decl Decl, specFn *specgen.Func, err error) {
 	if !fd.Name.IsExported() {
-		return nil
+		return Decl{}, nil, nil
 	}
 
-	decl := Decl{
+	decl = Decl{
 		Pos:  f.fset.Position(fd.Pos()),
 		Recv: recvTypeName(fd.Recv),
 		Name: fd.Name.Name,
 	}
 
 	// Find the spec function
-	specFn := f.spec.Lookup(decl.Recv, decl.Name)
+	specFn = f.spec.Lookup(decl.Recv, decl.Name)
 	if specFn == nil {
-		if f.opts.RejectUnknown {
-			f.report.UnknownDecls = append(f.report.UnknownDecls, UnknownDecl{decl})
-		}
-		return nil
+		return decl, nil, nil
 	}
 
 	// Now we know this is a spec API function and not some other one-off
@@ -233,18 +297,18 @@ func (f *filler) fillFunc(fd *ast.FuncDecl) error {
 	if fd.Recv != nil && len(fd.Recv.List) == 1 {
 		recvs, err := fieldListArgs(fd.Recv)
 		if err != nil {
-			return fmt.Errorf("%s: %s receiver: %w", decl.Pos, decl.Name, err)
+			return decl, specFn, fmt.Errorf("%s: %s receiver: %w", decl.Pos, decl.Name, err)
 		}
 		recv = recvs[0]
 	}
 
 	in, err := fieldListArgs(fd.Type.Params)
 	if err != nil {
-		return fmt.Errorf("%s: %s params: %w", decl.Pos, decl.Name, err)
+		return decl, specFn, fmt.Errorf("%s: %s params: %w", decl.Pos, decl.Name, err)
 	}
 	out, err := fieldListArgs(fd.Type.Results)
 	if err != nil {
-		return fmt.Errorf("%s: %s results: %w", decl.Pos, decl.Name, err)
+		return decl, specFn, fmt.Errorf("%s: %s results: %w", decl.Pos, decl.Name, err)
 	}
 
 	// Create a skeleton Func for the actual declaration
@@ -275,7 +339,7 @@ func (f *filler) fillFunc(fd *ast.FuncDecl) error {
 			f.edits = append(f.edits, edit)
 		}
 	}
-	return nil
+	return decl, specFn, nil
 }
 
 func namedArg(arg specgen.Arg) bool {
@@ -359,10 +423,12 @@ func recvTypeName(fl *ast.FieldList) string {
 }
 
 // fillType checks and fills the doc comment of the type spec ts in declaration
-// gd, if it is an API vector or mask type.
-func (f *filler) fillType(gd *ast.GenDecl, ts *ast.TypeSpec) {
+// gd, if it is an API vector or mask type. It returns ts's Decl and the
+// matching spec type, if any. If ts isn't exported, it does nothing and
+// returns the zero Decl.
+func (f *filler) fillType(gd *ast.GenDecl, ts *ast.TypeSpec) (decl Decl, specType *specgen.TypeDecl) {
 	if !ts.Name.IsExported() {
-		return
+		return Decl{}, nil
 	}
 
 	// The doc comment of an ungrouped type declaration is attached to the
@@ -372,27 +438,16 @@ func (f *filler) fillType(gd *ast.GenDecl, ts *ast.TypeSpec) {
 	if !gd.Lparen.IsValid() {
 		docGroup, pos = gd.Doc, gd.Pos()
 	}
-	decl := Decl{
+	decl = Decl{
 		Pos:  f.fset.Position(pos),
 		Name: ts.Name.Name,
 	}
 
-	specType := f.spec.LookupType(decl.Name)
-	if specType == nil {
-		// Only vector and mask types are described by spec. Other exported
-		// types, such as CPU feature types, are not, so don't complain about
-		// those.
-		if f.opts.RejectUnknown {
-			if t, err := specexpr.ParseTypeName(decl.Name); err == nil {
-				if _, ok := t.(specexpr.Vector); ok {
-					f.report.UnknownDecls = append(f.report.UnknownDecls, UnknownDecl{decl})
-				}
-			}
-		}
-		return
+	specType = f.spec.LookupType(decl.Name)
+	if specType != nil {
+		f.fillDoc(decl, docGroup, specType.Doc)
 	}
-
-	f.fillDoc(decl, docGroup, specType.Doc)
+	return decl, specType
 }
 
 // fillDoc checks the doc comment docGroup of decl, recording any findings.

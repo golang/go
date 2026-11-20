@@ -134,6 +134,7 @@ func main() {
 	}
 	files.AddPostProcessor(specdoc.Filler(specIdx, specdoc.Options{
 		AllowDocRewrite: true,
+		RejectUnknown:   true,
 	}))
 
 	defer files.FlushOrExit()

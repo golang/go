@@ -96,9 +96,9 @@ type int32x4 struct{}
 		t.Errorf("want 2 UnexpectedDocs, got %v", err)
 	}
 
-	// With RejectUnknown, vector types missing from spec are reported, but
-	// other exported types are not.
-	_, err = Fill([]byte("package p\n\ntype Int8x16 struct{}\n\ntype X86Features struct{}\n"), idx, Options{RejectUnknown: true})
+	// With RejectUnknown, a generally available archsimd file can't declare
+	// vector types missing from spec, but can declare CPU feature types.
+	_, err = Fill([]byte("//go:build goexperiment.simdstable && amd64\n\npackage archsimd\n\ntype Int8x16 struct{}\n\ntype X86Features struct{}\n"), idx, Options{RejectUnknown: true})
 	if !errors.As(err, &rep) || len(rep.UnknownDecls) != 1 || rep.UnknownDecls[0].D.Name != "Int8x16" {
 		t.Errorf("want UnknownDecl for Int8x16, got %v", err)
 	}

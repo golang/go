@@ -11,6 +11,8 @@ import (
 	"io"
 	"slices"
 	"strings"
+
+	"simd/archsimd/_gen/sgutil"
 )
 
 // Finding is an individual finding in a [Report].
@@ -27,6 +29,7 @@ type Report struct {
 	DocOrderViolations []DocOrderViolation
 	UnknownDecls       []UnknownDecl
 	UnexpectedDocs     []UnexpectedDoc
+	PhaseViolations    []PhaseViolation
 }
 
 // Error formats the report as a string, implementing the error interface.
@@ -146,6 +149,20 @@ func (u UnexpectedDoc) String() string {
 	return fmt.Sprintf("%s: %s: declaration contains unexpected doc comment\n", u.D.Pos, u.D)
 }
 
+// PhaseViolation records an exported declaration that doesn't belong in a
+// file of its phase (see [Options.RejectUnknown]).
+type PhaseViolation struct {
+	D      Decl
+	Phase  sgutil.Phase // the file's phase
+	Reason string       // why the declaration doesn't belong in the file
+}
+
+func (v PhaseViolation) Decl() Decl { return v.D }
+
+func (v PhaseViolation) String() string {
+	return fmt.Sprintf("%s: %s: %s\n", v.D.Pos, v.D, v.Reason)
+}
+
 // Merge combines other into r.
 func (r *Report) Merge(other *Report) {
 	r.TypeMismatches = append(r.TypeMismatches, other.TypeMismatches...)
@@ -153,6 +170,7 @@ func (r *Report) Merge(other *Report) {
 	r.DocOrderViolations = append(r.DocOrderViolations, other.DocOrderViolations...)
 	r.UnknownDecls = append(r.UnknownDecls, other.UnknownDecls...)
 	r.UnexpectedDocs = append(r.UnexpectedDocs, other.UnexpectedDocs...)
+	r.PhaseViolations = append(r.PhaseViolations, other.PhaseViolations...)
 }
 
 // Empty reports whether the report contains no items.
@@ -161,7 +179,8 @@ func (r Report) Empty() bool {
 		len(r.NameMismatches) == 0 &&
 		len(r.DocOrderViolations) == 0 &&
 		len(r.UnknownDecls) == 0 &&
-		len(r.UnexpectedDocs) == 0
+		len(r.UnexpectedDocs) == 0 &&
+		len(r.PhaseViolations) == 0
 }
 
 func convertAppend[From Finding](ys []Finding, xs []From) []Finding {
@@ -179,6 +198,7 @@ func (r Report) Findings() []Finding {
 	items = convertAppend(items, r.DocOrderViolations)
 	items = convertAppend(items, r.UnknownDecls)
 	items = convertAppend(items, r.UnexpectedDocs)
+	items = convertAppend(items, r.PhaseViolations)
 	return items
 }
 

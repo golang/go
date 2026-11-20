@@ -114,6 +114,7 @@ func main() {
 			AllowDocRewrite: true,
 			NoFillDoc:       *noFillDoc,
 			NoFillNames:     *noFillNames,
+			RejectUnknown:   true,
 		})
 		var rep *specdoc.Report
 		if errors.As(err, &rep) {
