@@ -309,10 +309,14 @@ func (h *commonHandler) handle(r Record) error {
 	// source
 	if h.opts.AddSource {
 		src := r.Source()
-		if src == nil {
-			src = &Source{}
+		if rep == nil {
+			state.appendSource(src)
+		} else {
+			if src == nil {
+				src = &Source{}
+			}
+			state.appendAttr(Any(SourceKey, src))
 		}
-		state.appendAttr(Any(SourceKey, src))
 	}
 	key = MessageKey
 	msg := r.Message
@@ -562,6 +566,43 @@ func (s *handleState) appendKey(key string) {
 		s.buf.WriteByte('=')
 	}
 	s.sep = s.h.attrSep()
+}
+
+// appendSource implements appendAttr(Any(SourceKey, src)) for a handler
+// without a ReplaceAttr function, but without building a Value for src.
+func (s *handleState) appendSource(src *Source) {
+	if src.isEmpty() {
+		return
+	}
+	if s.h.json() {
+		s.openGroup(SourceKey)
+		if src.Function != "" {
+			s.appendKey("function")
+			s.appendString(src.Function)
+		}
+		if src.File != "" {
+			s.appendKey("file")
+			s.appendString(src.File)
+		}
+		if src.Line != 0 {
+			s.appendKey("line")
+			*s.buf = strconv.AppendInt(*s.buf, int64(src.Line), 10)
+		}
+		s.closeGroup(SourceKey)
+		return
+	}
+	// Text: "file:line". The ':' and the digits never need quoting,
+	// so the whole needs quoting exactly when a non-empty file does.
+	s.appendKey(SourceKey)
+	var lineBuf [20]byte
+	line := strconv.AppendInt(lineBuf[:0], int64(src.Line), 10)
+	if src.File != "" && needsQuoting(src.File) {
+		*s.buf = strconv.AppendQuote(*s.buf, src.File+":"+string(line))
+		return
+	}
+	s.buf.WriteString(src.File)
+	s.buf.WriteByte(':')
+	s.buf.Write(line)
 }
 
 // appendTwoStrings implements appendString(prefix + key), but faster.

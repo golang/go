@@ -862,3 +862,72 @@ func BenchmarkAppendKey(b *testing.B) {
 		}
 	}
 }
+
+func TestAppendSource(t *testing.T) {
+	// appendSource must produce the same output as appendAttr does
+	// for the Source attribute.
+	sources := []*Source{
+		nil,
+		{},
+		{Function: "main.main", File: "/src/app/main.go", Line: 42},
+		{File: "/src/app/main.go", Line: 42},
+		{Function: "main.main", Line: 7},
+		{Function: "main.main"},
+		{File: "/src/app/main.go"},
+		{Line: 3},
+		{Line: -1},
+		{File: "/my src/app.go", Line: 1},
+		{File: `/a"b\c.go`, Line: 9},
+		{File: "/a=b.go", Line: 9},
+		{File: "/\u4ee3\u7801/main.go", Line: 12},
+		{File: "/bad\xff.go", Line: 12},
+		{File: "/ctl\n.go", Function: "f\u2028", Line: 1},
+	}
+	for _, test := range []struct {
+		name string
+		h    *commonHandler
+	}{
+		{"text", NewTextHandler(io.Discard, nil).commonHandler},
+		{"json", NewJSONHandler(io.Discard, nil).commonHandler},
+	} {
+		h := test.h
+		for _, src := range sources {
+			appendWith := func(f func(*handleState)) string {
+				s := h.newHandleState(buffer.New(), true, "")
+				defer s.free()
+				s.sep = h.attrSep() // as after a preceding attribute
+				f(&s)
+				return s.buf.String()
+			}
+			got := appendWith(func(s *handleState) { s.appendSource(src) })
+			want := appendWith(func(s *handleState) {
+				v := src
+				if v == nil {
+					v = &Source{}
+				}
+				s.appendAttr(Any(SourceKey, v))
+			})
+			if got != want {
+				t.Errorf("%s, %+v:\ngot  %q\nwant %q", test.name, src, got, want)
+			}
+		}
+	}
+}
+
+func BenchmarkAddSource(b *testing.B) {
+	for _, bench := range []struct {
+		name string
+		h    Handler
+	}{
+		{"text", NewTextHandler(io.Discard, &HandlerOptions{AddSource: true})},
+		{"json", NewJSONHandler(io.Discard, &HandlerOptions{AddSource: true})},
+	} {
+		b.Run(bench.name, func(b *testing.B) {
+			l := New(bench.h)
+			b.ReportAllocs()
+			for b.Loop() {
+				l.Info("message")
+			}
+		})
+	}
+}
