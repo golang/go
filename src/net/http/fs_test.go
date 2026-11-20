@@ -1560,7 +1560,11 @@ func testServeFileRejectsInvalidSuffixLengths(t *testing.T, mode testMode) {
 		{"bytes=-6", 206, "hello\n"},
 		{"bytes=6-", 206, "html says hello\n"},
 		{"bytes=-6-", 416, "invalid range\n"},
-		{"bytes=-0", 206, ""},
+		{"bytes=-0", 416, "invalid range: failed to overlap\n"},
+		{"bytes=-00", 416, "invalid range: failed to overlap\n"},
+		{"bytes=-0,-0", 416, "invalid range: failed to overlap\n"},
+		{"bytes=-0,0-0", 206, "i"},
+		{"bytes=0-0,-0", 206, "i"},
 		{"bytes=", 200, "index.html says hello\n"},
 	}
 
