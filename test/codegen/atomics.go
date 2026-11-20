@@ -25,6 +25,7 @@ func (c *Counter) Increment() {
 	// amd64:"LOCK" -"CMPXCHG"
 	// loong64:"AMADDDBW"
 	// riscv64:"AMOADDW" -"JAL"
+	// wasm:"I64Store32" -"Call.*atomic"
 	atomic.AddInt32(&c.count, 1)
 }
 

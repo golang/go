@@ -691,6 +691,76 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		sys.AMD64, sys.Loong64, sys.MIPS64, sys.RISCV64)
 
+	// Go runs on a single thread on wasm, so atomics are plain loads and stores.
+	makeAtomicLoadWasm := func(typ types.Kind) intrinsicBuilder {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			return s.rawLoad(types.Types[typ], args[0])
+		}
+	}
+	makeAtomicStoreWasm := func(typ types.Kind) intrinsicBuilder {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			s.store(types.Types[typ], args[0], args[1])
+			return nil
+		}
+	}
+	makeAtomicXchgWasm := func(typ types.Kind) intrinsicBuilder {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			old := s.rawLoad(types.Types[typ], args[0])
+			s.store(types.Types[typ], args[0], args[1])
+			return old
+		}
+	}
+	makeAtomicRMWWasm := func(op ssaop.Op, typ types.Kind, returnOld bool) intrinsicBuilder {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			t := types.Types[typ]
+			old := s.rawLoad(t, args[0])
+			v := s.newValue2(op, t, old, args[1])
+			s.store(t, args[0], v)
+			if returnOld {
+				return old
+			}
+			return v
+		}
+	}
+	wasmNoResult := func(b intrinsicBuilder) intrinsicBuilder {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			b(s, n, args)
+			return nil
+		}
+	}
+	makeAtomicCasWasm := func(op ssaop.Op, typ types.Kind) intrinsicBuilder {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			t := types.Types[typ]
+			old := s.rawLoad(t, args[0])
+			ok := s.newValue2(op, types.Types[types.TBOOL], old, args[1])
+			s.store(t, args[0], s.newValue3(ssaop.OpCondSelect, t, args[2], old, ok))
+			return ok
+		}
+	}
+	addF("internal/runtime/atomic", "Load", makeAtomicLoadWasm(types.TUINT32), sys.Wasm)
+	addF("internal/runtime/atomic", "Load8", makeAtomicLoadWasm(types.TUINT8), sys.Wasm)
+	addF("internal/runtime/atomic", "Load64", makeAtomicLoadWasm(types.TUINT64), sys.Wasm)
+	addF("internal/runtime/atomic", "Loadp", makeAtomicLoadWasm(types.TUNSAFEPTR), sys.Wasm)
+	addF("internal/runtime/atomic", "Store", makeAtomicStoreWasm(types.TUINT32), sys.Wasm)
+	addF("internal/runtime/atomic", "Store8", makeAtomicStoreWasm(types.TUINT8), sys.Wasm)
+	addF("internal/runtime/atomic", "Store64", makeAtomicStoreWasm(types.TUINT64), sys.Wasm)
+	addF("internal/runtime/atomic", "StorepNoWB", makeAtomicStoreWasm(types.TUINTPTR), sys.Wasm)
+	addF("internal/runtime/atomic", "Xchg8", makeAtomicXchgWasm(types.TUINT8), sys.Wasm)
+	addF("internal/runtime/atomic", "Xchg", makeAtomicXchgWasm(types.TUINT32), sys.Wasm)
+	addF("internal/runtime/atomic", "Xchg64", makeAtomicXchgWasm(types.TUINT64), sys.Wasm)
+	addF("internal/runtime/atomic", "Xadd", makeAtomicRMWWasm(ssaop.OpAdd32, types.TUINT32, false), sys.Wasm)
+	addF("internal/runtime/atomic", "Xadd64", makeAtomicRMWWasm(ssaop.OpAdd64, types.TUINT64, false), sys.Wasm)
+	addF("internal/runtime/atomic", "Cas", makeAtomicCasWasm(ssaop.OpEq32, types.TUINT32), sys.Wasm)
+	addF("internal/runtime/atomic", "Cas64", makeAtomicCasWasm(ssaop.OpEq64, types.TUINT64), sys.Wasm)
+	addF("internal/runtime/atomic", "And8", wasmNoResult(makeAtomicRMWWasm(ssaop.OpAnd8, types.TUINT8, false)), sys.Wasm)
+	addF("internal/runtime/atomic", "And", wasmNoResult(makeAtomicRMWWasm(ssaop.OpAnd32, types.TUINT32, false)), sys.Wasm)
+	addF("internal/runtime/atomic", "Or8", wasmNoResult(makeAtomicRMWWasm(ssaop.OpOr8, types.TUINT8, false)), sys.Wasm)
+	addF("internal/runtime/atomic", "Or", wasmNoResult(makeAtomicRMWWasm(ssaop.OpOr32, types.TUINT32, false)), sys.Wasm)
+	addF("internal/runtime/atomic", "And64", makeAtomicRMWWasm(ssaop.OpAnd64, types.TUINT64, true), sys.Wasm)
+	addF("internal/runtime/atomic", "And32", makeAtomicRMWWasm(ssaop.OpAnd32, types.TUINT32, true), sys.Wasm)
+	addF("internal/runtime/atomic", "Or64", makeAtomicRMWWasm(ssaop.OpOr64, types.TUINT64, true), sys.Wasm)
+	addF("internal/runtime/atomic", "Or32", makeAtomicRMWWasm(ssaop.OpOr32, types.TUINT32, true), sys.Wasm)
+
 	// Aliases for atomic load operations
 	alias("internal/runtime/atomic", "Loadint32", "internal/runtime/atomic", "Load", all...)
 	alias("internal/runtime/atomic", "Loadint64", "internal/runtime/atomic", "Load64", all...)
