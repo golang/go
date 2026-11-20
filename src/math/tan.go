@@ -128,7 +128,10 @@ func tan(x float64) float64 {
 	if zz > 1e-14 {
 		y = z + z*(zz*(((_tanP[0]*zz)+_tanP[1])*zz+_tanP[2])/((((zz+_tanQ[1])*zz+_tanQ[2])*zz+_tanQ[3])*zz+_tanQ[4]))
 	} else {
-		y = z
+		// For tiny z, tan(z) is z+z^3/3 to well within 1 ulp.
+		// Returning z alone would drop the cubic term, losing
+		// up to about 6 ulp (issue #82909).
+		y = z + z*zz/3
 	}
 	if j&2 == 2 {
 		y = -1 / y
