@@ -12,6 +12,7 @@ import (
 )
 
 func TestPartInt8x32(t *testing.T) {
+	requireVectorBits(t, 256)
 	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 	b := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
@@ -42,6 +43,7 @@ func xTestPartUint8x16(t *testing.T) {
 }
 
 func TestPartUint8x32(t *testing.T) {
+	requireVectorBits(t, 256)
 	a := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 	b := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
@@ -72,6 +74,7 @@ func xTestPartInt16x8(t *testing.T) {
 }
 
 func TestPartInt16x16(t *testing.T) {
+	requireVectorBits(t, 256)
 	a := []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	b := []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	for i := 16; i >= 0; i-- {
@@ -114,6 +117,7 @@ func xTestSlicesPartStoreInt16x8(t *testing.T) {
 }
 
 func TestSlicesPartStoreInt16x16(t *testing.T) {
+	requireVectorBits(t, 256)
 	a := []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	b := []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	for i := 16; i >= 0; i-- {
@@ -142,6 +146,7 @@ func xTestSlicesPartStoreUint8x16(t *testing.T) {
 }
 
 func TestSlicesPartStoreUint16x16(t *testing.T) {
+	requireVectorBits(t, 256)
 	a := []uint16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	b := []uint16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	for i := 16; i >= 0; i-- {
@@ -156,6 +161,7 @@ func TestSlicesPartStoreUint16x16(t *testing.T) {
 }
 
 func TestSlicesPartStoreUint8x32(t *testing.T) {
+	requireVectorBits(t, 256)
 	a := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 	b := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
@@ -172,6 +178,7 @@ func TestSlicesPartStoreUint8x32(t *testing.T) {
 }
 
 func TestPartUint64(t *testing.T) {
+	requireVectorBits(t, 256)
 	// 64x4
 	L := 4
 	c := []uint64{1, 2, 3, 4, 5, 86, 86, 86, 86}
@@ -213,6 +220,7 @@ func TestPartUint64(t *testing.T) {
 }
 
 func TestPartFloat32(t *testing.T) {
+	requireVectorBits(t, 256)
 	// 32x8
 	L := 8
 	c := []float32{1, 2, 3, 4, 5, 6, 7, 8, 86, 86, 86, 86}
@@ -301,6 +309,7 @@ func TestPartInt64(t *testing.T) {
 }
 
 func TestStorePartReturnValuesWider(t *testing.T) {
+	requireVectorBits(t, 256)
 	// AVX2 / 256-bit types
 	testStorePartReturnValue[int8, archsimd.Int8x32](t)
 	testStorePartReturnValue[uint8, archsimd.Uint8x32](t)
