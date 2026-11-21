@@ -211,6 +211,44 @@ func TestScanLongLines(t *testing.T) {
 }
 
 // Test that the line splitter errors out on a long line.
+func TestScanAfterError(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		split SplitFunc
+		err   error
+	}{
+		{"token too long", ScanLines, ErrTooLong},
+		{"split error", func([]byte, bool) (int, []byte, error) {
+			return 0, nil, io.ErrUnexpectedEOF
+		}, io.ErrUnexpectedEOF},
+		{"negative advance", func([]byte, bool) (int, []byte, error) {
+			return -1, nil, nil
+		}, ErrNegativeAdvance},
+		{"advance too far", func(data []byte, _ bool) (int, []byte, error) {
+			return len(data) + 1, nil, nil
+		}, ErrAdvanceTooFar},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			s := NewScanner(strings.NewReader("abcdefghijklmnop"))
+			s.Buffer(make([]byte, 8), 8)
+			calls := 0
+			s.Split(func(data []byte, atEOF bool) (int, []byte, error) {
+				calls++
+				return test.split(data, atEOF)
+			})
+			if s.Scan() || s.Err() != test.err {
+				t.Fatalf("Scan = true or Err = %v; want false, %v", s.Err(), test.err)
+			}
+			wantCalls := calls
+			for i := 0; i < 3; i++ {
+				if s.Scan() || s.Err() != test.err || calls != wantCalls {
+					t.Fatalf("Scan resumed after error: Err = %v, split calls = %d; want %v, %d", s.Err(), calls, test.err, wantCalls)
+				}
+			}
+		})
+	}
+}
+
 func TestScanLineTooLong(t *testing.T) {
 	const smallMaxTokenSize = 256 // Much smaller for more efficient testing.
 	// Build a buffer of lots of line lengths up to but not exceeding smallMaxTokenSize.
