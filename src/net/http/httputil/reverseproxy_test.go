@@ -2484,3 +2484,150 @@ func TestReverseProxyURLSanitization(t *testing.T) {
 		}
 	}
 }
+
+// Issue #80875: Data sent by the client immediately after the upgrade request
+// may already be buffered by the server when the proxy hijacks the connection.
+// It must still be forwarded to the backend.
+func TestReverseProxyUpgradeBufferedClientData(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, brw, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer c.Close()
+		io.WriteString(c, "HTTP/1.1 101 Switching Protocols\r\nConnection: upgrade\r\nUpgrade: WebSocket\r\n\r\n")
+		line, err := brw.ReadString('\n')
+		if err != nil {
+			// The client reports the missing echo. Don't log here:
+			// this handler may outlive the test.
+			return
+		}
+		fmt.Fprintf(c, "echo: %s", line)
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	frontend := httptest.NewServer(NewSingleHostReverseProxy(backendURL))
+	defer frontend.Close()
+	frontendURL, err := url.Parse(frontend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conn, err := net.Dial("tcp", frontendURL.Host)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if deadline, ok := t.Deadline(); ok {
+		conn.SetDeadline(deadline.Add(-time.Second))
+	}
+
+	// Send the upgrade request and the first message in a single write,
+	// so the message is buffered by the frontend server before the proxy
+	// hijacks the connection.
+	rawReq := "GET / HTTP/1.1\r\nHost: " + frontendURL.Host + "\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\nearly client payload\n"
+	if _, err := io.WriteString(conn, rawReq); err != nil {
+		t.Fatal(err)
+	}
+
+	br := bufio.NewReader(conn)
+	res, err := http.ReadResponse(br, &http.Request{Method: "GET"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := res.StatusCode, http.StatusSwitchingProtocols; got != want {
+		t.Fatalf("status = %d, want %d", got, want)
+	}
+	line, err := br.ReadString('\n')
+	if err != nil {
+		t.Fatalf("reading echo: %v", err)
+	}
+	if got, want := line, "echo: early client payload\n"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// Issue #80875: When the proxy fails to complete a protocol switch, it must
+// close the backend response body, which owns the backend connection.
+func TestReverseProxyUpgradeErrorClosesBackendBody(t *testing.T) {
+	backendURL, err := url.Parse("http://backend.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name        string
+		resUpgrade  string // Upgrade header in the backend response
+		nonWritable bool   // backend response body does not implement io.Writer
+	}{{
+		name:       "invalid protocol",
+		resUpgrade: "some\x01proto",
+	}, {
+		name:       "mismatched protocol",
+		resUpgrade: "otherproto",
+	}, {
+		name:        "non-writable body",
+		resUpgrade:  "someproto",
+		nonWritable: true,
+	}, {
+		// httptest.ResponseRecorder does not implement http.Hijacker.
+		name:       "non-Hijacker ResponseWriter",
+		resUpgrade: "someproto",
+	}} {
+		t.Run(test.name, func(t *testing.T) {
+			closed := false
+			closeBody := func() error {
+				closed = true
+				return nil
+			}
+			var body io.ReadCloser = &testReadWriteCloser{close: closeBody}
+			if test.nonWritable {
+				body = &testReadCloser{close: closeBody}
+			}
+			var proxyErr error
+			proxy := &ReverseProxy{
+				Rewrite: func(r *ProxyRequest) {
+					r.SetURL(backendURL)
+				},
+				Transport: RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
+					return &http.Response{
+						StatusCode: http.StatusSwitchingProtocols,
+						Header: http.Header{
+							"Connection": {"Upgrade"},
+							"Upgrade":    {test.resUpgrade},
+						},
+						Body:    body,
+						Request: req,
+					}, nil
+				}),
+				ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+					proxyErr = err
+					w.WriteHeader(http.StatusBadGateway)
+				},
+			}
+
+			req := httptest.NewRequest("GET", "/", nil)
+			req.Header.Set("Connection", "Upgrade")
+			req.Header.Set("Upgrade", "someproto")
+			proxy.ServeHTTP(httptest.NewRecorder(), req)
+
+			if proxyErr == nil {
+				t.Errorf("protocol switch succeeded, want error")
+			}
+			if !closed {
+				t.Errorf("backend response body was not closed")
+			}
+		})
+	}
+}
+
+type testReadCloser struct {
+	close func() error
+}
+
+func (rc *testReadCloser) Read(p []byte) (int, error) { return 0, io.EOF }
+
+func (rc *testReadCloser) Close() error { return rc.close() }
