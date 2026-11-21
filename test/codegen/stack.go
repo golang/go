@@ -174,3 +174,52 @@ func storeArg(a [2]int) {
 	// amd64:-`MOVQ \$123,.*\.a\+\d+\(SP\)`
 	a[1] = 123
 }
+
+//go:noinline
+func consumeSlice(s []byte) {}
+
+//go:noinline
+func largeSliceLiteral() {
+	// amd64:`CALL runtime\.newobject`
+	s := []byte{(1<<17 - 1): 1}[:0]
+	consumeSlice(s)
+}
+
+//go:noinline
+func largeSliceLiteral300MiB() {
+	// amd64:`CALL runtime\.newobject`
+	s := []byte{300*1<<20 - 1: 1}[:0]
+	consumeSlice(s)
+}
+
+//go:noinline
+func largeZeroSliceLiteral300MiB() {
+	// amd64:`CALL runtime\.newobject`
+	s := []byte{300*1<<20 - 1: 0}[:0]
+	consumeSlice(s)
+}
+
+type Tests struct {
+	t1 int
+	t2 int
+}
+
+//go:noinline
+func consumeTests(s []*Tests) {}
+
+//go:noinline
+func largeSliceLiteralPtr() {
+	// amd64:`CALL runtime\.newobject`
+	s := []*Tests{(1<<17 - 1): nil}[:0]
+	consumeTests(s)
+}
+
+//go:noinline
+func consumeStructs(s []Tests) {}
+
+//go:noinline
+func largeSliceLiteralStruct() {
+	// amd64:`CALL runtime\.newobject`
+	s := []Tests{(1<<17 - 1): {}}[:0]
+	consumeStructs(s)
+}

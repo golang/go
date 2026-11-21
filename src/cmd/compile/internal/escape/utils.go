@@ -239,5 +239,13 @@ func HeapAllocReason(n ir.Node) string {
 		}
 	}
 
+	if n.Op() == ir.OSLICELIT {
+		n := n.(*ir.CompLitExpr)
+		elem := n.Type().Elem()
+
+		if elem.Size() > 0 && n.Len > ir.MaxImplicitStackVarSize/elem.Size() {
+			return "too large for stack"
+		}
+	}
 	return ""
 }
