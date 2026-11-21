@@ -1,0 +1,41 @@
+# Prefer the highest non-excluded replacement even when the proxy has a
+# newer version of the module.
+go mod tidy
+grep '^require example.com/deprecated/b v1.0.0$' go.mod
+go build ./...
+go mod tidy -diff
+
+# When only the excluded replacement remains, use the proxy instead.
+go mod edit -droprequire=example.com/deprecated/b -dropreplace=example.com/deprecated/b@v1.0.0
+go mod tidy
+grep '^require example.com/deprecated/b v1.9.0$' go.mod
+go build ./...
+go mod tidy -diff
+
+# With no tagged releases, @latest falls back to pseudo-versions.
+env GOPROXY=off
+go mod edit -replace=example.com/local@v0.0.0-20220101000000-aaaaaaaaaaaa=./local -replace=example.com/local@v0.0.0-20230101000000-bbbbbbbbbbbb=./local -exclude=example.com/local@v0.0.0-20230101000000-bbbbbbbbbbbb
+go list -m example.com/local@latest
+stdout '^example.com/local v0.0.0-20220101000000-aaaaaaaaaaaa$'
+
+-- local/go.mod --
+module example.com/local
+-- go.mod --
+module example.com/app
+
+go 1.27
+
+replace (
+	example.com/deprecated/b v1.0.0 => ./fork
+	example.com/deprecated/b v1.1.0 => ./fork
+)
+exclude example.com/deprecated/b v1.1.0
+-- app.go --
+package app
+import _ "example.com/deprecated/b"
+-- fork/go.mod --
+module example.com/deprecated/b
+
+go 1.27
+-- fork/b.go --
+package b

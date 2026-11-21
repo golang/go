@@ -9,6 +9,19 @@ stdout 'example.com/dep v1.0.0 => ./dep'
 go list -m example.com/other
 stdout 'example.com/other v1.0.0 => ./other2'
 
+# Versioned workspace replacements must be available to queries even when
+# go.mod has no replacement for the module.
+env GOPROXY=off
+go work edit -replace=example.com/local@v1.0.0=./local -replace=example.com/local@v1.2.0=./local
+cd m
+go mod edit -exclude=example.com/local@v1.2.0
+go list -m example.com/local@latest
+stdout '^example.com/local v1.0.0$'
+go list -m example.com/local@v1.0.0
+stdout '^example.com/local v1.0.0$'
+
+-- local/go.mod --
+module example.com/local
 -- go.work --
 use m
 
