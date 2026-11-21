@@ -104,6 +104,10 @@ import (
 // Use [Named.Underlying] to access the underlying type.
 // Use [Named.Obj] to obtain the object S.
 //
+// A named type is not necessarily represented by a unique *Named value.
+// In particular, distinct pointers can represent identical instantiations
+// of a generic type. Use [Identical] to compare named types.
+//
 // Before type aliases (Go 1.9), the spec called defined types "named types".
 type Named struct {
 	check *Checker  // non-nil during type-checking; nil otherwise
