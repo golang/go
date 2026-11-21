@@ -2047,6 +2047,9 @@ func (ctxt *Link) hostlink() {
 	cmd := exec.Command(argv[0], argv[1:]...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		if buildcfg.Experiment.RuntimeCgoPurego && iscgo && len(hostobj) == 0 && (platform.MustLinkExternalWithoutHostObj(buildcfg.GOOS, buildcfg.GOARCH) || buildcfg.GOOS == "ios") {
+			Exitf("cgo on %s/%s requires an external linker (C toolchain); set CC or use CGO_ENABLED=0: running %s failed: %v\n%s\n%s", buildcfg.GOOS, buildcfg.GOARCH, argv[0], err, cmd, out)
+		}
 		Exitf("running %s failed: %v\n%s\n%s", argv[0], err, cmd, out)
 	}
 

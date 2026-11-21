@@ -136,8 +136,17 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		return true, "asan"
 	}
 
-	if iscgo && !(buildcfg.Experiment.RuntimeCgoPurego && buildcfg.GOOS == "android" && len(hostobj) == 0) && platform.MustLinkExternal(buildcfg.GOOS, buildcfg.GOARCH, true) {
-		return true, buildcfg.GOARCH + " does not support internal cgo"
+	if iscgo {
+		var mustExt bool
+		if buildcfg.Experiment.RuntimeCgoPurego && len(hostobj) == 0 {
+			// The pure Go runtime/cgo and no C host objects.
+			mustExt = platform.MustLinkExternalWithoutHostObj(buildcfg.GOOS, buildcfg.GOARCH)
+		} else {
+			mustExt = platform.MustLinkExternal(buildcfg.GOOS, buildcfg.GOARCH, true)
+		}
+		if mustExt {
+			return true, buildcfg.GOARCH + " does not support internal cgo"
+		}
 	}
 
 	// Some build modes require work the internal linker cannot do (yet).

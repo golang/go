@@ -796,12 +796,8 @@ func checkBindingExternalLinker(root *Action, ldBuildmode string, cxx bool, comp
 // linker for a program using cgo bindings built with the given link
 // buildmode. It mirrors mustLinkExternal in cmd/link/internal/ld.
 func bindingNeedsExternalLink(ldBuildmode string) bool {
-	if platform.MustLinkExternal(cfg.Goos, cfg.Goarch, false) {
-		return true
-	}
-	// cmd/link can internally link cgo binding programs that have no host
-	// objects on android/arm64.
-	if platform.MustLinkExternal(cfg.Goos, cfg.Goarch, true) && !(cfg.Goos == "android" && cfg.Goarch == "arm64") {
+	// Programs using cgo bindings have no C host objects.
+	if platform.MustLinkExternalWithoutHostObj(cfg.Goos, cfg.Goarch) {
 		return true
 	}
 	switch ldBuildmode {

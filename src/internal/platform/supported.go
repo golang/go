@@ -137,6 +137,21 @@ func MustLinkExternal(goos, goarch string, withCgo bool) bool {
 	return false
 }
 
+// MustLinkExternalWithoutHostObj reports whether goos/goarch requires
+// external linking for a cgo program that has no C host objects, such as a
+// program that uses the pure Go runtime/cgo (GOEXPERIMENT=runtimecgopurego)
+// and only cgo bindings (CGO_ENABLED=bindings).
+//
+// It differs from MustLinkExternal(goos, goarch, true), which describes
+// programs with C host objects, only on android/arm64, where the internal
+// linker can link such a program.
+func MustLinkExternalWithoutHostObj(goos, goarch string) bool {
+	if goos == "android" && goarch == "arm64" {
+		return false
+	}
+	return MustLinkExternal(goos, goarch, true)
+}
+
 // BuildModeSupported reports whether goos/goarch supports the given build mode
 // using the given compiler.
 // There is a copy of this function in cmd/dist/test.go.
