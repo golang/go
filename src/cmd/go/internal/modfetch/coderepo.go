@@ -1089,7 +1089,7 @@ func (r *codeRepo) Zip(ctx context.Context, dst io.Writer, version string) error
 		return err
 	}
 
-	if gomod, err := r.code.ReadFile(ctx, rev, filepath.Join(subdir, "go.mod"), codehost.MaxGoMod); err == nil {
+	if gomod, err := r.code.ReadFile(ctx, rev, path.Join(subdir, "go.mod"), codehost.MaxGoMod); err == nil {
 		goVers := gover.GoModLookup(gomod, "go")
 		if gover.Compare(goVers, gover.Local()) > 0 {
 			return &gover.TooNewError{What: r.ModulePath() + "@" + version, GoVersion: goVers}
