@@ -1,0 +1,9 @@
+example.com/upgradeincompat v2.0.0+incompatible has no go.mod file.
+-- .info --
+{"Version":"v2.0.0+incompatible","Time":"2023-01-02T03:04:05Z"}
+-- .mod --
+module example.com/upgradeincompat
+-- upgradeincompat.go --
+package upgradeincompat
+
+const X = 2

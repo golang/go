@@ -1,0 +1,23 @@
+# Issue 83139: the module is on a v1 pseudo-version above its latest
+# compatible release v1.0.0, which has a go.mod file. Upgrades must stay on
+# the v1 line and must not select v2.0.0+incompatible.
+
+go get example.com/upgradeincompat@v1.0.1-0.20220404040404-dddddddddddd
+go list -m -u example.com/upgradeincompat
+stdout '^example.com/upgradeincompat v1.0.1-0.20220404040404-dddddddddddd$'
+
+go get -u example.com/upgradeincompat
+go list -m example.com/upgradeincompat
+stdout '^example.com/upgradeincompat v1.0.1-0.20220404040404-dddddddddddd$'
+
+go get example.com/upgradeincompat@upgrade
+go list -m example.com/upgradeincompat
+stdout '^example.com/upgradeincompat v1.0.1-0.20220404040404-dddddddddddd$'
+
+go list -m -u example.com/upgradeincompat
+stdout '^example.com/upgradeincompat v1.0.1-0.20220404040404-dddddddddddd$'
+
+-- go.mod --
+module x
+
+go 1.12

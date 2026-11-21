@@ -372,7 +372,7 @@ func queryProxy(ld *Loader, ctx context.Context, proxy, path, query, current str
 			origin = mergeOrigin(origin, latest.Origin)
 		}
 		if err == nil {
-			if qm.allowsVersion(ctx, latest.Version) {
+			if qm.allowsVersion(ctx, latest.Version) && qm.inRange(latest.Version) {
 				return lookup(latest.Version)
 			}
 		} else if !errors.Is(err, fs.ErrNotExist) {
@@ -540,8 +540,8 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
 	return qm, nil
 }
 
-// allowsVersion reports whether version v is allowed by the prefix, filter, and
-// AllowedFunc of qm.
+// allowsVersion reports whether version v is allowed by the prefix and
+// AllowedFunc of qm. It does not apply the range filter; see inRange.
 func (qm *queryMatcher) allowsVersion(ctx context.Context, v string) bool {
 	if qm.prefix != "" && !strings.HasPrefix(v, qm.prefix) {
 		if gover.IsToolchain(qm.path) && strings.TrimSuffix(qm.prefix, ".") == v {
@@ -550,15 +550,17 @@ func (qm *queryMatcher) allowsVersion(ctx context.Context, v string) bool {
 			return false
 		}
 	}
-	if qm.filter != nil && !qm.filter(v) {
-		return false
-	}
 	if qm.allowed != nil {
 		if err := qm.allowed(ctx, module.Version{Path: qm.path, Version: v}); errors.Is(err, ErrDisallowed) {
 			return false
 		}
 	}
 	return true
+}
+
+// inRange reports whether version v satisfies the range filter of qm.
+func (qm *queryMatcher) inRange(v string) bool {
+	return qm.filter == nil || qm.filter(v)
 }
 
 // filterVersions classifies versions into releases and pre-releases, filtering
@@ -577,6 +579,9 @@ func (qm *queryMatcher) filterVersions(ld *Loader, ctx context.Context, versions
 		if !qm.allowsVersion(ctx, v) {
 			continue
 		}
+		// An out-of-range compatible release still gates the +incompatible
+		// releases after it, so the range is applied only to what is returned.
+		inRange := qm.inRange(v)
 
 		if !needIncompatible {
 			// We're not yet sure whether we need to include +incompatible versions.
@@ -597,7 +602,7 @@ func (qm *queryMatcher) filterVersions(ld *Loader, ctx context.Context, versions
 
 			if !strings.HasSuffix(v, "+incompatible") {
 				lastCompatible = v
-			} else if lastCompatible != "" {
+			} else if inRange && lastCompatible != "" {
 				// If the latest compatible version is allowed and has a go.mod file,
 				// ignore any version with a higher (+incompatible) major version. (See
 				// https://golang.org/issue/34165.) Note that we even prefer a
@@ -621,6 +626,9 @@ func (qm *queryMatcher) filterVersions(ld *Loader, ctx context.Context, versions
 			}
 		}
 
+		if !inRange {
+			continue
+		}
 		if gover.ModIsPrerelease(qm.path, v) {
 			prereleases = append(prereleases, v)
 		} else {
