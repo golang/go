@@ -423,14 +423,15 @@ func SplitAfterN(s, sep []byte, n int) [][]byte {
 
 // Split slices s into all subslices separated by sep and returns a slice of
 // the subslices between those separators.
-// If s begins or ends with sep, the corresponding first or last subslice is empty.
 //
-// If s does not contain sep and sep is not empty, Split returns a slice of
-// length 1 whose only element is s. In particular, an empty s and a non-empty
-// sep produce a slice containing one empty subslice.
+// If s is empty, Split returns an empty slice if sep is empty, or a slice
+// containing one empty subslice otherwise.
 //
-// If sep is empty, Split splits after each UTF-8 sequence. If both s and sep
-// are empty, Split returns an empty slice.
+// If sep is empty, Split splits after each UTF-8 sequence.
+//
+// Otherwise, if s begins or ends with sep, the corresponding first or last
+// subslice is empty. If s does not contain sep, Split returns a slice of
+// length 1 whose only element is s.
 //
 // It is equivalent to [SplitN] with a count of -1.
 //
