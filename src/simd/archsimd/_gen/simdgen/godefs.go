@@ -17,6 +17,7 @@ import (
 	"unicode"
 
 	"simd/archsimd/_gen/gentools"
+	"simd/archsimd/_gen/sgutil"
 	"simd/archsimd/_gen/simdgen/types"
 	"simd/archsimd/_gen/specdoc"
 	"simd/archsimd/_gen/specgen"
@@ -775,9 +776,9 @@ func writeGoDefs(cl unify.Closure) error {
 	writeSIMDTypes(files.NewGoFile(simdPackage+"/types_"+goTypeArch+".go"), typeMap)
 	// TODO: Enable CPU feature generation for non-x86 architectures.
 	if archLower == "amd64" {
-		writeSIMDFeatures(map[phase]*bytes.Buffer{
-			phaseStable:     files.NewGoFile(simdPackage + "/cpu.go"),
-			phaseExperiment: files.NewGoFile(simdPackage + "/cpu_exp.go"),
+		writeSIMDFeatures(map[sgutil.Phase]*bytes.Buffer{
+			sgutil.PhaseStable:     files.NewGoFile(simdPackage + "/cpu.go"),
+			sgutil.PhaseExperiment: files.NewGoFile(simdPackage + "/cpu_exp.go"),
 		}, deduped, specIdx)
 	}
 	// Experimental public ops go in their own file, except on SVE, which is

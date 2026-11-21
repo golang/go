@@ -304,7 +304,7 @@ func compareSimdTypePairs(x, y simdTypePair) int {
 }
 
 func simdPackageHeader() string {
-	return simdPackageHeaderFor(apiPhase().experiment())
+	return simdPackageHeaderFor(apiPhase().Experiment())
 }
 
 // simdPackageHeaderFor returns the header for a generated archsimd file that is
@@ -1291,9 +1291,9 @@ func andList(list []string) string {
 
 // writeSIMDFeatures writes the CPU feature checks required by ops. Each
 // feature check goes in the file for the most stable phase of any op that
-// requires it, and the feature check type and variable go in the phaseStable
-// file. files maps from each phase to its file.
-func writeSIMDFeatures(files map[phase]*bytes.Buffer, ops []Operation, specIdx *specgen.Index) {
+// requires it, and the feature check type and variable go in the
+// [sgutil.PhaseStable] file. files maps from each phase to its file.
+func writeSIMDFeatures(files map[sgutil.Phase]*bytes.Buffer, ops []Operation, specIdx *specgen.Index) {
 	// Gather all features
 	type featureKey struct {
 		GoArch  string
@@ -1301,7 +1301,7 @@ func writeSIMDFeatures(files map[phase]*bytes.Buffer, ops []Operation, specIdx *
 	}
 	// featurePhase maps each feature to the most stable phase of an op that
 	// requires it.
-	featurePhase := make(map[featureKey]phase)
+	featurePhase := make(map[featureKey]sgutil.Phase)
 	for _, op := range ops {
 		if op.CPUFeature == "" {
 			continue
@@ -1328,7 +1328,7 @@ func writeSIMDFeatures(files map[phase]*bytes.Buffer, ops []Operation, specIdx *
 		CPUIDDoc   string
 		ImpliesAll string
 	}
-	features := make(map[phase][]feature)
+	features := make(map[sgutil.Phase][]feature)
 	for _, k := range featureKeys {
 		p := featurePhase[k]
 		featureVar := goarchFeatureInfo[k.GoArch].featureVar
@@ -1371,8 +1371,8 @@ func writeSIMDFeatures(files map[phase]*bytes.Buffer, ops []Operation, specIdx *
 	}
 	for _, p := range slices.Sorted(maps.Keys(files)) {
 		f := files[p]
-		f.WriteString(simdPackageHeaderFor(p.experiment()))
-		if err := t.Execute(f, data{p == phaseStable, features[p]}); err != nil {
+		f.WriteString(simdPackageHeaderFor(p.Experiment()))
+		if err := t.Execute(f, data{p == sgutil.PhaseStable, features[p]}); err != nil {
 			panic(fmt.Errorf("failed to execute features template: %w", err))
 		}
 	}
@@ -1423,7 +1423,7 @@ func opStub(op Operation) ([]byte, bool) {
 func writeSIMDStubs(f, fExp, fI *bytes.Buffer, ops []Operation, typeMap simdTypeMap, specIdx *specgen.Index) {
 	f.WriteString(simdPackageHeader())
 	if fExp != nil {
-		fExp.WriteString(simdPackageHeaderFor(phaseExperiment.experiment()))
+		fExp.WriteString(simdPackageHeaderFor(sgutil.PhaseExperiment.Experiment()))
 	}
 	fI.WriteString(simdPackageHeader())
 
@@ -1440,7 +1440,7 @@ func writeSIMDStubs(f, fExp, fI *bytes.Buffer, ops []Operation, typeMap simdType
 		out := fI
 		if unicode.IsUpper([]rune(op.Go)[0]) {
 			out = f
-			if fExp != nil && opPhase(op, specIdx) == phaseExperiment {
+			if fExp != nil && opPhase(op, specIdx) == sgutil.PhaseExperiment {
 				out = fExp
 			}
 		}
