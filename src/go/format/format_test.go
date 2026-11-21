@@ -32,7 +32,7 @@ other "b" // b
 
 "a"; "b"
 )`,
-		"import (\"a\"; `b`; \"\\x63\")",
+		`import ("a"; ` + "`b`" + `; "\x63")`,
 		`import ("z"); import ("a")`,
 	} {
 		t.Run(imports, func(t *testing.T) {
