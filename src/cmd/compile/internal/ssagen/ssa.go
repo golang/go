@@ -7217,6 +7217,10 @@ func genssa(htmlWriter ssa.HTMLWriter, f *ssa.Func, pp *objw.Progs) {
 					v.Fatalf("OpConvert should be a no-op: %s; %s", v.Args[0].LongString(), v.LongString())
 				}
 			case ssaop.OpInlMark:
+				// The nop may be scheduled inside an unsafe region,
+				// such as between the write barrier flag load and its
+				// test, so it needs its own unsafe-point mark.
+				s.pp.NextUnsafe = s.livenessMap.GetUnsafe(v)
 				p := Arch.Ginsnop(s.pp)
 				if inlMarks == nil {
 					inlMarks = map[*obj.Prog]int32{}
