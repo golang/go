@@ -81,6 +81,7 @@ var bootstrapDirs = []string{
 	"cmd/go/internal/toolchain",
 	"cmd/go/internal/trace",
 	"cmd/go/internal/vcs",
+	"cmd/go/internal/vcscmd",
 	"cmd/go/internal/version",
 	"cmd/go/internal/vet",
 	"cmd/go/internal/web",

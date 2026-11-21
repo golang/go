@@ -19,11 +19,12 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/str"
+	"cmd/go/internal/vcscmd"
 	"cmd/internal/par"
 
 	"golang.org/x/mod/semver"
@@ -94,6 +95,11 @@ type vcsRepo struct {
 }
 
 func newVCSRepo(ctx context.Context, vcs, remote string, local bool) (Repo, error) {
+	if !local && (strings.HasPrefix(remote, "-") || strings.ContainsFunc(remote, unicode.IsControl)) {
+		// A remote may be written to .hg/hgrc. Local directory names
+		// are not written there and may contain control characters.
+		return nil, fmt.Errorf("invalid vcs remote: %s %q", vcs, remote)
+	}
 	if vcs == "git" {
 		return newGitRepo(ctx, remote, local)
 	}
@@ -139,7 +145,8 @@ func newVCSRepo(ctx context.Context, vcs, remote string, local bool) (Repo, erro
 		if err != nil {
 			return nil, err
 		}
-		_, err = Run(ctx, r.dir, cmd.init(r.remote))
+		init := cmd.init(r.remote)
+		_, err = run(ctx, r.dir, init)
 		if err == nil && cmd.postInit != nil {
 			err = cmd.postInit(ctx, r)
 		}
@@ -156,26 +163,26 @@ func newVCSRepo(ctx context.Context, vcs, remote string, local bool) (Repo, erro
 const vcsWorkDirType = "vcs1."
 
 type vcsCmd struct {
-	vcs                string                                            // vcs name "hg"
-	init               func(remote string) []string                      // cmd to init repo to track remote
-	postInit           func(context.Context, *vcsRepo) error             // func to init repo after .init runs
-	repoSum            func(remote string) []string                      // cmd to calculate reposum of remote repo
-	lookupRef          func(remote, ref string) []string                 // cmd to look up ref in remote repo
-	tags               func(remote string) []string                      // cmd to list local tags
-	tagsNeedsFetch     bool                                              // run fetch before tags
-	tagRE              *lazyregexp.Regexp                                // regexp to extract tag names from output of tags cmd
-	branches           func(remote string) []string                      // cmd to list local branches
-	branchesNeedsFetch bool                                              // run branches before tags
-	branchRE           *lazyregexp.Regexp                                // regexp to extract branch names from output of tags cmd
-	badLocalRevRE      *lazyregexp.Regexp                                // regexp of names that must not be served out of local cache without doing fetch first
-	statLocal          func(rev, remote string) []string                 // cmd to stat local rev
-	parseStat          func(rev, out string) (*RevInfo, error)           // func to parse output of statLocal
-	fetch              []string                                          // cmd to fetch everything from remote
-	latest             string                                            // name of latest commit on remote (tip, HEAD, etc)
-	descendsFrom       func(rev, tag string) []string                    // cmd to check whether rev descends from tag
-	recentTags         func(rev string) []string                         // cmd to print tag ancestors of rev
-	readFile           func(rev, file, remote string) []string           // cmd to read rev's file
-	readZip            func(rev, subdir, remote, target string) []string // cmd to read rev's subdir as zip file
+	vcs                string                                                // vcs name "hg"
+	init               func(remote string) *vcscmd.Command                   // cmd to init repo to track remote
+	postInit           func(context.Context, *vcsRepo) error                 // func to init repo after .init runs
+	repoSum            func(remote string) *vcscmd.Command                   // cmd to calculate reposum of remote repo
+	lookupRef          func(remote, ref string) *vcscmd.Command              // cmd to look up ref in remote repo
+	tags               func(remote string) *vcscmd.Command                   // cmd to list local tags
+	tagsNeedsFetch     bool                                                  // run fetch before tags
+	tagRE              *lazyregexp.Regexp                                    // regexp to extract tag names from output of tags cmd
+	branches           func(remote string) *vcscmd.Command                   // cmd to list local branches
+	branchesNeedsFetch bool                                                  // run branches before tags
+	branchRE           *lazyregexp.Regexp                                    // regexp to extract branch names from output of tags cmd
+	badLocalRevRE      *lazyregexp.Regexp                                    // regexp of names that must not be served out of local cache without doing fetch first
+	statLocal          func(rev, remote string) *vcscmd.Command              // cmd to stat local rev
+	parseStat          func(rev, out string) (*RevInfo, error)               // func to parse output of statLocal
+	fetch              func() *vcscmd.Command                                // cmd to fetch everything from remote
+	latest             string                                                // name of latest commit on remote (tip, HEAD, etc)
+	descendsFrom       func(rev, tag string) *vcscmd.Command                 // cmd to check whether rev descends from tag
+	recentTags         func(rev string) *vcscmd.Command                      // cmd to print tag ancestors of rev
+	readFile           func(rev, file, remote string) *vcscmd.Command        // cmd to read rev's file
+	readZip            func(rev, subdir, dir, target string) *vcscmd.Command // cmd to read rev's subdir of repo in dir as zip file
 
 	// arbitrary function to read rev's subdir as zip file
 	doReadZip func(ctx context.Context, dst io.Writer, workDir, rev, subdir, remote string) error
@@ -186,114 +193,121 @@ var re = lazyregexp.New
 var vcsCmds = map[string]*vcsCmd{
 	"hg": {
 		vcs: "hg",
-		repoSum: func(remote string) []string {
-			return []string{
-				"hg",
-				"--config=extensions.goreposum=" + filepath.Join(cfg.GOROOT, "lib/hg/goreposum.py"),
-				"goreposum",
-				"--",
-				remote,
-			}
+		repoSum: func(remote string) *vcscmd.Command {
+			return vcscmd.New("hg").Option("--config", hgRepoSumExt()).Add("goreposum").Operands(remote)
 		},
-		lookupRef: func(remote, ref string) []string {
-			return []string{
-				"hg",
-				"--config=extensions.goreposum=" + filepath.Join(cfg.GOROOT, "lib/hg/goreposum.py"),
-				"golookup",
-				"--",
-				remote,
-				ref,
-			}
+		lookupRef: func(remote, ref string) *vcscmd.Command {
+			return vcscmd.New("hg").Option("--config", hgRepoSumExt()).Add("golookup").Operands(remote, ref)
 		},
-		init: func(remote string) []string {
-			return []string{"hg", "init", "."}
+		init: func(remote string) *vcscmd.Command {
+			return vcscmd.New("hg", "init", ".")
 		},
 		postInit: hgAddRemote,
-		tags: func(remote string) []string {
-			return []string{"hg", "tags", "-q"}
+		tags: func(remote string) *vcscmd.Command {
+			return vcscmd.New("hg", "tags", "-q")
 		},
 		tagsNeedsFetch: true,
 		tagRE:          re(`(?m)^[^\n]+$`),
-		branches: func(remote string) []string {
-			return []string{"hg", "branches", "-c", "-q"}
+		branches: func(remote string) *vcscmd.Command {
+			return vcscmd.New("hg", "branches", "-c", "-q")
 		},
 		branchesNeedsFetch: true,
 		branchRE:           re(`(?m)^[^\n]+$`),
 		badLocalRevRE:      re(`(?m)^(tip)$`),
-		statLocal: func(rev, remote string) []string {
-			return []string{"hg", "log", "-l1", fmt.Sprintf("--rev=%s", rev), "--template", "{node} {date|hgdate} {tags}"}
+		statLocal: func(rev, remote string) *vcscmd.Command {
+			return hgLog(hgQuote(rev)).Add("-l1", "--template", "{node} {date|hgdate} {tags}")
 		},
 		parseStat: hgParseStat,
-		fetch:     []string{"hg", "pull", "-f"},
-		latest:    "tip",
-		descendsFrom: func(rev, tag string) []string {
-			return []string{"hg", "log", "--rev=ancestors(" + rev + ") and " + tag}
+		fetch: func() *vcscmd.Command {
+			return vcscmd.New("hg", "pull", "-f")
 		},
-		recentTags: func(rev string) []string {
-			return []string{"hg", "log", "--rev=ancestors(" + rev + ") and tag()", "--template", "{tags}\n"}
+		latest: "tip",
+		descendsFrom: func(rev, tag string) *vcscmd.Command {
+			return hgLog("ancestors(" + hgQuote(rev) + ") and " + hgQuote(tag))
 		},
-		readFile: func(rev, file, remote string) []string {
-			return []string{"hg", "cat", fmt.Sprintf("--rev=%s", rev), "--", file}
+		recentTags: func(rev string) *vcscmd.Command {
+			return hgLog("ancestors("+hgQuote(rev)+") and tag()").Add("--template", "{tags}\n")
 		},
-		readZip: func(rev, subdir, remote, target string) []string {
-			pattern := []string{}
+		readFile: func(rev, file, remote string) *vcscmd.Command {
+			return vcscmd.New("hg", "cat").Option("--rev", rev).Operands(file)
+		},
+		readZip: func(rev, subdir, dir, target string) *vcscmd.Command {
+			c := vcscmd.New("hg", "archive", "-t", "zip", "--no-decode").Option("--rev", rev).Add("--prefix=prefix/")
 			if subdir != "" {
-				pattern = []string{fmt.Sprintf("--include=%s", subdir+"/**")}
+				c.Option("--include", "path:"+subdir)
 			}
-			return str.StringList("hg", "archive", "-t", "zip", "--no-decode", fmt.Sprintf("--rev=%s", rev), "--prefix=prefix/", pattern, "--", target)
+			return c.Operands(target)
 		},
 	},
 
 	"svn": {
 		vcs:  "svn",
 		init: nil, // no local checkout
-		tags: func(remote string) []string {
-			return []string{"svn", "list", "--", strings.TrimSuffix(remote, "/trunk") + "/tags"}
+		tags: func(remote string) *vcscmd.Command {
+			return vcscmd.New("svn", "list").Operands(strings.TrimSuffix(remote, "/trunk") + "/tags")
 		},
 		tagRE: re(`(?m)^(.*?)/?$`),
-		statLocal: func(rev, remote string) []string {
+		statLocal: func(rev, remote string) *vcscmd.Command {
 			suffix := "@" + rev
 			if rev == "latest" {
-				suffix = ""
+				suffix = "@"
 			}
-			return []string{"svn", "log", "-l1", "--xml", "--", remote + suffix}
+			return vcscmd.New("svn", "log", "-l1", "--xml").Operands(remote + suffix)
 		},
 		parseStat: svnParseStat,
 		latest:    "latest",
-		readFile: func(rev, file, remote string) []string {
-			return []string{"svn", "cat", "--", remote + "/" + file + "@" + rev}
+		readFile: func(rev, file, remote string) *vcscmd.Command {
+			return vcscmd.New("svn", "cat").Operands(remote + "/" + file + "@" + rev)
 		},
 		doReadZip: svnReadZip,
 	},
 
 	"fossil": {
 		vcs: "fossil",
-		init: func(remote string) []string {
-			return []string{"fossil", "clone", "--", remote, ".fossil"}
+		init: func(remote string) *vcscmd.Command {
+			return vcscmd.New("fossil", "clone").Operands(remote, ".fossil")
 		},
-		fetch: []string{"fossil", "pull", "-R", ".fossil"},
-		tags: func(remote string) []string {
-			return []string{"fossil", "tag", "-R", ".fossil", "list"}
+		fetch: func() *vcscmd.Command {
+			return vcscmd.New("fossil", "pull", "-R", ".fossil")
+		},
+		tags: func(remote string) *vcscmd.Command {
+			return vcscmd.New("fossil", "tag", "-R", ".fossil", "list")
 		},
 		tagRE: re(`XXXTODO`),
-		statLocal: func(rev, remote string) []string {
-			return []string{"fossil", "info", "-R", ".fossil", "--", rev}
+		statLocal: func(rev, remote string) *vcscmd.Command {
+			return vcscmd.New("fossil", "info", "-R", ".fossil").Operands(rev)
 		},
 		parseStat: fossilParseStat,
 		latest:    "trunk",
-		readFile: func(rev, file, remote string) []string {
-			return []string{"fossil", "cat", "-R", ".fossil", fmt.Sprintf("-r=%s", rev), "--", file}
+		readFile: func(rev, file, remote string) *vcscmd.Command {
+			return vcscmd.New("fossil", "cat", "-R", ".fossil").Option("-r", rev).Operands(file)
 		},
-		readZip: func(rev, subdir, remote, target string) []string {
-			extra := []string{}
+		readZip: func(rev, subdir, dir, target string) *vcscmd.Command {
+			// ReadZip runs fossil in the output directory, not r.dir.
+			c := vcscmd.New("fossil", "zip").Option("-R", filepath.Join(dir, ".fossil")).Add("--name", "prefix")
 			if subdir != "" && !strings.ContainsAny(subdir, "*?[],") {
-				extra = []string{fmt.Sprintf("--include=%s", subdir)}
+				c.Option("--include", subdir)
 			}
-			// Note that vcsRepo.ReadZip below rewrites this command
-			// to run in a different directory, to work around a fossil bug.
-			return str.StringList("fossil", "zip", "-R", ".fossil", "--name", "prefix", extra, "--", rev, target)
+			return c.Operands(rev, target)
 		},
 	},
+}
+
+func hgRepoSumExt() string {
+	return "extensions.goreposum=" + filepath.Join(cfg.GOROOT, "lib/hg/goreposum.py")
+}
+
+func hgLog(revset string) *vcscmd.Command {
+	// Hg first tries the whole revset as a revision name. A leading space
+	// (not valid at the start of a name) forces it to parse the expression.
+	return vcscmd.New("hg", "log").Option("--rev", " "+revset)
+}
+
+var hgRevsetEscaper = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
+
+// hgQuote quotes a single revision symbol for use in a revset.
+func hgQuote(rev string) string {
+	return `"` + hgRevsetEscaper.Replace(rev) + `"`
 }
 
 func (r *vcsRepo) loadTags(ctx context.Context) {
@@ -301,7 +315,8 @@ func (r *vcsRepo) loadTags(ctx context.Context) {
 		r.fetchOnce.Do(func() { r.fetch(ctx) })
 	}
 
-	out, err := Run(ctx, r.dir, r.cmd.tags(r.remote))
+	cmd := r.cmd.tags(r.remote)
+	out, err := run(ctx, r.dir, cmd)
 	if err != nil {
 		return
 	}
@@ -325,7 +340,8 @@ func (r *vcsRepo) loadBranches(ctx context.Context) {
 		r.fetchOnce.Do(func() { r.fetch(ctx) })
 	}
 
-	out, err := Run(ctx, r.dir, r.cmd.branches(r.remote))
+	cmd := r.cmd.branches(r.remote)
+	out, err := run(ctx, r.dir, cmd)
 	if err != nil {
 		return
 	}
@@ -347,7 +363,8 @@ func (r *vcsRepo) loadRepoSum(ctx context.Context) {
 	if r.fetched.Load() {
 		where = "." // use local repo
 	}
-	out, err := Run(ctx, r.dir, r.cmd.repoSum(where))
+	cmd := r.cmd.repoSum(where)
+	out, err := run(ctx, r.dir, cmd)
 	if err != nil {
 		return
 	}
@@ -358,7 +375,8 @@ func (r *vcsRepo) lookupRef(ctx context.Context, ref string) (string, error) {
 	if r.cmd.lookupRef == nil {
 		return "", fmt.Errorf("no lookupRef")
 	}
-	out, err := Run(ctx, r.dir, r.cmd.lookupRef(r.remote, ref))
+	cmd := r.cmd.lookupRef(r.remote, ref)
+	out, err := run(ctx, r.dir, cmd)
 	if err != nil {
 		return "", err
 	}
@@ -483,20 +501,22 @@ func (r *vcsRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
 }
 
 func (r *vcsRepo) fetch(ctx context.Context) {
-	if len(r.cmd.fetch) > 0 {
+	if r.cmd.fetch != nil {
 		release, err := base.AcquireNet()
 		if err != nil {
 			r.fetchErr = err
 			return
 		}
-		_, r.fetchErr = Run(ctx, r.dir, r.cmd.fetch)
+		cmd := r.cmd.fetch()
+		_, r.fetchErr = run(ctx, r.dir, cmd)
 		release()
 		r.fetched.Store(true)
 	}
 }
 
 func (r *vcsRepo) statLocal(ctx context.Context, rev string) (*RevInfo, error) {
-	out, err := Run(ctx, r.dir, r.cmd.statLocal(rev, r.remote))
+	cmd := r.cmd.statLocal(rev, r.remote)
+	out, err := run(ctx, r.dir, cmd)
 	if err != nil {
 		info := &RevInfo{Origin: r.repoSumOrigin(ctx)}
 		return info, &UnknownRevisionError{Rev: rev}
@@ -526,9 +546,12 @@ func (r *vcsRepo) ReadFile(ctx context.Context, rev, file string, maxSize int64)
 		if rev == "latest" {
 			rev = r.cmd.latest
 		}
-		_, err := r.Stat(ctx, rev) // download rev into local repo
+		info, err := r.Stat(ctx, rev) // download rev into local repo
 		if err != nil {
 			return nil, err
+		}
+		if r.cmd.vcs == "hg" {
+			rev = info.Name
 		}
 
 		// r.Stat acquires r.mu, so lock after that.
@@ -538,7 +561,8 @@ func (r *vcsRepo) ReadFile(ctx context.Context, rev, file string, maxSize int64)
 		}
 		defer unlock()
 
-		out, err := Run(ctx, r.dir, r.cmd.readFile(rev, file, r.remote))
+		cmd := r.cmd.readFile(rev, file, r.remote)
+		out, err := run(ctx, r.dir, cmd)
 		if err != nil {
 			return nil, fs.ErrNotExist
 		}
@@ -558,7 +582,8 @@ func (r *vcsRepo) RecentTag(ctx context.Context, rev, prefix string, allowed fun
 		unlock()
 		return "", vcsErrorf("vcs %s: RecentTag: %w", r.cmd.vcs, errors.ErrUnsupported)
 	}
-	out, err := Run(ctx, r.dir, r.cmd.recentTags(rev))
+	cmd := r.cmd.recentTags(rev)
+	out, err := run(ctx, r.dir, cmd)
 	unlock()
 	if err != nil {
 		return "", err
@@ -591,7 +616,8 @@ func (r *vcsRepo) DescendsFrom(ctx context.Context, rev, tag string) (bool, erro
 		return false, vcsErrorf("vcs %s: DescendsFrom: %w", r.cmd.vcs, errors.ErrUnsupported)
 	}
 
-	out, err := Run(ctx, r.dir, r.cmd.descendsFrom(rev, tag))
+	cmd := r.cmd.descendsFrom(rev, tag)
+	out, err := run(ctx, r.dir, cmd)
 	if err != nil {
 		return false, err
 	}
@@ -606,9 +632,12 @@ func (r *vcsRepo) ReadZip(ctx context.Context, rev, subdir string, maxSize int64
 	if rev == "latest" {
 		rev = r.cmd.latest
 	}
-	_, err = r.Stat(ctx, rev) // download rev into local repo
+	info, err := r.Stat(ctx, rev) // download rev into local repo
 	if err != nil {
 		return nil, err
+	}
+	if r.cmd.vcs == "hg" {
+		rev = info.Name
 	}
 
 	unlock, err := r.mu.Lock()
@@ -635,17 +664,12 @@ func (r *vcsRepo) ReadZip(ctx context.Context, rev, subdir string, maxSize int64
 		// If you run
 		//	fossil zip -R .fossil --name prefix trunk /tmp/x.zip
 		// fossil fails with "unable to create directory /tmp" [sic].
-		// Change the command to run in /tmp instead,
-		// replacing the -R argument with an absolute path.
-		args := r.cmd.readZip(rev, subdir, r.remote, filepath.Base(f.Name()))
-		for i := range args {
-			if args[i] == ".fossil" {
-				args[i] = filepath.Join(r.dir, ".fossil")
-			}
-		}
-		_, err = Run(ctx, filepath.Dir(f.Name()), args)
+		// Run the command in /tmp instead.
+		cmd := r.cmd.readZip(rev, subdir, r.dir, filepath.Base(f.Name()))
+		_, err = run(ctx, filepath.Dir(f.Name()), cmd)
 	} else {
-		_, err = Run(ctx, r.dir, r.cmd.readZip(rev, subdir, r.remote, f.Name()))
+		cmd := r.cmd.readZip(rev, subdir, r.dir, f.Name())
+		_, err = run(ctx, r.dir, cmd)
 	}
 	if err != nil {
 		f.Close()

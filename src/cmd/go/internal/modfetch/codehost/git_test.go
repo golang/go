@@ -8,8 +8,10 @@ import (
 	"archive/zip"
 	"bytes"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/vcscmd"
 	"cmd/go/internal/vcweb/vcstest"
 	"context"
+	"errors"
 	"flag"
 	"internal/testenv"
 	"io"
@@ -65,12 +67,12 @@ func localGitURL(t testing.TB) string {
 		// If we use a file:// URL to access the local directory,
 		// then git starts up all the usual protocol machinery,
 		// which will let us test remote git archive invocations.
-		_, localGitURLErr = Run(context.Background(), "", "git", "clone", "--mirror", gitrepo1, localGitRepo)
+		_, localGitURLErr = run(context.Background(), "", vcscmd.New("git", "clone", "--mirror").Operands(gitrepo1, localGitRepo))
 		if localGitURLErr != nil {
 			return
 		}
 		repo := gitRepo{dir: localGitRepo}
-		_, localGitURLErr = repo.runGit(context.Background(), "git", "config", "daemon.uploadarch", "true")
+		_, localGitURLErr = repo.runGit(context.Background(), vcscmd.New("git", "config", "daemon.uploadarch", "true"))
 		// TODO(david.finkel): do the same with the git repo using sha256 object hashes
 	})
 
@@ -1104,4 +1106,123 @@ func remap(name string, m map[string]string) string {
 		}
 	}
 	return name
+}
+
+func initLocalGitTest(t *testing.T) (dir string, git func(...string) string) {
+	t.Helper()
+	testenv.MustHaveExecPath(t, "git")
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", home)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(home, ".gitconfig"))
+	t.Setenv("GIT_ALLOW_PROTOCOL", "file")
+	t.Setenv("LC_ALL", "C")
+
+	dir = t.TempDir()
+	git = func(args ...string) string {
+		t.Helper()
+		cmd := testenv.Command(t, "git", args...)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %q: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	git("init", "-q")
+	git("config", "user.name", "Gopher")
+	git("config", "user.email", "gopher@example.com")
+	return dir, git
+}
+
+func TestGitStatFullFetch(t *testing.T) {
+	dir, git := initLocalGitTest(t)
+	const branch = "release-1.0"
+	const tag = "heads/" + branch
+	git("symbolic-ref", "HEAD", "refs/heads/"+branch)
+	git("commit", "--allow-empty", "-qm", "Begin development")
+	git("commit", "--allow-empty", "-qm", "Release")
+	tagHash := git("rev-parse", "HEAD")
+	git("tag", tag)
+	git("commit", "--allow-empty", "-qm", "Continue development")
+	headHash := git("rev-parse", "HEAD")
+
+	// The short tag name also names a branch via Git's refs/ abbreviation.
+	// The full-fetch fallback must use the qualified tag, not the branch.
+	for _, tt := range []struct{ rev, hash, version string }{
+		{tag, tagHash, tag},
+		{branch, headHash, headHash},
+		{"HEAD", headHash, headHash},
+	} {
+		cache := t.TempDir()
+		git("init", "--bare", "-q", cache)
+		git("--git-dir", cache, "symbolic-ref", "HEAD", "refs/heads/unborn")
+		// Simulate a stale shallow lock. It prevents the shallow fetch but
+		// does not prevent a full fetch into this repository.
+		if err := os.WriteFile(filepath.Join(cache, "shallow.lock"), nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+		r := &gitRepo{dir: cache, remote: dir}
+		r.mu.Path = cache + ".lock"
+		info, err := r.Stat(t.Context(), tt.rev)
+		if err != nil {
+			t.Errorf("Stat(%q): %v", tt.rev, err)
+			continue
+		}
+		if r.fetchLevel != fetchAll {
+			t.Errorf("Stat(%q) did not perform a full fetch", tt.rev)
+		}
+		if info.Name != tt.hash || info.Version != tt.version {
+			t.Errorf("Stat(%q) = (hash %q, version %q); want (%q, %q)", tt.rev, info.Name, info.Version, tt.hash, tt.version)
+		}
+	}
+}
+
+func TestGitReadZipLiteralPath(t *testing.T) {
+	dir, git := initLocalGitTest(t)
+	const subdir = "docs[old]"
+	const notes = "Release notes\n"
+	for _, d := range []string{subdir, "docso"} {
+		if err := os.Mkdir(filepath.Join(dir, d), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, d, "notes.txt"), []byte(notes), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	git("--literal-pathspecs", "add", subdir+"/notes.txt", "docso/notes.txt")
+	git("commit", "-qm", "Add release notes")
+	hash := git("rev-parse", "HEAD")
+
+	ctx := t.Context()
+	r, err := newGitRepo(ctx, dir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rc, err := r.ReadZip(ctx, hash, subdir, MaxZipFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rc.Close()
+	data, err := io.ReadAll(rc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	z, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := fs.ReadFile(z, "prefix/"+subdir+"/notes.txt"); err != nil || string(got) != notes {
+		t.Errorf("reading release notes from zip: got %q, %v; want %q", got, err, notes)
+	}
+
+	// This directory is absent, even though it matches docso as a pattern.
+	rc, err = r.ReadZip(ctx, hash, "docs[o]", MaxZipFile)
+	if rc != nil {
+		rc.Close()
+	}
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("ReadZip with nonexistent subdir: got %v, want %v", err, fs.ErrNotExist)
+	}
 }

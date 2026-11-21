@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/vcscmd"
 )
 
 func svnParseStat(rev, out string) (*RevInfo, error) {
@@ -67,20 +68,20 @@ func svnReadZip(ctx context.Context, dst io.Writer, workDir, rev, subdir, remote
 	if subdir != "" {
 		remotePath += "/" + subdir
 	}
+	// An empty peg revision makes any @ in the source path literal.
+	remotePath += "@"
 
 	release, err := base.AcquireNet()
 	if err != nil {
 		return err
 	}
-	out, err := Run(ctx, workDir, []string{
-		"svn", "list",
+	cmd := vcscmd.New("svn", "list",
 		"--non-interactive",
 		"--xml",
 		"--incremental",
 		"--recursive",
-		"--revision", rev,
-		"--", remotePath,
-	})
+	).Option("--revision", rev).Operands(remotePath)
+	out, err := run(ctx, workDir, cmd)
 	release()
 	if err != nil {
 		return err
@@ -109,8 +110,7 @@ func svnReadZip(ctx context.Context, dst io.Writer, workDir, rev, subdir, remote
 	if err != nil {
 		return err
 	}
-	_, err = Run(ctx, workDir, []string{
-		"svn", "export",
+	cmd = vcscmd.New("svn", "export",
 		"--non-interactive",
 		"--quiet",
 
@@ -118,11 +118,8 @@ func svnReadZip(ctx context.Context, dst io.Writer, workDir, rev, subdir, remote
 		"--native-eol", "LF",
 		"--ignore-externals",
 		"--ignore-keywords",
-
-		"--revision", rev,
-		"--", remotePath,
-		exportDir,
-	})
+	).Option("--revision", rev).Operands(remotePath, exportDir)
+	_, err = run(ctx, workDir, cmd)
 	release()
 	if err != nil {
 		return err

@@ -28,6 +28,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/lockedfile"
+	"cmd/go/internal/vcscmd"
 	"cmd/go/internal/web"
 	"cmd/internal/par"
 
@@ -96,7 +97,7 @@ func newGitRepo(ctx context.Context, remote string, local bool) (Repo, error) {
 		if gitVersErr != nil {
 			return nil, fmt.Errorf("unable to resolve git version: %w", gitVersErr)
 		}
-		objFormatFlag := []string{}
+		init := vcscmd.New("git", "init", "--bare")
 		// If git is sufficiently recent to support sha256,
 		// always initialize with an explicit object-format.
 		if repoSha256Hash {
@@ -104,11 +105,11 @@ func newGitRepo(ctx context.Context, remote string, local bool) (Repo, error) {
 			// we're cloning uses sha256 hashes because if the git
 			// version is too old, it'll fail either way, so we
 			// might as well give it one last chance.
-			objFormatFlag = []string{"--object-format=sha256"}
+			init.Add("--object-format=sha256")
 		} else if gitSupportsSHA256 {
-			objFormatFlag = []string{"--object-format=sha1"}
+			init.Add("--object-format=sha1")
 		}
-		if _, err := Run(ctx, r.dir, "git", "init", "--bare", objFormatFlag); err != nil {
+		if _, err := run(ctx, r.dir, init); err != nil {
 			os.RemoveAll(r.dir)
 			return nil, err
 		}
@@ -116,7 +117,7 @@ func newGitRepo(ctx context.Context, remote string, local bool) (Repo, error) {
 		// but this lets us say git fetch origin instead, which
 		// is a little nicer. More importantly, using a named remote
 		// avoids a problem with Git LFS. See golang.org/issue/25605.
-		if _, err := r.runGit(ctx, "git", "remote", "add", "origin", "--", r.remote); err != nil {
+		if _, err := r.runGit(ctx, vcscmd.New("git", "remote", "add", "origin").Operands(r.remote)); err != nil {
 			os.RemoveAll(r.dir)
 			return nil, err
 		}
@@ -130,7 +131,7 @@ func newGitRepo(ctx context.Context, remote string, local bool) (Repo, error) {
 			// long branch names.
 			//
 			// See https://github.com/git-for-windows/git/wiki/Git-cannot-create-a-file-or-directory-with-a-long-path.
-			if _, err := r.runGit(ctx, "git", "config", "core.longpaths", "true"); err != nil {
+			if _, err := r.runGit(ctx, vcscmd.New("git", "config", "core.longpaths", "true")); err != nil {
 				os.RemoveAll(r.dir)
 				return nil, err
 			}
@@ -181,7 +182,7 @@ func (r *gitRepo) loadLocalTags(ctx context.Context) {
 	// The git protocol sends all known refs and ls-remote filters them on the client side,
 	// so we might as well record both heads and tags in one shot.
 	// Most of the time we only care about tags but sometimes we care about heads too.
-	out, err := r.runGit(ctx, "git", "tag", "-l")
+	out, err := r.runGit(ctx, vcscmd.New("git", "tag", "-l"))
 	if err != nil {
 		return
 	}
@@ -261,7 +262,7 @@ func (r *gitRepo) loadRefs(ctx context.Context) (map[string]string, error) {
 			r.refsErr = err
 			return
 		}
-		out, gitErr := r.runGit(ctx, "git", "ls-remote", "-q", "--end-of-options", r.remote)
+		out, gitErr := r.runGit(ctx, vcscmd.New("git", "ls-remote", "-q").Operands(r.remote))
 		release()
 
 		if gitErr != nil {
@@ -401,7 +402,7 @@ func (r *gitRepo) Latest(ctx context.Context) (*RevInfo, error) {
 }
 
 func (r *gitRepo) checkConfigSHA256(ctx context.Context) bool {
-	if hashType, sha256CfgErr := r.runGit(ctx, "git", "config", "extensions.objectformat"); sha256CfgErr == nil {
+	if hashType, sha256CfgErr := r.runGit(ctx, vcscmd.New("git", "config", "extensions.objectformat")); sha256CfgErr == nil {
 		return strings.TrimSpace(string(hashType)) == "sha256"
 	}
 	return false
@@ -530,7 +531,7 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 			if fromTag && !slices.Contains(info.Tags, tag) {
 				// The local repo includes the commit hash we want, but it is missing
 				// the corresponding tag. Add that tag and try again.
-				_, err := r.runGit(ctx, "git", "tag", "--end-of-options", tag, hash)
+				_, err := r.runGit(ctx, vcscmd.New("git", "tag").Operands(tag, hash))
 				if err != nil {
 					return nil, err
 				}
@@ -579,7 +580,7 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 		// an apparent Git bug introduced in Git 2.21 (commit 61c771),
 		// which causes the handler for protocol version 1 to sometimes miss
 		// tags that point to the requested commit (see https://go.dev/issue/56881).
-		_, err = r.runGit(ctx, "git", "-c", "protocol.version=2", "fetch", "-f", "--depth=1", "--end-of-options", r.remote, refspec)
+		_, err = r.runGit(ctx, vcscmd.New("git", "-c", "protocol.version=2", "fetch", "-f", "--depth=1").Operands(r.remote, refspec))
 		release()
 
 		if err == nil {
@@ -596,6 +597,11 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 		return nil, err
 	}
 
+	// Keep tag names qualified, but use the resolved hash for branches and
+	// HEAD: a full fetch does not set the local HEAD to the remote HEAD.
+	if ref == "refs/tags/"+rev {
+		return r.statLocal(ctx, rev, ref)
+	}
 	return r.statLocal(ctx, rev, rev)
 }
 
@@ -625,12 +631,12 @@ func (r *gitRepo) fetchRefsLocked(ctx context.Context) error {
 		}
 		defer release()
 
-		if _, err := r.runGit(ctx, "git", "fetch", "-f", "--end-of-options", r.remote, "refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
+		if _, err := r.runGit(ctx, vcscmd.New("git", "fetch", "-f").Operands(r.remote, "refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*")); err != nil {
 			return err
 		}
 
 		if _, err := os.Stat(filepath.Join(r.dir, "shallow")); err == nil {
-			if _, err := r.runGit(ctx, "git", "fetch", "--unshallow", "-f", "--end-of-options", r.remote); err != nil {
+			if _, err := r.runGit(ctx, vcscmd.New("git", "fetch", "--unshallow", "-f").Operands(r.remote)); err != nil {
 				return err
 			}
 		}
@@ -643,7 +649,7 @@ func (r *gitRepo) fetchRefsLocked(ctx context.Context) error {
 // statLocal returns a new RevInfo describing rev in the local git repository.
 // It uses version as info.Version.
 func (r *gitRepo) statLocal(ctx context.Context, version, rev string) (*RevInfo, error) {
-	out, err := r.runGit(ctx, "git", "-c", "log.showsignature=false", "log", "--no-decorate", "-n1", "--format=format:%H %ct %D", "--end-of-options", rev, "--")
+	out, err := r.runGit(ctx, vcscmd.New("git", "-c", "log.showsignature=false", "log", "--no-decorate", "-n1", "--format=format:%H %ct %D").GitRevision(rev))
 	if err != nil {
 		// Return info with Origin.RepoSum if possible to allow caching of negative lookup.
 		var info *RevInfo
@@ -733,7 +739,7 @@ func (r *gitRepo) ReadFile(ctx context.Context, rev, file string, maxSize int64)
 	if err != nil {
 		return nil, err
 	}
-	out, err := r.runGit(ctx, "git", "cat-file", "--end-of-options", "blob", info.Name+":"+file)
+	out, err := r.runGit(ctx, vcscmd.New("git", "cat-file").Operands("blob", info.Name+":"+file))
 	if err != nil {
 		return nil, fs.ErrNotExist
 	}
@@ -751,7 +757,7 @@ func (r *gitRepo) RecentTag(ctx context.Context, rev, prefix string, allowed fun
 	// result is definitive.
 	describe := func() (definitive bool) {
 		var out []byte
-		out, err = r.runGit(ctx, "git", "for-each-ref", "--format=%(refname)", "--merged="+rev)
+		out, err = r.runGit(ctx, vcscmd.New("git", "for-each-ref", "--format=%(refname)").Option("--merged", rev))
 		if err != nil {
 			return true
 		}
@@ -841,7 +847,7 @@ func (r *gitRepo) DescendsFrom(ctx context.Context, rev, tag string) (bool, erro
 	//
 	// git merge-base --is-ancestor exits with status 0 if rev is an ancestor, or
 	// 1 if not.
-	_, err := r.runGit(ctx, "git", "merge-base", "--is-ancestor", "--", tag, rev)
+	_, err := r.runGit(ctx, vcscmd.New("git", "merge-base", "--is-ancestor").Operands(tag, rev))
 
 	// Git reports "is an ancestor" with exit code 0 and "not an ancestor" with
 	// exit code 1.
@@ -889,7 +895,7 @@ func (r *gitRepo) DescendsFrom(ctx context.Context, rev, tag string) (bool, erro
 		}
 	}
 
-	_, err = r.runGit(ctx, "git", "merge-base", "--is-ancestor", "--", tag, rev)
+	_, err = r.runGit(ctx, vcscmd.New("git", "merge-base", "--is-ancestor").Operands(tag, rev))
 	if err == nil {
 		return true, nil
 	}
@@ -901,10 +907,6 @@ func (r *gitRepo) DescendsFrom(ctx context.Context, rev, tag string) (bool, erro
 
 func (r *gitRepo) ReadZip(ctx context.Context, rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {
 	// TODO: Use maxSize or drop it.
-	args := []string{}
-	if subdir != "" {
-		args = append(args, subdir)
-	}
 	info, err := r.Stat(ctx, rev) // download rev into local git repo
 	if err != nil {
 		return nil, err
@@ -925,7 +927,11 @@ func (r *gitRepo) ReadZip(ctx context.Context, rev, subdir string, maxSize int64
 	// text file line endings. Setting -c core.autocrlf=input means only
 	// translate files on the way into the repo, not on the way out (archive).
 	// The -c core.eol=lf should be unnecessary but set it anyway.
-	archive, err := r.runGit(ctx, "git", "-c", "core.autocrlf=input", "-c", "core.eol=lf", "archive", "--format=zip", "--prefix=prefix/", "--end-of-options", info.Name, args)
+	args := []string{info.Name}
+	if subdir != "" {
+		args = append(args, subdir)
+	}
+	archive, err := r.runGit(ctx, vcscmd.New("git", "--literal-pathspecs", "-c", "core.autocrlf=input", "-c", "core.eol=lf", "archive", "--format=zip", "--prefix=prefix/").Operands(args...))
 	if err != nil {
 		if bytes.Contains(err.(*RunError).Stderr, []byte("did not match any files")) {
 			return nil, fs.ErrNotExist
@@ -976,14 +982,14 @@ func ensureGitAttributes(repoDir string) (err error) {
 	return nil
 }
 
-func (r *gitRepo) runGit(ctx context.Context, cmdline ...any) ([]byte, error) {
-	args := RunArgs{cmdline: cmdline, dir: r.dir, local: r.local}
+func (r *gitRepo) runGit(ctx context.Context, cmd *vcscmd.Command) ([]byte, error) {
+	var env []string
 	if !r.local {
 		// Manually supply GIT_DIR so Git works with safe.bareRepository=explicit set.
 		// This is necessary only for remote repositories as they are initialized with git init --bare.
-		args.env = []string{"GIT_DIR=" + r.dir}
+		env = []string{"GIT_DIR=" + r.dir}
 	}
-	return RunWithArgs(ctx, args)
+	return run(ctx, r.dir, cmd, env...)
 }
 
 // Capture the major, minor and (optionally) patch version, but ignore anything later

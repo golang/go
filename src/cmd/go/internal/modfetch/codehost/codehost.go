@@ -8,6 +8,9 @@ package codehost
 
 import (
 	"bytes"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/lockedfile"
+	"cmd/go/internal/vcscmd"
 	"context"
 	"crypto/sha256"
 	"fmt"
@@ -19,10 +22,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/str"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -174,6 +173,7 @@ type UnknownRevisionError struct {
 func (e *UnknownRevisionError) Error() string {
 	return "unknown revision " + e.Rev
 }
+
 func (UnknownRevisionError) Is(err error) bool {
 	return err == fs.ErrNotExist
 }
@@ -187,6 +187,7 @@ type noCommitsError struct{}
 func (noCommitsError) Error() string {
 	return "no commits"
 }
+
 func (noCommitsError) Is(err error) bool {
 	return err == fs.ErrNotExist
 }
@@ -299,52 +300,36 @@ func (e *RunError) Error() string {
 
 var dirLock sync.Map
 
-type RunArgs struct {
-	cmdline []any    // the command to run
-	dir     string   // the directory to run the command in
-	local   bool     // true if the VCS information is local
-	env     []string // environment variables for the command
-	stdin   io.Reader
-}
+// run executes cmd in dir and returns its standard output.
+//
+// On failure, run returns the output collected so far and a *RunError.
+func run(ctx context.Context, dir string, cmd *vcscmd.Command, env ...string) ([]byte, error) {
+	argv, err := cmd.Build()
+	if err != nil {
+		return nil, &RunError{
+			Cmd: strings.Join(argv, " ") + " in " + dir,
+			Err: err,
+		}
+	}
 
-// Run runs the command line in the given directory
-// (an empty dir means the current directory).
-// It returns the standard output and, for a non-zero exit,
-// a *RunError indicating the command, exit status, and standard error.
-// Standard error is unavailable for commands that exit successfully.
-func Run(ctx context.Context, dir string, cmdline ...any) ([]byte, error) {
-	return run(ctx, RunArgs{cmdline: cmdline, dir: dir})
-}
-
-// RunWithArgs is the same as Run but it also accepts additional arguments.
-func RunWithArgs(ctx context.Context, args RunArgs) ([]byte, error) {
-	return run(ctx, args)
-}
-
-// bashQuoter escapes characters that have special meaning in double-quoted strings in the bash shell.
-// See https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html.
-var bashQuoter = strings.NewReplacer(`"`, `\"`, `$`, `\$`, "`", "\\`", `\`, `\\`)
-
-func run(ctx context.Context, args RunArgs) ([]byte, error) {
-	if args.dir != "" {
-		muIface, ok := dirLock.Load(args.dir)
+	if dir != "" {
+		muIface, ok := dirLock.Load(dir)
 		if !ok {
-			muIface, _ = dirLock.LoadOrStore(args.dir, new(sync.Mutex))
+			muIface, _ = dirLock.LoadOrStore(dir, new(sync.Mutex))
 		}
 		mu := muIface.(*sync.Mutex)
 		mu.Lock()
 		defer mu.Unlock()
 	}
 
-	cmd := str.StringList(args.cmdline...)
 	if xLog, ok := cfg.BuildXWriter(ctx); ok {
 		text := new(strings.Builder)
-		if args.dir != "" {
+		if dir != "" {
 			text.WriteString("cd ")
-			text.WriteString(args.dir)
+			text.WriteString(dir)
 			text.WriteString("; ")
 		}
-		for i, arg := range cmd {
+		for i, arg := range argv {
 			if i > 0 {
 				text.WriteByte(' ')
 			}
@@ -373,16 +358,26 @@ func run(ctx context.Context, args RunArgs) ([]byte, error) {
 	// TODO: Set environment to get English error messages.
 	var stderr bytes.Buffer
 	var stdout bytes.Buffer
-	c := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
+	c := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	c.Cancel = func() error { return c.Process.Signal(os.Interrupt) }
-	c.Dir = args.dir
-	c.Stdin = args.stdin
+	c.Dir = dir
 	c.Stderr = &stderr
 	c.Stdout = &stdout
-	c.Env = append(c.Environ(), args.env...)
-	err := c.Run()
-	if err != nil {
-		err = &RunError{Cmd: strings.Join(cmd, " ") + " in " + args.dir, Stderr: stderr.Bytes(), Err: err}
+	c.Env = append(c.Environ(), env...)
+	if argv[0] == "hg" {
+		// Match internal/vcs: do not let user defaults change command semantics.
+		c.Env = append(c.Env, "HGPLAIN=+strictflags")
 	}
-	return stdout.Bytes(), err
+	if err = c.Run(); err != nil {
+		return stdout.Bytes(), &RunError{
+			Cmd:    strings.Join(argv, " ") + " in " + dir,
+			Stderr: stderr.Bytes(),
+			Err:    err,
+		}
+	}
+	return stdout.Bytes(), nil
 }
+
+// bashQuoter escapes characters that have special meaning in double-quoted strings in the bash shell.
+// See https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html.
+var bashQuoter = strings.NewReplacer(`"`, `\"`, `$`, `\$`, "`", "\\`", `\`, `\\`)
