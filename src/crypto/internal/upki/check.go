@@ -68,20 +68,14 @@ func Check(dir string, indexFile *os.File, chains [][]*x509.Certificate) (Result
 	}
 
 	for attempt := 0; ; attempt++ {
-		idx, err := newIndex(indexFile)
-		if err != nil {
-			return NotCovered, err
-		}
-
 		c := checker{
-			idx:     idx,
 			dir:     dir,
 			chains:  chains,
 			serial:  serial,
 			scts:    scts,
 			filters: make(map[string]*revocationFilter),
 		}
-		result, err := c.checkChains()
+		result, err := c.checkIndex(indexFile)
 		if err == nil {
 			return result, nil
 		}
@@ -89,8 +83,9 @@ func Check(dir string, indexFile *os.File, chains [][]*x509.Certificate) (Result
 			return NotCovered, err
 		}
 
-		// A filter named by the open index disappeared. The cache update
-		// contract means the index was superseded, so reopen it and retry.
+		// A filter named by the open index, or the index itself, disappeared.
+		// The cache update contract means the index was superseded, so reopen
+		// it and retry.
 		_ = indexFile.Close()
 		nextIndex, openErr := OpenIndex(filepath.Join(dir, IndexFilename))
 		if openErr != nil {
@@ -113,6 +108,16 @@ type checker struct {
 	serial  []byte
 	scts    []SCT
 	filters map[string]*revocationFilter
+}
+
+func (c *checker) checkIndex(f *os.File) (Result, error) {
+	idx, err := newIndex(f)
+	if err != nil {
+		return NotCovered, err
+	}
+	c.idx = idx
+
+	return c.checkChains()
 }
 
 func (c *checker) checkChains() (Result, error) {
