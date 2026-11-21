@@ -246,6 +246,9 @@ func coroswitch_m(gp *g) {
 		gnext.lockedm.set(mp)
 	}
 
+	// Turn DIT on or off for gnext, as execute does.
+	syncDIT(gnext, mp)
+
 	// Release the trace locker. We've completed all the necessary transitions..
 	if trace.ok() {
 		traceRelease(trace)
