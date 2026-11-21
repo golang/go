@@ -133,6 +133,7 @@ var ErrFinalToken = errors.New("final token")
 // After Scan returns false, the [Scanner.Err] method will return any error that
 // occurred during scanning, except that if it was [io.EOF], [Scanner.Err]
 // will return nil.
+// Once Scan returns false, subsequent calls return false.
 // Scan panics if the split function returns too many empty
 // tokens without advancing the input. This is a common error mode for
 // scanners.
@@ -158,9 +159,11 @@ func (s *Scanner) Scan() bool {
 					return token != nil
 				}
 				s.setErr(err)
+				s.done = true
 				return false
 			}
 			if !s.advance(advance) {
+				s.done = true
 				return false
 			}
 			s.token = token
@@ -183,6 +186,7 @@ func (s *Scanner) Scan() bool {
 			// Shut it down.
 			s.start = 0
 			s.end = 0
+			s.done = true
 			return false
 		}
 		// Must read more data.
@@ -199,6 +203,7 @@ func (s *Scanner) Scan() bool {
 			const maxInt = int(^uint(0) >> 1)
 			if len(s.buf) >= s.maxTokenSize || len(s.buf) > maxInt/2 {
 				s.setErr(ErrTooLong)
+				s.done = true
 				return false
 			}
 			newSize := len(s.buf) * 2
