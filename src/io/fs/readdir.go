@@ -23,6 +23,8 @@ type ReadDirFS interface {
 // ReadDir reads the named directory
 // and returns a list of directory entries sorted by filename.
 //
+// The caller owns the returned slice and may modify it.
+//
 // If fsys implements [ReadDirFS], ReadDir calls fsys.ReadDir.
 // Otherwise ReadDir calls fsys.Open and uses ReadDir and Close
 // on the returned [ReadDirFile].

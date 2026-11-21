@@ -145,6 +145,9 @@ type ReadDirFile interface {
 	// to the end of the directory), it returns the slice and a nil error.
 	// If it encounters an error before the end of the directory,
 	// ReadDir returns the DirEntry list read until that point and a non-nil error.
+	//
+	// The caller owns the returned slice and may modify it. Subsequent calls
+	// to ReadDir must not modify a previously returned slice.
 	ReadDir(n int) ([]DirEntry, error)
 }
 
