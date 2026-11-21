@@ -58,13 +58,27 @@ func OIDFromInts(oid []uint64) (OID, error) {
 		return OID{}, errInvalidOID
 	}
 
-	length := base128IntLength(oid[0]*40 + oid[1])
+	// The first two components are encoded together as oid[0]*40 + oid[1].
+	// This sum only overflows a uint64 when oid[0] is 2, and then it is
+	// 2^64 + first, where first < 80.
+	first, carry := bits.Add64(oid[0]*40, oid[1], 0)
+	var length int
+	if carry != 0 {
+		length = 10
+	} else {
+		length = base128IntLength(first)
+	}
 	for _, v := range oid[2:] {
 		length += base128IntLength(v)
 	}
 
 	der := make([]byte, 0, length)
-	der = appendBase128Int(der, oid[0]*40+oid[1])
+	if carry != 0 {
+		// 2^64 + first = 2*128^9 + first, with first < 128.
+		der = append(der, 0x82, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, byte(first))
+	} else {
+		der = appendBase128Int(der, first)
+	}
 	for _, v := range oid[2:] {
 		der = appendBase128Int(der, v)
 	}
