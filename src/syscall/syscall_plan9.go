@@ -59,6 +59,8 @@ func (e ErrorString) Is(target error) bool {
 			"has been removed", "no parent")
 	case errors.ErrUnsupported:
 		return checkErrMessageContent(e, "not supported")
+	case ENOTDIR:
+		return checkErrMessageContent(e, "not a directory")
 	}
 	return false
 }
