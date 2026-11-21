@@ -38,7 +38,6 @@ func TestInspectTypeClassification(t *testing.T) {
 		{"_Ctype_long", 8, 8, false, true, false},
 		{"[3]int16", 6, 2, false, false, true},
 		{"[2]float32", 8, 4, false, false, true},
-		{"[]byte", 24, 8, false, false, false},
 		{"struct { _ structs.HostLayout; a int8; b int32 }", 8, 4, false, false, true},
 		{"_Ctype_S", 8, 4, false, false, true},
 		{"MyInt", 4, 4, false, true, false},

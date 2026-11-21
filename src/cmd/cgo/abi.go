@@ -244,11 +244,10 @@ func (cfg *ABIConfig) inspectType(t string, types map[string]BindingType) typeIn
 // inspectExpr walks a parsed Go type AST expression to compute its byte size,
 // alignment, aggregate classification, and flattened scalar leaf fields.
 //
-// Go strings, maps, channels, funcs, interfaces, and instantiated generic
-// types have no C ABI layout. cTypeError rejects them before any layout is
-// computed, so inspectExpr panics if it sees one.
+// Go strings, slices, maps, channels, funcs, interfaces, and instantiated
+// generic types have no C ABI layout. cTypeError rejects them before any
+// layout is computed, so inspectExpr panics if it sees one.
 func (cfg *ABIConfig) inspectExpr(expr ast.Expr, types map[string]BindingType, seen map[string]bool) typeInfo {
-	ptrSize := cfg.PtrSize
 	if isHostLayoutExpr(expr) {
 		return typeInfo{align: 1, fieldsOK: true}
 	}
@@ -261,9 +260,7 @@ func (cfg *ABIConfig) inspectExpr(expr ast.Expr, types map[string]BindingType, s
 		return d
 	case *ast.ArrayType:
 		if e.Len == nil {
-			// A nil Len represents a Go slice ([]T), whose runtime layout is a
-			// 3-word slice header (Data, Len, Cap).
-			return typeInfo{size: ptrSize * 3, align: ptrSize, hasPointers: true}
+			panic("Go slice type in ABI type")
 		}
 		// Binding parsing evaluates constant array lengths (such as named constants)
 		// to integer literals before calling inspectType.
