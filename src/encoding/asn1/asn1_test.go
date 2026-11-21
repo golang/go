@@ -267,6 +267,10 @@ type timeTest struct {
 }
 
 var utcTestData = []timeTest{
+	{"360329021729+0000", true, time.Date(2036, 3, 29, 2, 17, 29, 0, time.UTC)},
+	{"3603290217+0000", true, time.Date(2036, 3, 29, 2, 17, 0, 0, time.UTC)},
+	{"500101000000+0000", true, time.Date(1950, 1, 1, 0, 0, 0, 0, time.UTC)},
+	{"491231235959+0000", true, time.Date(2049, 12, 31, 23, 59, 59, 0, time.UTC)},
 	{"910506164540-0700", true, time.Date(1991, 05, 06, 16, 45, 40, 0, time.FixedZone("", -7*60*60))},
 	{"910506164540+0730", true, time.Date(1991, 05, 06, 16, 45, 40, 0, time.FixedZone("", 7*60*60+30*60))},
 	{"910506234540Z", true, time.Date(1991, 05, 06, 23, 45, 40, 0, time.UTC)},
