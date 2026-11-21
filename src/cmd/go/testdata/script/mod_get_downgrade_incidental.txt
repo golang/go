@@ -1,0 +1,92 @@
+# Removing or downgrading x requires upgrading a. The old x requires a
+# higher b too, but once a is upgraded, nothing needs that version of b.
+cp go.mod go.mod.orig
+go get example.com/x@none
+go list -m -f '{{.Path}} {{.Version}}' all
+stdout '^example.com/a v1.1.0$'
+stdout '^example.com/b v1.0.0$'
+! stdout '^example.com/x '
+
+cp go.mod.orig go.mod
+go get example.com/x@v0.9.0
+go list -m -f '{{.Path}} {{.Version}}' all
+stdout '^example.com/a v1.1.0$'
+stdout '^example.com/b v1.0.0$'
+stdout '^example.com/x v0.9.0$'
+
+# If the new a still requires the higher b, retain that upgrade.
+cp go.mod.orig go.mod
+cp a1/go.mod.with-b a1/go.mod
+go get example.com/x@none
+go list -m -f '{{.Path}} {{.Version}}' all
+stdout '^example.com/a v1.1.0$'
+stdout '^example.com/b v1.5.0$'
+! stdout '^example.com/x '
+
+-- go.mod --
+module example.com/app
+
+go 1.23
+
+require (
+	example.com/a v1.0.0
+	example.com/b v1.0.0
+)
+
+replace (
+	example.com/a v1.0.0 => ./a0
+	example.com/a v1.1.0 => ./a1
+	example.com/b => ./b
+	example.com/x v0.9.0 => ./x0
+	example.com/x v1.0.0 => ./x1
+)
+-- app.go --
+package app
+
+import (
+	_ "example.com/a"
+	_ "example.com/b"
+)
+-- a0/go.mod --
+module example.com/a
+
+go 1.23
+
+require example.com/x v1.0.0
+-- a0/a.go --
+package a
+-- a1/go.mod --
+module example.com/a
+
+go 1.23
+-- a1/go.mod.with-b --
+module example.com/a
+
+go 1.23
+
+require example.com/b v1.5.0
+-- a1/a.go --
+package a
+-- b/go.mod --
+module example.com/b
+
+go 1.23
+-- b/b.go --
+package b
+-- x0/go.mod --
+module example.com/x
+
+go 1.23
+-- x0/x.go --
+package x
+-- x1/go.mod --
+module example.com/x
+
+go 1.23
+
+require (
+	example.com/a v1.1.0
+	example.com/b v1.5.0
+)
+-- x1/x.go --
+package x
