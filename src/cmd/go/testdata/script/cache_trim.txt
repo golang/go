@@ -1,4 +1,4 @@
-# Test GOCACHE size tracking and 'go clean -cache' under GOEXPERIMENT=trimbuildcache.
+# Test GOCACHE size tracking, cache.log, and 'go clean -cache' under GOEXPERIMENT=trimbuildcache.
 [!compiler:gc] skip 'requires the gc toolchain'
 [GODEBUG:gocacheverify=1] skip 'gocacheverify skips cache reads, so builds are never warm'
 [GOOS:js] skip 'file locking not supported on js'
@@ -7,35 +7,47 @@ env ORIG_GOEXPERIMENT=$GOEXPERIMENT
 env GOEXPERIMENT=$ORIG_GOEXPERIMENT,trimbuildcache
 env GOCACHE=$WORK/cache
 
-# Cold build records size.txt. Warm build and 'clean -cache -n' leave it unchanged.
+# Cold build records size.txt and cache.log. Warm build and 'clean -cache -n' leave them unchanged.
 go build -o $WORK/p.a p.go
 exists $GOCACHE/trim.txt
 grep -count=1 '^estimated [1-9][0-9]*$' $GOCACHE/size.txt
+grep -count=1 ' trim: 24h trigger: .* removed [0-9]+ of [0-9]+ files' $GOCACHE/cache.log
 cp $GOCACHE/size.txt $WORK/size.txt
+cp $GOCACHE/cache.log $WORK/log.txt
 go build -o $WORK/p.a p.go
 cmp $GOCACHE/size.txt $WORK/size.txt
+cmp $GOCACHE/cache.log $WORK/log.txt
 go clean -cache -n
 exists $GOCACHE/00
 cmp $GOCACHE/size.txt $WORK/size.txt
+cmp $GOCACHE/cache.log $WORK/log.txt
 
-# 'go clean -cache' clears entries, zeroes size.txt, and truncates trim.txt.
-# A nonexistent cache directory is left untouched.
+# 'go clean -cache' clears entries, zeroes size.txt, truncates trim.txt,
+# appends clean -cache, and keeps rotated logs. A nonexistent directory is untouched.
+cp $WORK/log.txt $GOCACHE/cache.1.log
+cp $WORK/log.txt $GOCACHE/cache.2.log
 go clean -cache
 ! exists $GOCACHE/00
 grep -count=1 '^estimated 0$' $GOCACHE/size.txt
 ! grep . $GOCACHE/trim.txt
+grep -count=2 '^.' $GOCACHE/cache.log
+grep -count=1 ' clean -cache$' $GOCACHE/cache.log
+cmp $GOCACHE/cache.1.log $WORK/log.txt
+cmp $GOCACHE/cache.2.log $WORK/log.txt
 env GOCACHE=$WORK/nonexistent
 go clean -cache
 ! exists $WORK/nonexistent
 
-# With notrimbuildcache, size.txt is not created and clean leaves trim.txt alone.
+# With notrimbuildcache, size.txt and cache.log are not created and clean leaves trim.txt alone.
 env GOEXPERIMENT=$ORIG_GOEXPERIMENT,notrimbuildcache
 env GOCACHE=$WORK/cache_noexp
 go build -o $WORK/p2.a p.go
 exists $GOCACHE/trim.txt
 ! exists $GOCACHE/size.txt
+! exists $GOCACHE/cache.log
 cp $GOCACHE/trim.txt $WORK/trim.txt
 go clean -cache
 cmp $GOCACHE/trim.txt $WORK/trim.txt
+! exists $GOCACHE/cache.log
 -- p.go --
 package p

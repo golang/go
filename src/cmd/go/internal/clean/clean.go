@@ -164,8 +164,9 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 		if dir != "off" {
 			// Remove the cache subdirectories but not the top cache directory.
 			// The top cache directory may have been created with special permissions
-			// and not something that we want to remove. Also, we'd like to preserve
-			// the access log for future analysis, even if the cache is cleared.
+			// and not something that we want to remove. Also, preserve trim.txt and
+			// size.txt (reset by cache.CleanCache below) as well as cache.log,
+			// cache.1.log, and cache.2.log, which record trim history across cleans.
 			subdirs, _ := filepath.Glob(filepath.Join(str.QuoteGlob(dir), "[0-9a-f][0-9a-f]"))
 			printedErrors := false
 			if len(subdirs) > 0 {

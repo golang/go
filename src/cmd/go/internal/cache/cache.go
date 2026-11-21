@@ -373,6 +373,8 @@ const (
 //
 // Each trim scan replaces the estimate with the measured size of the entries it kept,
 // plus any bytes other go commands added during the scan.
+//
+// Completed trim scans and 'go clean -cache' also append a line to cache.log (see log.go).
 const (
 	defaultSizeSample int64 = 64 << 20 // 64 MiB
 	maxSizeBound      int64 = 1 << 60  // cap size arithmetic well clear of overflow
@@ -413,14 +415,15 @@ func (c *DiskCache) flush() {
 }
 
 // CleanCache resets trim metadata after 'go clean -cache' removes the cache entries in dir.
-// It truncates trim.txt (so an ongoing trim in another process won't overwrite the reset)
-// and zeroes an existing size.txt in place, creating nothing in an empty or nonexistent cache.
+// It truncates trim.txt (so an ongoing trim in another process won't overwrite the reset),
+// zeroes an existing size.txt in place, and logs the clean in cache.log.
+// It creates nothing in an empty or nonexistent cache.
 func CleanCache(dir string) {
 	exists := func(name string) bool {
 		_, err := os.Stat(filepath.Join(dir, name))
 		return err == nil
 	}
-	if !exists("size.txt") && !exists("trim.txt") {
+	if !exists("size.txt") && !exists("trim.txt") && !exists("cache.log") {
 		return
 	}
 	_ = withTrimLockDir(dir, func(trimFile *lockedfile.File) {
@@ -428,6 +431,7 @@ func CleanCache(dir string) {
 		if _, sizeExists, ok := readSize(dir); sizeExists && ok {
 			writeSizeLocked(dir, cacheSizeState{})
 		}
+		appendLogLocked(dir, time.Now(), "clean -cache")
 	})
 }
 
@@ -448,7 +452,7 @@ func (c *DiskCache) withTrimLock(fn func(trimFile *lockedfile.File)) error {
 }
 
 // withTrimLockDir calls fn while holding an exclusive lock on dir/trim.txt,
-// which serializes all reads and writes of trim.txt and size.txt.
+// which serializes all reads and writes of trim.txt, size.txt, and cache.log.
 // Within fn, trim.txt must be accessed only through trimFile: opening and closing
 // it separately can drop a POSIX fcntl lock (which is per process, not per fd),
 // and locking it again would deadlock.
@@ -597,14 +601,15 @@ func (c *DiskCache) Trim() error {
 }
 
 // trim implements Trim for GOEXPERIMENT=trimbuildcache, flushing sampled bytes to
-// size.txt and running a trim scan when due.
+// size.txt and, when a trim is due, scanning the cache and logging the result.
 func (c *DiskCache) trim() error {
 	if !c.trimBuildCache {
 		return c.trimLegacy()
 	}
-	// Strip the monotonic clock so comparisons with trim.txt and file mtimes
-	// reflect wall clock changes.
-	now := c.now().Round(0)
+	// Strip the monotonic clock for wall clock comparisons with trim.txt and file
+	// mtimes, keeping it in start only to measure scan duration.
+	start := c.now()
+	now := start.Round(0)
 
 	// If there are no sampled bytes to add to size.txt, check whether a trim
 	// is due under a shared lock, avoiding an exclusive lock in the common case.
@@ -652,15 +657,17 @@ func (c *DiskCache) trim() error {
 	// We subtract an additional mtimeInterval
 	// to account for the imprecision of our "last used" mtimes.
 	cutoff := now.Add(-trimLimit - mtimeInterval)
-	var keptBytes int64
+	var stats trimStats
 	for i := range 256 {
 		if isInterrupted() {
 			return nil
 		}
 		subdir := filepath.Join(c.dir, fmt.Sprintf("%02x", i))
-		keptBytes += c.trimSubdir(subdir, cutoff)
+		c.trimSubdir(subdir, cutoff, &stats)
 	}
-	end := c.now().Round(0)
+	end := c.now()
+	elapsed := end.Sub(start)
+	end = end.Round(0)
 
 	return c.withTrimLock(func(trimFile *lockedfile.File) {
 		// If trim.txt changed during the scan (e.g., from 'go clean -cache' or
@@ -676,11 +683,20 @@ func (c *DiskCache) trim() error {
 				if before.hasEstimated && st.hasEstimated {
 					concAdded = max(0, st.estimated-before.estimated)
 				}
-				st.estimated = min(keptBytes+concAdded, maxSizeBound)
+				st.estimated = min(stats.keptBytes+concAdded, maxSizeBound)
 				writeSizeLocked(c.dir, st)
 			}
 		}
 		_, _ = writeTrimTimestamp(trimFile, end.Unix())
+		actual := stats.keptBytes + stats.removedBytes
+		var estNote string
+		if before.hasEstimated {
+			estNote = formatEstimateDelta(before.estimated, actual)
+		}
+		appendLogLocked(c.dir, end, "trim: 24h trigger: %s -> %s in %s, removed %d of %d files%s",
+			formatBytes(actual), formatBytes(stats.keptBytes),
+			elapsed.Round(time.Millisecond), stats.removedFiles, stats.keptFiles+stats.removedFiles,
+			estNote)
 	})
 }
 
@@ -730,15 +746,20 @@ func (c *DiskCache) trimLegacy() error {
 	cutoff := now.Add(-trimLimit - mtimeInterval)
 	for i := 0; i < 256; i++ {
 		subdir := filepath.Join(c.dir, fmt.Sprintf("%02x", i))
-		c.trimSubdir(subdir, cutoff)
+		c.trimSubdir(subdir, cutoff, nil)
 	}
 
 	return nil
 }
 
-// trimSubdir trims a single cache subdirectory.
-// When c.trimBuildCache is set, it returns the logical size of kept entries.
-func (c *DiskCache) trimSubdir(subdir string, cutoff time.Time) (keptBytes int64) {
+// trimStats tracks the counts and logical byte sizes of entries seen by a trim scan.
+type trimStats struct {
+	keptFiles, keptBytes       int64
+	removedFiles, removedBytes int64
+}
+
+// trimSubdir trims a single cache subdirectory, accumulating counts into stats if non-nil.
+func (c *DiskCache) trimSubdir(subdir string, cutoff time.Time, stats *trimStats) {
 	// Read all directory entries from subdir before removing
 	// any files, in case removing files invalidates the file offset
 	// in the directory scan. Also, ignore error from f.Readdirnames,
@@ -746,7 +767,7 @@ func (c *DiskCache) trimSubdir(subdir string, cutoff time.Time) (keptBytes int64
 	// want to process any entries found before the error.
 	f, err := os.Open(subdir)
 	if err != nil {
-		return 0
+		return
 	}
 	names, _ := f.Readdirnames(-1)
 	f.Close()
@@ -761,6 +782,13 @@ func (c *DiskCache) trimSubdir(subdir string, cutoff time.Time) (keptBytes int64
 		if err != nil {
 			continue
 		}
+		var size int64
+		if stats != nil {
+			size = info.Size()
+			if info.IsDir() {
+				size = dirFilesSize(entry)
+			}
+		}
 		if info.ModTime().Before(cutoff) {
 			if info.IsDir() { // executable cache entry
 				err = os.RemoveAll(entry)
@@ -768,19 +796,18 @@ func (c *DiskCache) trimSubdir(subdir string, cutoff time.Time) (keptBytes int64
 				err = os.Remove(entry)
 			}
 			if err == nil || errors.Is(err, fs.ErrNotExist) {
+				if stats != nil {
+					stats.removedFiles++
+					stats.removedBytes += size
+				}
 				continue
 			}
 		}
-		if !c.trimBuildCache {
-			continue
-		}
-		if info.IsDir() {
-			keptBytes += dirFilesSize(entry)
-		} else {
-			keptBytes += info.Size()
+		if stats != nil {
+			stats.keptFiles++
+			stats.keptBytes += size
 		}
 	}
-	return keptBytes
 }
 
 // dirFilesSize returns the size of regular files directly in dir (for cached executables).

@@ -13,6 +13,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -536,7 +537,7 @@ func TestCleanCache(t *testing.T) {
 
 	empty := t.TempDir()
 	CleanCache(empty)
-	wantNoFiles(t, empty, "size.txt", "trim.txt")
+	wantNoFiles(t, empty, "size.txt", "trim.txt", "cache.log")
 
 	dir := t.TempDir()
 	writeFile(t, dir, "size.txt", "estimated 9876543210\nfuture 1\n")
@@ -570,6 +571,9 @@ func TestCacheTrimDuringScan(t *testing.T) {
 	})
 	wantFile(t, dir, "size.txt", "estimated 1500\n")
 	wantFile(t, dir, "trim.txt", fmt.Sprint(c.clock.Unix()))
+	if log, err := os.ReadFile(filepath.Join(dir, "cache.log")); err != nil || !strings.Contains(string(log), " in 2s, ") {
+		t.Errorf("cache.log = %q, %v; want elapsed 2s", log, err)
+	}
 
 	// (b) CleanCache during a scan discards stale scan results.
 	dir2 := t.TempDir()
@@ -579,6 +583,9 @@ func TestCacheTrimDuringScan(t *testing.T) {
 	c2.trimMidScan(func() { CleanCache(dir2) })
 	wantFile(t, dir2, "size.txt", "estimated 0\n")
 	wantFile(t, dir2, "trim.txt", "")
+	if log, err := os.ReadFile(filepath.Join(dir2, "cache.log")); err != nil || strings.Contains(string(log), " trim:") {
+		t.Errorf("cache.log = %q, %v; want no trim line", log, err)
+	}
 }
 
 func TestDefaultCacheAtExit(t *testing.T) {
@@ -600,4 +607,124 @@ func TestDefaultCacheAtExit(t *testing.T) {
 		t.Fatalf("subprocess: %v\n%s", err, out)
 	}
 	wantFile(t, dir, "size.txt", "estimated 1100\n")
+}
+
+const logTimeFormat = "2006/01/02 15:04:05"
+
+func TestCacheLog(t *testing.T) {
+	skipIfLockUnsupported(t)
+	t.Parallel()
+
+	dir := t.TempDir()
+	c := newTestCache(t, dir, 1<<40, 0)
+	c.put(1, 1<<20) // 1 MiB expired so before (0.001 GiB) != after (0.000 GiB)
+	c.clock = c.start.Add(6 * 24 * time.Hour)
+	c.put(2, 500)
+	c.must(c.Trim())
+	want := c.clock.Format(logTimeFormat) + " trim: 24h trigger: 0.001 GiB -> 0.000 GiB in 0s, removed 2 of 4 files\n"
+	wantFile(t, dir, "cache.log", want)
+
+	// Routine sampled flushes and non-due trims are not logged.
+	c.sampleAcc.Store(c.sizeSample)
+	c.flush()
+	c.must(c.Trim())
+	wantFile(t, dir, "cache.log", want)
+
+	// CleanCache preserves rotated logs and appends a clean line.
+	writeFile(t, dir, "cache.1.log", "one\n")
+	CleanCache(dir)
+	wantFile(t, dir, "cache.1.log", "one\n")
+	if log, err := os.ReadFile(filepath.Join(dir, "cache.log")); err != nil || !strings.HasSuffix(string(log), " clean -cache\n") {
+		t.Errorf("cache.log = %q, %v; want clean -cache", log, err)
+	}
+
+	// A trim scan whose prior estimate drifted by >10% and >1 GiB logs the delta.
+	const GiB int64 = 1 << 30
+	driftDir := t.TempDir()
+	dc := newTestCache(t, driftDir, 1<<40, 0)
+	dc.put(1, 500)
+	writeFile(t, driftDir, "size.txt", fmt.Sprintf("estimated %d\n", 2*GiB))
+	dc.must(dc.Trim())
+	if log, err := os.ReadFile(filepath.Join(driftDir, "cache.log")); err != nil ||
+		!strings.Contains(string(log), " (prior estimate=2.000 GiB actual=0.000 GiB delta=") {
+		t.Errorf("drifted trim cache.log = %q, %v; want prior estimate delta", log, err)
+	}
+
+	// Lines up to 2048 bytes are written intact, while longer lines are truncated.
+	truncDir := t.TempDir()
+	exactMsg := strings.Repeat("x", 2048-len(logTimeFormat)-2)
+	appendLogLocked(truncDir, c.clock, "%s", exactMsg)
+	wantExact := c.clock.Format(logTimeFormat) + " " + exactMsg + "\n"
+	if len(wantExact) != 2048 {
+		t.Fatalf("len(wantExact) = %d, want 2048", len(wantExact))
+	}
+	wantFile(t, truncDir, "cache.log", wantExact)
+
+	appendLogLocked(truncDir, c.clock, "%s", exactMsg+"y")
+	wantTrunc := (c.clock.Format(logTimeFormat) + " " + exactMsg + "y\n")[:2048] + " [truncated]\n"
+	wantFile(t, truncDir, "cache.log", wantExact+wantTrunc)
+
+	for _, tc := range []struct {
+		est, actual int64
+		want        string
+	}{
+		{22 * GiB, 20 * GiB, ""},
+		{22*GiB + 1, 20 * GiB, " (prior estimate=22.000 GiB actual=20.000 GiB delta=+10.0%)"},
+		{1 * GiB, 0, ""},
+		{1*GiB + 1, 0, " (prior estimate=1.000 GiB actual=0.000 GiB)"},
+		{8 * GiB, 10 * GiB, " (prior estimate=8.000 GiB actual=10.000 GiB delta=-20.0%)"},
+	} {
+		if got := formatEstimateDelta(tc.est, tc.actual); got != tc.want {
+			t.Errorf("formatEstimateDelta(%d, %d) = %q, want %q", tc.est, tc.actual, got, tc.want)
+		}
+	}
+}
+
+func TestCacheLogRotation(t *testing.T) {
+	t.Parallel()
+
+	const roll = 128 << 10
+	now := time.Date(2026, 1, 2, 15, 4, 5, 0, time.Local)
+	line := func(msg string) string { return now.Format(logTimeFormat) + " " + msg + "\n" }
+
+	dir := t.TempDir()
+	pre := strings.Repeat("a", roll-1)
+	full := strings.Repeat("b", roll)
+
+	// Below logRollSize does not roll, and reaching it rolls cache.log to cache.1.log.
+	writeFile(t, dir, "cache.log", pre)
+	appendLogLocked(dir, now, "first")
+	wantNoFiles(t, dir, "cache.1.log")
+	appendLogLocked(dir, now, "second")
+	wantFile(t, dir, "cache.1.log", pre+line("first"))
+
+	// A subsequent roll shifts cache.1.log to cache.2.log.
+	writeFile(t, dir, "cache.log", full)
+	appendLogLocked(dir, now, "third")
+	wantFile(t, dir, "cache.2.log", pre+line("first"))
+
+	// A missing cache.1.log heals the gap without clobbering cache.2.log.
+	// On Plan 9, rename removes dst even if src does not exist.
+	if runtime.GOOS != "plan9" {
+		if err := os.Remove(filepath.Join(dir, "cache.1.log")); err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, dir, "cache.log", full)
+		appendLogLocked(dir, now, "fourth")
+		wantFile(t, dir, "cache.2.log", pre+line("first"))
+		wantFile(t, dir, "cache.1.log", full)
+	}
+
+	// Repeated rotation failures allow writes up to 2*logRollSize, then halt logging.
+	stuck := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(stuck, "cache.2.log", "x"), 0o777); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, stuck, "cache.1.log", "old\n")
+	nearCap := strings.Repeat("x", 2*roll-10)
+	writeFile(t, stuck, "cache.log", nearCap)
+	appendLogLocked(stuck, now, "allowed")
+	appendLogLocked(stuck, now, "halted")
+	wantFile(t, stuck, "cache.log", nearCap+line("allowed"))
+	wantFile(t, stuck, "cache.1.log", "old\n")
 }
