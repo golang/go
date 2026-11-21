@@ -13,6 +13,23 @@ import (
 	"testing"
 )
 
+// testdataGOEXPERIMENT returns the GOEXPERIMENT setting for the go commands
+// that build testdata. If GOEXPERIMENT already enables simd or simdstable, it
+// returns GOEXPERIMENT unchanged, so that testdata is built with the same
+// experiments as this test, and otherwise it adds simdstable.
+func testdataGOEXPERIMENT() string {
+	goexp := os.Getenv("GOEXPERIMENT")
+	for _, exp := range strings.Split(goexp, ",") {
+		if exp == "simd" || exp == "simdstable" {
+			return goexp
+		}
+	}
+	if goexp != "" {
+		goexp += ","
+	}
+	return goexp + "simdstable"
+}
+
 func common(t *testing.T, dir, what, failWith string, moreEnv ...string) {
 	t.Helper()
 	t.Logf("subprocess test in testdata")
@@ -24,14 +41,7 @@ func common(t *testing.T, dir, what, failWith string, moreEnv ...string) {
 	args = append(args, what)
 	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
 
-	goexp := os.Getenv("GOEXPERIMENT")
-	if !strings.Contains(","+goexp+",", ",simd,") {
-		if goexp != "" {
-			goexp += ","
-		}
-		goexp += "simd"
-	}
-	cmd.Env = append(cmd.Environ(), "GOEXPERIMENT="+goexp)
+	cmd.Env = append(cmd.Environ(), "GOEXPERIMENT="+testdataGOEXPERIMENT())
 	cmd.Env = append(cmd.Env, moreEnv...)
 
 	if failWith == "" {
@@ -65,14 +75,7 @@ func run(t *testing.T, dir, what, failWith string, moreEnv ...string) {
 	args = append(args, what)
 	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
 
-	goexp := os.Getenv("GOEXPERIMENT")
-	if !strings.Contains(","+goexp+",", ",simd,") {
-		if goexp != "" {
-			goexp += ","
-		}
-		goexp += "simd"
-	}
-	cmd.Env = append(cmd.Environ(), "GOEXPERIMENT="+goexp)
+	cmd.Env = append(cmd.Environ(), "GOEXPERIMENT="+testdataGOEXPERIMENT())
 	cmd.Env = append(cmd.Env, moreEnv...)
 
 	if failWith == "" {
