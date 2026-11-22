@@ -754,15 +754,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssaop.OpS390XLoweredMove:
 		// Inputs must be valid pointers to memory,
 		// so adjust arg0 and arg1 as part of the expansion.
-		// arg2 should be src+size,
+		// arg2 is the address of the last 256-byte block to move.
 		//
 		// mvc: MVC  $256, 0(R2), 0(R1)
 		//      MOVD $256(R1), R1
 		//      MOVD $256(R2), R2
-		//      CMP  R2, Rarg2
-		//      BNE  mvc
+		//      CMPU R2, Rarg2
+		//      BLE  mvc
 		//      MVC  $rem, 0(R2), 0(R1) // if rem > 0
-		// arg2 is the last address to move in the loop + 256
 		mvc := s.Prog(s390x.AMVC)
 		mvc.From.Type = obj.TYPE_CONST
 		mvc.From.Offset = 256
@@ -785,9 +784,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		cmpu.To.Reg = v.Args[2].Reg()
 		cmpu.To.Type = obj.TYPE_REG
 
-		bne := s.Prog(s390x.ABLT)
-		bne.To.Type = obj.TYPE_BRANCH
-		bne.To.SetTarget(mvc)
+		ble := s.Prog(s390x.ABLE)
+		ble.To.Type = obj.TYPE_BRANCH
+		ble.To.SetTarget(mvc)
 
 		if v.AuxInt > 0 {
 			mvc := s.Prog(s390x.AMVC)
@@ -800,14 +799,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssaop.OpS390XLoweredZero:
 		// Input must be valid pointers to memory,
 		// so adjust arg0 as part of the expansion.
-		// arg1 should be src+size,
+		// arg1 is the address of the last 256-byte block to zero.
 		//
 		// clear: CLEAR $256, 0(R1)
 		//        MOVD  $256(R1), R1
-		//        CMP   R1, Rarg1
-		//        BNE   clear
+		//        CMPU  R1, Rarg1
+		//        BLE   clear
 		//        CLEAR $rem, 0(R1) // if rem > 0
-		// arg1 is the last address to zero in the loop + 256
 		clear := s.Prog(s390x.ACLEAR)
 		clear.From.Type = obj.TYPE_CONST
 		clear.From.Offset = 256
@@ -827,9 +825,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		cmpu.To.Reg = v.Args[1].Reg()
 		cmpu.To.Type = obj.TYPE_REG
 
-		bne := s.Prog(s390x.ABLT)
-		bne.To.Type = obj.TYPE_BRANCH
-		bne.To.SetTarget(clear)
+		ble := s.Prog(s390x.ABLE)
+		ble.To.Type = obj.TYPE_BRANCH
+		ble.To.SetTarget(clear)
 
 		if v.AuxInt > 0 {
 			clear := s.Prog(s390x.ACLEAR)

@@ -399,7 +399,7 @@
 
 // Move more than 1024 bytes using a loop.
 (Move [s] dst src mem) && s > 1024 && ssa.LogLargeCopyValue(v, s) =>
-	(LoweredMove [s%256] dst src (ADD <src.Type> src (MOVDconst [(s/256)*256])) mem)
+	(LoweredMove [s%256] dst src (ADD <src.Type> src (MOVDconst [(s/256-1)*256])) mem)
 
 // Lowering Zero instructions
 (Zero [0] _ mem) => mem
@@ -425,7 +425,7 @@
 
 // Zero more than 1024 bytes using a loop.
 (Zero [s] destptr mem) && s > 1024 =>
-	(LoweredZero [s%256] destptr (ADDconst <destptr.Type> destptr [(int32(s)/256)*256]) mem)
+	(LoweredZero [s%256] destptr (ADDconst <destptr.Type> destptr [(int32(s)/256-1)*256]) mem)
 
 // Lowering constants
 (Const(64|32|16|8) [val]) => (MOVDconst [int64(val)])

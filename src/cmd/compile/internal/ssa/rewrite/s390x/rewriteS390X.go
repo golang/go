@@ -3738,7 +3738,7 @@ func rewriteValue_OpMove(v *ssa.Value) bool {
 	}
 	// match: (Move [s] dst src mem)
 	// cond: s > 1024 && ssa.LogLargeCopyValue(v, s)
-	// result: (LoweredMove [s%256] dst src (ADD <src.Type> src (MOVDconst [(s/256)*256])) mem)
+	// result: (LoweredMove [s%256] dst src (ADD <src.Type> src (MOVDconst [(s/256-1)*256])) mem)
 	for {
 		s := ssa.AuxIntToInt64(v.AuxInt)
 		dst := v_0
@@ -3751,7 +3751,7 @@ func rewriteValue_OpMove(v *ssa.Value) bool {
 		v.AuxInt = ssa.Int64ToAuxInt(s % 256)
 		v0 := b.NewValue0(v.Pos, ssaop.OpS390XADD, src.Type)
 		v1 := b.NewValue0(v.Pos, ssaop.OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = ssa.Int64ToAuxInt((s / 256) * 256)
+		v1.AuxInt = ssa.Int64ToAuxInt((s/256 - 1) * 256)
 		v0.AddArg2(src, v1)
 		v.AddArg4(dst, src, v0, mem)
 		return true
@@ -14923,7 +14923,7 @@ func rewriteValue_OpZero(v *ssa.Value) bool {
 	}
 	// match: (Zero [s] destptr mem)
 	// cond: s > 1024
-	// result: (LoweredZero [s%256] destptr (ADDconst <destptr.Type> destptr [(int32(s)/256)*256]) mem)
+	// result: (LoweredZero [s%256] destptr (ADDconst <destptr.Type> destptr [(int32(s)/256-1)*256]) mem)
 	for {
 		s := ssa.AuxIntToInt64(v.AuxInt)
 		destptr := v_0
@@ -14934,7 +14934,7 @@ func rewriteValue_OpZero(v *ssa.Value) bool {
 		v.Reset(ssaop.OpS390XLoweredZero)
 		v.AuxInt = ssa.Int64ToAuxInt(s % 256)
 		v0 := b.NewValue0(v.Pos, ssaop.OpS390XADDconst, destptr.Type)
-		v0.AuxInt = ssa.Int32ToAuxInt((int32(s) / 256) * 256)
+		v0.AuxInt = ssa.Int32ToAuxInt((int32(s)/256 - 1) * 256)
 		v0.AddArg(destptr)
 		v.AddArg3(destptr, v0, mem)
 		return true

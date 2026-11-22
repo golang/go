@@ -734,15 +734,18 @@ func init() {
 		// auxint = remaining bytes after loop (rem)
 		// arg0 = address of dst memory (in R1, changed as a side effect)
 		// arg1 = address of src memory (in R2, changed as a side effect)
-		// arg2 = pointer to last address to move in loop + 256
+		// arg2 = address of the last 256-byte block to move in the loop
 		// arg3 = mem
 		// returns mem
+		//
+		// arg2 is a pointer the GC may see, so it must not point past
+		// the end of src. See issue 83097.
 		//
 		// mvc: MVC  $256, 0(R2), 0(R1)
 		//      MOVD $256(R1), R1
 		//      MOVD $256(R2), R2
-		//      CMP  R2, Rarg2
-		//      BNE  mvc
+		//      CMPU R2, Rarg2
+		//      BLE  mvc
 		//	MVC  $rem, 0(R2), 0(R1) // if rem > 0
 		{
 			name:      "LoweredMove",
@@ -764,14 +767,16 @@ func init() {
 		// large clear
 		// auxint = remaining bytes after loop (rem)
 		// arg0 = address of dst memory (in R1, changed as a side effect)
-		// arg1 = pointer to last address to zero in loop + 256
+		// arg1 = address of the last 256-byte block to zero in the loop
 		// arg2 = mem
 		// returns mem
 		//
+		// As for LoweredMove, arg1 must not point past the end of dst.
+		//
 		// clear: CLEAR $256, 0(R1)
 		//        MOVD  $256(R1), R1
-		//        CMP   R1, Rarg2
-		//        BNE   clear
+		//        CMPU  R1, Rarg1
+		//        BLE   clear
 		//	  CLEAR $rem, 0(R1) // if rem > 0
 		{
 			name:      "LoweredZero",
