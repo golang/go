@@ -114,6 +114,14 @@ func requiredCPUFeature(doc string) string {
 
 var files gentools.Files
 
+// amd64Features maps each vector size to the CPU features that the simd
+// package requires to use vectors of that size on amd64.
+var amd64Features = map[int][]string{
+	128: {"AVX", "FMA"},
+	256: {"AVX", "AVX2", "FMA"},
+	512: {"AVX", "AVX2", "AVX512", "FMA"},
+}
+
 func main() {
 	minorProblem := false
 
@@ -327,19 +335,15 @@ func main() {
 
 					// Skip methods that require a CPU feature beyond
 					// what the simd package requires to use vectors
-					// of this size.
+					// of this size (see archMaxVectorSize in
+					// simd/midway_amd64.go). The simd package can run
+					// on any CPU with vectors of that size, so it can't
+					// use a method that needs a further feature unless
+					// archsimd emulates it where the feature is missing.
 					feature := requiredCPUFeature(funcDecl.Doc.Text())
-					if sizeForType[recvType] == 128 {
-						if strings.Contains(feature, "AVX512") || strings.Contains(feature, "AVX2") {
-							pv("Skipping 128-bit %s.%s because AVX2/AVX512\n", recvType, methodName)
-							continue
-						}
-					}
-					if sizeForType[recvType] == 256 {
-						if strings.Contains(feature, "AVX512") {
-							pv("Skipping 256-bit %s.%s because AVX512\n", recvType, methodName)
-							continue
-						}
+					if aaf.arch == "amd64" && feature != "" && !slices.Contains(amd64Features[sizeForType[recvType]], feature) {
+						pv("Skipping %d-bit %s.%s because it requires %s\n", sizeForType[recvType], recvType, methodName, feature)
+						continue
 					}
 
 					eltType := recvType[:strings.Index(recvType, "x")]
