@@ -7,6 +7,7 @@
 package simd_test
 
 import (
+	"internal/cpu"
 	"math"
 	"simd/archsimd"
 	"testing"
@@ -417,23 +418,52 @@ func TestNarrowEdges(t *testing.T) {
 	}
 }
 
-func TestOnesCountAMD64(t *testing.T) {
-	if archsimd.X86.AVX2() {
-		testInt8x32Unary(t, archsimd.Int8x32.OnesCount, map1[int8](onesCount))
+// TestOnesCount8AMD64 tests OnesCount on 8-bit elements, which archsimd
+// emulates on CPUs without AVX512BITALG, both with and without it.
+func TestOnesCount8AMD64(t *testing.T) {
+	for _, bitalg := range []bool{true, false} {
+		name := "BITALG"
+		if !bitalg {
+			name = "NoBITALG"
+		}
+		t.Run(name, func(t *testing.T) {
+			if bitalg {
+				if !archsimd.X86.AVX512BITALG() {
+					t.Skip("CPU does not support AVX512BITALG")
+				}
+			} else {
+				old := cpu.X86
+				t.Cleanup(func() { cpu.X86 = old })
+				cpu.X86.HasAVX512BITALG = false
+			}
+			// 128-bit
+			testInt8x16Unary(t, archsimd.Int8x16.OnesCount, map1[int8](onesCount))
+			testUint8x16Unary(t, archsimd.Uint8x16.OnesCount, map1[uint8](onesCount))
+			// 256-bit
+			if archsimd.X86.AVX2() {
+				testInt8x32Unary(t, archsimd.Int8x32.OnesCount, map1[int8](onesCount))
+				testUint8x32Unary(t, archsimd.Uint8x32.OnesCount, map1[uint8](onesCount))
+			}
+			// 512-bit
+			if archsimd.X86.AVX512() {
+				testInt8x64Unary(t, archsimd.Int8x64.OnesCount, map1[int8](onesCount))
+				testUint8x64Unary(t, archsimd.Uint8x64.OnesCount, map1[uint8](onesCount))
+			}
+		})
 	}
+}
+
+func TestOnesCountAMD64(t *testing.T) {
 	if archsimd.X86.AVX512BITALG() {
 		// 128-bit
 		testInt16x8Unary(t, archsimd.Int16x8.OnesCount, map1[int16](onesCount))
 		testUint16x8Unary(t, archsimd.Uint16x8.OnesCount, map1[uint16](onesCount))
 
 		// 256-bit
-		testUint8x32Unary(t, archsimd.Uint8x32.OnesCount, map1[uint8](onesCount))
 		testInt16x16Unary(t, archsimd.Int16x16.OnesCount, map1[int16](onesCount))
 		testUint16x16Unary(t, archsimd.Uint16x16.OnesCount, map1[uint16](onesCount))
 
 		// 512-bit
-		testInt8x64Unary(t, archsimd.Int8x64.OnesCount, map1[int8](onesCount))
-		testUint8x64Unary(t, archsimd.Uint8x64.OnesCount, map1[uint8](onesCount))
 		testInt16x32Unary(t, archsimd.Int16x32.OnesCount, map1[int16](onesCount))
 		testUint16x32Unary(t, archsimd.Uint16x32.OnesCount, map1[uint16](onesCount))
 	}

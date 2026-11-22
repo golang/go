@@ -290,13 +290,19 @@ var popcnt4x32 = [32]int8{
 	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
 	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
 }
+var popcnt4x64 = [64]int8{
+	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
+	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
+	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
+	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
+}
 
 // OnesCount counts the number of one bits ("population count") in
 // each element.
 //
 //	z[i] = bits.OnesCount(x[i])
 //
-// Emulated, CPU Feature: AVX
+// Asm: VPOPCNTB if CPU feature AVX512BITALG, Emulated otherwise, CPU Feature: AVX
 func (x Int8x16) OnesCount() (z Int8x16) {
 	if X86.AVX512BITALG() {
 		return x.onesCount()
@@ -313,7 +319,7 @@ func (x Int8x16) OnesCount() (z Int8x16) {
 //
 //	z[i] = bits.OnesCount(x[i])
 //
-// Emulated, CPU Feature: AVX
+// Asm: VPOPCNTB if CPU feature AVX512BITALG, Emulated otherwise, CPU Feature: AVX
 func (x Uint8x16) OnesCount() (z Uint8x16) {
 	if X86.AVX512BITALG() {
 		return x.BitsToInt8().onesCount().ToBits()
@@ -330,7 +336,7 @@ func (x Uint8x16) OnesCount() (z Uint8x16) {
 //
 //	z[i] = bits.OnesCount(x[i])
 //
-// Emulated, CPU Feature: AVX2
+// Asm: VPOPCNTB if CPU feature AVX512BITALG, Emulated otherwise, CPU Feature: AVX2
 func (x Int8x32) OnesCount() (z Int8x32) {
 	if X86.AVX512BITALG() {
 		return x.onesCount()
@@ -347,7 +353,7 @@ func (x Int8x32) OnesCount() (z Int8x32) {
 //
 //	z[i] = bits.OnesCount(x[i])
 //
-// Emulated, CPU Feature: AVX2
+// Asm: VPOPCNTB if CPU feature AVX512BITALG, Emulated otherwise, CPU Feature: AVX2
 func (x Uint8x32) OnesCount() (z Uint8x32) {
 	if X86.AVX512BITALG() {
 		return x.BitsToInt8().onesCount().ToBits()
@@ -364,9 +370,16 @@ func (x Uint8x32) OnesCount() (z Uint8x32) {
 //
 //	z[i] = bits.OnesCount(x[i])
 //
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+// Asm: VPOPCNTB if CPU feature AVX512BITALG, Emulated otherwise, CPU Feature: AVX512
 func (x Int8x64) OnesCount() (z Int8x64) {
-	return x.onesCount()
+	if X86.AVX512BITALG() {
+		return x.onesCount()
+	}
+	lut := LoadInt8x64Array(&popcnt4x64)
+	mask0f := BroadcastInt8x64(0x0f)
+	lo := x.And(mask0f)
+	hi := x.ToBits().ReshapeToUint16s().ShiftAllRight(4).ReshapeToUint8s().BitsToInt8().And(mask0f)
+	return lut.LookupModOrZeroGrouped(lo).Add(lut.LookupModOrZeroGrouped(hi))
 }
 
 // OnesCount counts the number of one bits ("population count") in
@@ -374,9 +387,16 @@ func (x Int8x64) OnesCount() (z Int8x64) {
 //
 //	z[i] = bits.OnesCount(x[i])
 //
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+// Asm: VPOPCNTB if CPU feature AVX512BITALG, Emulated otherwise, CPU Feature: AVX512
 func (x Uint8x64) OnesCount() (z Uint8x64) {
-	return x.onesCount()
+	if X86.AVX512BITALG() {
+		return x.onesCount()
+	}
+	lut := LoadInt8x64Array(&popcnt4x64).ToBits()
+	mask0f := BroadcastInt8x64(0x0f).ToBits()
+	lo := x.And(mask0f)
+	hi := x.ReshapeToUint16s().ShiftAllRight(4).ReshapeToUint8s().And(mask0f)
+	return lut.LookupModOrZeroGrouped(lo.BitsToInt8()).Add(lut.LookupModOrZeroGrouped(hi.BitsToInt8()))
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
