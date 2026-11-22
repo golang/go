@@ -6,9 +6,12 @@ package main
 
 import (
 	"internal/syscall/windows"
+	"os"
 	"runtime"
+	"runtime/trace"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -16,6 +19,7 @@ func init() {
 	register("RaiseException", RaiseException)
 	register("ZeroDivisionException", ZeroDivisionException)
 	register("StackMemory", StackMemory)
+	register("CallbackInAnotherThreadTrace", CallbackInAnotherThreadTrace)
 }
 
 func RaiseException() {
@@ -70,4 +74,33 @@ func StackMemory() {
 	// thread locked goroutine plus extra 10 threads
 	// like sysmon and others
 	print((mem2 - mem1) / (threadCount + 10))
+}
+
+// CallbackInAnotherThreadTrace calls a Go callback from a series of
+// threads created by Windows and writes an execution trace to stdout.
+// After each call it sleeps long enough for sysmon to look at the P left
+// behind by the callback. It sleeps instead of waiting for the thread in
+// a system call, so that it cannot take that P back on syscall exit.
+func CallbackInAnotherThreadTrace() {
+	if runtime.GOMAXPROCS(0) < 2 {
+		runtime.GOMAXPROCS(2)
+	}
+	createThread := syscall.MustLoadDLL("kernel32.dll").MustFindProc("CreateThread")
+	cb := syscall.NewCallback(func(p uintptr) uintptr { return p })
+	if err := trace.Start(os.Stdout); err != nil {
+		panic(err)
+	}
+	for range 20 {
+		r, _, err := createThread.Call(0, 0, cb, 0, 0, 0)
+		if r == 0 {
+			panic(err)
+		}
+		h := syscall.Handle(r)
+		time.Sleep(30 * time.Millisecond)
+		if _, err := syscall.WaitForSingleObject(h, syscall.INFINITE); err != nil {
+			panic(err)
+		}
+		syscall.CloseHandle(h)
+	}
+	trace.Stop()
 }

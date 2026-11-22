@@ -11,6 +11,7 @@ import (
 	"internal/syscall/windows"
 	"internal/syscall/windows/sysdll"
 	"internal/testenv"
+	"internal/trace"
 	"io"
 	"math"
 	"os"
@@ -283,6 +284,48 @@ func TestCallbackInAnotherThread(t *testing.T) {
 	}
 	if ec != 123 {
 		t.Fatalf("expected 123, but got %d", ec)
+	}
+}
+
+// A callback from a thread Go did not create must not inherit a
+// preemption request made while that thread was back in C.
+func TestCallbackInAnotherThreadNotPreempted(t *testing.T) {
+	out := runTestProg(t, "testprog", "CallbackInAnotherThreadTrace")
+	r, err := trace.NewReader(strings.NewReader(out))
+	if err != nil {
+		t.Fatalf("NewReader: %v", err)
+	}
+	callback := make(map[trace.GoID]bool)
+	calls, preempted := 0, 0
+	for {
+		ev, err := r.ReadEvent()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("ReadEvent: %v", err)
+		}
+		if ev.Kind() != trace.EventStateTransition {
+			continue
+		}
+		st := ev.StateTransition()
+		if st.Resource.Kind != trace.ResourceGoroutine {
+			continue
+		}
+		id := st.Resource.Goroutine()
+		switch from, to := st.Goroutine(); {
+		case from == trace.GoNotExist && to == trace.GoSyscall:
+			callback[id] = true
+			calls++
+		case callback[id] && from == trace.GoRunning && to == trace.GoRunnable && st.Reason == "preempted":
+			preempted++
+		}
+	}
+	if calls == 0 {
+		t.Fatal("no callbacks in trace")
+	}
+	if preempted > calls/2 {
+		t.Errorf("%d preemptions in %d callbacks", preempted, calls)
 	}
 }
 
