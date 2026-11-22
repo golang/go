@@ -1739,6 +1739,7 @@ func (db *DB) execDC(ctx context.Context, dc *driverConn, release func(error), q
 
 // QueryContext executes a query that returns rows, typically a SELECT.
 // The args are for any placeholder parameters in the query.
+// The caller must call [Rows.Close] when finished with the returned rows.
 func (db *DB) QueryContext(ctx context.Context, query string, args ...any) (*Rows, error) {
 	var rows *Rows
 	var err error
@@ -1756,6 +1757,7 @@ func (db *DB) QueryContext(ctx context.Context, query string, args ...any) (*Row
 //
 // Query uses [context.Background] internally; to specify the context, use
 // [DB.QueryContext].
+// The caller must call [Rows.Close] when finished with the returned rows.
 func (db *DB) Query(query string, args ...any) (*Rows, error) {
 	return db.QueryContext(context.Background(), query, args...)
 }
@@ -2041,6 +2043,7 @@ func (c *Conn) ExecContext(ctx context.Context, query string, args ...any) (Resu
 
 // QueryContext executes a query that returns rows, typically a SELECT.
 // The args are for any placeholder parameters in the query.
+// The caller must call [Rows.Close] when finished with the returned rows.
 func (c *Conn) QueryContext(ctx context.Context, query string, args ...any) (*Rows, error) {
 	dc, release, err := c.grabConn(ctx)
 	if err != nil {
@@ -2567,6 +2570,7 @@ func (tx *Tx) Exec(query string, args ...any) (Result, error) {
 }
 
 // QueryContext executes a query that returns rows, typically a SELECT.
+// The caller must call [Rows.Close] when finished with the returned rows.
 func (tx *Tx) QueryContext(ctx context.Context, query string, args ...any) (*Rows, error) {
 	dc, release, err := tx.grabConn(ctx)
 	if err != nil {
@@ -2580,6 +2584,7 @@ func (tx *Tx) QueryContext(ctx context.Context, query string, args ...any) (*Row
 //
 // Query uses [context.Background] internally; to specify the context, use
 // [Tx.QueryContext].
+// The caller must call [Rows.Close] when finished with the returned rows.
 func (tx *Tx) Query(query string, args ...any) (*Rows, error) {
 	return tx.QueryContext(context.Background(), query, args...)
 }
@@ -2823,6 +2828,7 @@ func (s *Stmt) prepareOnConnLocked(ctx context.Context, dc *driverConn) (*driver
 
 // QueryContext executes a prepared query statement with the given arguments
 // and returns the query results as a [*Rows].
+// The caller must call [Rows.Close] when finished with the returned rows.
 func (s *Stmt) QueryContext(ctx context.Context, args ...any) (*Rows, error) {
 	s.closemu.RLock()
 	defer s.closemu.RUnlock()
@@ -2875,6 +2881,7 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...any) (*Rows, error) {
 //
 // Query uses [context.Background] internally; to specify the context, use
 // [Stmt.QueryContext].
+// The caller must call [Rows.Close] when finished with the returned rows.
 func (s *Stmt) Query(args ...any) (*Rows, error) {
 	return s.QueryContext(context.Background(), args...)
 }
@@ -2967,6 +2974,11 @@ func (s *Stmt) finalClose() error {
 
 // Rows is the result of a query. Its cursor starts before the first row
 // of the result set. Use [Rows.Next] to advance from row to row.
+//
+// A Rows holds resources, such as a database connection, until it is
+// closed. Callers must call [Rows.Close] when finished, typically using
+// defer. Close is idempotent and safe to call even after [Rows.Next] has
+// returned false.
 type Rows struct {
 	dc          *driverConn // owned; must call releaseConn when closed to release
 	releaseConn func(error)
