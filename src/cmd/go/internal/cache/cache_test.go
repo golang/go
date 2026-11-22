@@ -161,6 +161,18 @@ func testCacheTrim(t *testing.T, trimBuildCache bool) {
 	const start = 1000000000
 	now := int64(start)
 	c.now = func() time.Time { return time.Unix(now, 0) }
+	writeMtime := func(sec int64) int64 {
+		if !trimBuildCache {
+			return sec
+		}
+		return time.Unix(sec, 0).Truncate(time.Minute).Unix()
+	}
+	useMtime := func(sec int64) int64 {
+		if !trimBuildCache {
+			return sec
+		}
+		return time.Unix(sec, 0).Truncate(time.Minute).Add(-30 * time.Second).Unix()
+	}
 
 	checkTime := func(name string, mtime int64) {
 		t.Helper()
@@ -178,7 +190,7 @@ func testCacheTrim(t *testing.T, trimBuildCache bool) {
 	PutBytes(c, id, []byte("abc"))
 	entry, _ := c.Get(id)
 	PutBytes(c, ActionID(dummyID(2)), []byte("def"))
-	mtime := now
+	mtime := writeMtime(now)
 	checkTime(fmt.Sprintf("%x-a", id), mtime)
 	checkTime(fmt.Sprintf("%x-d", entry.OutputID), mtime)
 
@@ -190,7 +202,7 @@ func testCacheTrim(t *testing.T, trimBuildCache bool) {
 
 	// Get should change distant mtimes.
 	now = start + 5000
-	mtime2 := now
+	mtime2 := useMtime(now)
 	if _, err := c.Get(id); err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +225,7 @@ func testCacheTrim(t *testing.T, trimBuildCache bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkTime(fmt.Sprintf("%x-a", dummyID(2)), start)
+	checkTime(fmt.Sprintf("%x-a", dummyID(2)), writeMtime(start))
 
 	// Trim less than a day later should not do any work at all.
 	now = start + 80000
@@ -238,7 +250,7 @@ func testCacheTrim(t *testing.T, trimBuildCache bool) {
 	// On the other hand almost a full day has gone by since we wrote dummyID(2)
 	// and we haven't looked at it since, so 5 days later it should be gone.
 	now += 5 * 86400
-	checkTime(fmt.Sprintf("%x-a", dummyID(2)), start)
+	checkTime(fmt.Sprintf("%x-a", dummyID(2)), writeMtime(start))
 	if err := c.Trim(); err != nil {
 		t.Fatal(err)
 	}
@@ -246,7 +258,7 @@ func testCacheTrim(t *testing.T, trimBuildCache bool) {
 		t.Fatal(err)
 	}
 	c.OutputFile(entry.OutputID)
-	mtime3 := now
+	mtime3 := useMtime(now)
 	if _, err := c.Get(dummyID(2)); err == nil { // haven't done a Get for this since original write above
 		t.Fatalf("Trim did not remove dummyID(2)")
 	}
@@ -311,6 +323,7 @@ func newTestCache(t *testing.T, dir string, stride, u int64) *testCache {
 	c := &testCache{DiskCache: d, t: t, start: time.Unix(testStart, 0), outs: map[int]OutputID{}}
 	c.clock = c.start
 	d.now = func() time.Time { return c.clock }
+	d.openTime = c.clock
 	d.trimBuildCache, d.sizeSample = true, stride
 	d.sampleAcc.Store(u)
 	return c
@@ -401,6 +414,24 @@ func wantNoFiles(t *testing.T, dir string, names ...string) {
 	}
 }
 
+func (c *testCache) use(n int) {
+	c.t.Helper()
+	e, err := c.Get(dummyID(n))
+	c.must(err)
+	c.OutputFile(e.OutputID)
+}
+
+func (c *testCache) wantMtime(want time.Time, paths ...string) {
+	c.t.Helper()
+	for _, p := range paths {
+		info, err := os.Stat(p)
+		c.must(err)
+		if !info.ModTime().Equal(want) {
+			c.t.Errorf("%s: mtime=%v, want %v", filepath.Base(p), info.ModTime(), want)
+		}
+	}
+}
+
 func TestCacheSize(t *testing.T) {
 	skipIfLockUnsupported(t)
 	t.Parallel()
@@ -415,12 +446,12 @@ func TestCacheSize(t *testing.T) {
 	wantNoFiles(t, dir, "size.txt", "trim.txt")
 
 	c.must(c.Trim())
-	wantFile(t, dir, "size.txt", "estimated 600\n")
+	wantFile(t, dir, "size.txt", "base 600\nestimated 600\n")
 	wantFile(t, dir, "trim.txt", fmt.Sprint(c.clock.Unix()))
 
 	c.put(2, 600) // 600+600=1200 -> flush 1000, carry 200
 	c.flush()
-	wantFile(t, dir, "size.txt", "estimated 1600\n")
+	wantFile(t, dir, "size.txt", "base 600\nestimated 1600\n")
 	if got := c.sampleAcc.Load(); got != 200 {
 		t.Errorf("carry = %d, want 200", got)
 	}
@@ -459,7 +490,7 @@ func TestCacheSize(t *testing.T) {
 	if _, err := os.Stat(stray); err != nil {
 		t.Errorf("stray removed: %v", err)
 	}
-	wantFile(t, dir, "size.txt", "estimated 1300\n")
+	wantFile(t, dir, "size.txt", "base 1300\nestimated 1300\n")
 
 	// Unbiased sampling across all offsets u in [0, stride), and split flushes
 	// produce the same total as a single flush.
@@ -512,13 +543,15 @@ func TestCacheSizeFile(t *testing.T) {
 
 	dir := t.TempDir()
 	c := newTestCache(t, dir, 1000, 0)
+	path := filepath.Join(dir, "size.txt")
 	for _, tc := range []struct {
 		in, want string // want "" means unchanged
 	}{
-		{in: "estimated 5000\ntorn", want: "estimated 6000\n"},
+		{in: "estimated 5000\ntorn", want: "base 0\nestimated 6000\n"},
 		{in: "estimated -42\nestimated abc\nestimated 99999999999999999999\nestimated 5000 extra\nestimated 999"},
-		{in: "estimated abc\nestimated   7000  \nestimated 9000\nfuture 1\n", want: "estimated 8000\n"},
-		{in: "estimated 9223372036854775807\n", want: fmt.Sprintf("estimated %d\n", maxSizeBound)},
+		{in: "estimated abc\nestimated   7000  \nestimated 9000\nfuture 1\n", want: "base 0\nestimated 8000\n"},
+		{in: "estimated 9223372036854775807\n", want: fmt.Sprintf("base 0\nestimated %d\n", maxSizeBound)},
+		{in: "estimated 1\nbase -5\nbase 7\nbase 9\n", want: "base 7\nestimated 1001\n"},
 	} {
 		writeFile(t, dir, "size.txt", tc.in)
 		c.sampleAcc.Store(1000)
@@ -528,6 +561,22 @@ func TestCacheSizeFile(t *testing.T) {
 			want = tc.in
 		}
 		wantFile(t, dir, "size.txt", want)
+	}
+
+	// writeSizeLocked always writes "base" then "estimated", so an untruncated
+	// shorter rewrite never resurrects old values.
+	writeSizeLocked(dir, cacheSizeState{base: 5e9, estimated: 6e9, hasEstimated: true})
+	tmp := t.TempDir()
+	writeSizeLocked(tmp, cacheSizeState{estimated: 0, hasEstimated: true})
+	raw, err := os.ReadFile(filepath.Join(tmp, "size.txt"))
+	c.must(err)
+	f, err := os.OpenFile(path, os.O_WRONLY, 0o666)
+	c.must(err)
+	_, err = f.Write(raw)
+	c.must(err)
+	c.must(f.Close())
+	if st, _, ok := readSize(dir); !ok || !st.hasEstimated || st.estimated != 0 || st.base != 0 {
+		t.Errorf("torn clear: %+v, want estimated=0 base=0", st)
 	}
 }
 
@@ -551,7 +600,7 @@ func TestCleanCache(t *testing.T) {
 		t.Errorf("CleanCache replaced size.txt (%v)", err)
 	}
 	wantNoFiles(t, dir, "00")
-	wantFile(t, dir, "size.txt", "estimated 0\n")
+	wantFile(t, dir, "size.txt", "base 0\nestimated 0\n")
 	wantFile(t, dir, "trim.txt", "")
 }
 
@@ -569,7 +618,7 @@ func TestCacheTrimDuringScan(t *testing.T) {
 		other.flush()
 		c.clock = c.clock.Add(2 * time.Second)
 	})
-	wantFile(t, dir, "size.txt", "estimated 1500\n")
+	wantFile(t, dir, "size.txt", "base 500\nestimated 1500\n")
 	wantFile(t, dir, "trim.txt", fmt.Sprint(c.clock.Unix()))
 	if log, err := os.ReadFile(filepath.Join(dir, "cache.log")); err != nil || !strings.Contains(string(log), " in 2s, ") {
 		t.Errorf("cache.log = %q, %v; want elapsed 2s", log, err)
@@ -581,10 +630,38 @@ func TestCacheTrimDuringScan(t *testing.T) {
 	c2.put(1, 500)
 	writeFile(t, dir2, "size.txt", "estimated 5000\n")
 	c2.trimMidScan(func() { CleanCache(dir2) })
-	wantFile(t, dir2, "size.txt", "estimated 0\n")
+	wantFile(t, dir2, "size.txt", "base 0\nestimated 0\n")
 	wantFile(t, dir2, "trim.txt", "")
 	if log, err := os.ReadFile(filepath.Join(dir2, "cache.log")); err != nil || strings.Contains(string(log), " trim:") {
 		t.Errorf("cache.log = %q, %v; want no trim line", log, err)
+	}
+
+	// (c) An overtaking Trim causes the first scan to discard its stale results.
+	dir3 := t.TempDir()
+	c3 := newTestCache(t, dir3, 100, 0)
+	c4 := newTestCache(t, dir3, 100, 0)
+	c3.sizeMinTarget, c4.sizeMinTarget = 1000, 1000
+	c3.put(1, 500)
+	c3.clock = c3.start.Add(2 * time.Hour)
+	c3.put(2, 700)
+	writeFile(t, dir3, "trim.txt", fmt.Sprint(c3.start.Unix()))
+	writeFile(t, dir3, "size.txt", "base 0\nestimated 10000\n")
+	c3.sampleAcc.Store(100)
+	c4.clock = c4.start.Add(4 * time.Hour)
+	c3.trimMidScan(func() {
+		c4.put(3, 600)
+		c4.must(c4.Trim())
+	})
+	c3.wantEntries()
+	c4.wantEntries(3)
+	wantFile(t, dir3, "size.txt", "base 600\nestimated 600\n")
+	wantFile(t, dir3, "trim.txt", fmt.Sprint(c4.clock.Unix()))
+	log3, err := os.ReadFile(filepath.Join(dir3, "cache.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Count(string(log3), " trim: "); got != 1 {
+		t.Errorf("cache.log has %d trim lines, want 1:\n%s", got, log3)
 	}
 }
 
@@ -606,7 +683,7 @@ func TestDefaultCacheAtExit(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("subprocess: %v\n%s", err, out)
 	}
-	wantFile(t, dir, "size.txt", "estimated 1100\n")
+	wantFile(t, dir, "size.txt", "base 0\nestimated 1100\n")
 }
 
 const logTimeFormat = "2006/01/02 15:04:05"
@@ -621,7 +698,7 @@ func TestCacheLog(t *testing.T) {
 	c.clock = c.start.Add(6 * 24 * time.Hour)
 	c.put(2, 500)
 	c.must(c.Trim())
-	want := c.clock.Format(logTimeFormat) + " trim: 24h trigger: 0.001 GiB -> 0.000 GiB in 0s, removed 2 of 4 files\n"
+	want := c.clock.Format(logTimeFormat) + " trim: 24h trigger: 0.001 GiB -> 0.000 GiB in 0s, removed 2 of 4 files, base=0.000 GiB next=5.000 GiB\n"
 	wantFile(t, dir, "cache.log", want)
 
 	// Routine sampled flushes and non-due trims are not logged.
@@ -727,4 +804,322 @@ func TestCacheLogRotation(t *testing.T) {
 	appendLogLocked(stuck, now, "halted")
 	wantFile(t, stuck, "cache.log", nearCap+line("allowed"))
 	wantFile(t, stuck, "cache.1.log", "old\n")
+}
+
+func TestCacheTargetSize(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		mt   time.Time
+		want bool
+	}{
+		{time.Unix(testStart, 0), true},
+		{time.Unix(testStart, 1), false},
+		{time.Unix(testStart+30, 0), false},
+	} {
+		if got := isYoungGen(tc.mt); got != tc.want {
+			t.Errorf("isYoungGen(%v) = %v, want %v", tc.mt, got, tc.want)
+		}
+	}
+
+	const GiB int64 = 1 << 30
+	c := &DiskCache{sizeMinTarget: defaultMinTarget}
+	for _, tc := range []struct {
+		base, want int64
+	}{
+		{0, 5 * GiB},
+		{3 * GiB, 5 * GiB},
+		{4 * GiB, 6 * GiB},
+		{20 * GiB, 30 * GiB},
+		{20*GiB + 4, 25*GiB + 5},
+		{24 * GiB, 30 * GiB},
+		{100 * GiB, 125 * GiB},
+		{maxSizeBound, maxSizeBound + maxSizeBound/4},
+	} {
+		if got := c.targetSize(tc.base); got != tc.want {
+			t.Errorf("targetSize(%d) = %d, want %d", tc.base, got, tc.want)
+		}
+	}
+}
+
+func TestCacheGenerations(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		put  func(*testCache)
+	}{
+		{"regular", func(c *testCache) { c.put(1, 500) }},
+		{"executable", func(c *testCache) { c.putExe(1, 600) }},
+		{"empty", func(c *testCache) { c.put(1, 0) }},
+		{"empty_executable", func(c *testCache) { c.putExe(1, 0) }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := newTestCache(t, t.TempDir(), 1<<40, 0)
+			c.clock = c.start.Add(45 * time.Second)
+			tc.put(c)
+			f := []string{c.fileName(dummyID(1), "a"), c.fileName(c.outs[1], "d")}
+			c.wantMtime(c.start, f...)
+
+			// Reuse before 30m keeps the young generation mark unchanged.
+			c.clock = c.start.Add(29*time.Minute + 59*time.Second)
+			c.use(1)
+			c.wantMtime(c.start, f...)
+
+			// Reuse at or after 30m promotes to tenured30m (:30).
+			c.clock = c.start.Add(30*time.Minute + 20*time.Second)
+			c.use(1)
+			t1 := c.start.Add(29*time.Minute + 30*time.Second)
+			c.wantMtime(t1, f...)
+
+			// Tenured entries refresh at most once per hour.
+			c.clock = t1.Add(59*time.Minute + 59*time.Second)
+			c.use(1)
+			c.wantMtime(t1, f...)
+
+			c.clock = t1.Add(time.Hour)
+			c.use(1)
+			c.wantMtime(c.clock.Truncate(time.Minute).Add(-30*time.Second), f...)
+		})
+	}
+
+	// Rewriting an existing entry counts as a use, while concurrent cold writes
+	// that have not reached Chtimes yet are not falsely tenured.
+	c := newTestCache(t, t.TempDir(), 1<<40, 0)
+	c.clock = c.start.Add(40 * time.Second)
+	c.put(1, 500)
+	f1 := []string{c.fileName(dummyID(1), "a"), c.fileName(c.outs[1], "d")}
+
+	c.clock = c.start.Add(20 * time.Minute)
+	c.put(1, 500)
+	c.wantMtime(c.start, f1...)
+
+	c.clock = c.start.Add(40*time.Minute + 15*time.Second)
+	c.put(1, 500)
+	c.wantMtime(c.clock.Truncate(time.Minute).Add(-30*time.Second), f1...)
+
+	// A new action sharing an existing output marks the new index entry young
+	// and refreshes the shared output as tenured30m.
+	c.clock = c.start.Add(2*time.Hour + 15*time.Second)
+	m2 := c.clock.Truncate(time.Minute)
+	_, _, err := c.Put(dummyID(2), bytes.NewReader(payload(1, 500-entrySize)))
+	c.must(err)
+	c.wantMtime(m2, c.fileName(dummyID(2), "a"))
+	c.wantMtime(m2.Add(-30*time.Second), c.fileName(c.outs[1], "d"))
+
+	// An index file whose raw OS mtime is newer than tenured stays young on rewrite.
+	c.put(3, 500)
+	a3 := c.fileName(dummyID(3), "a")
+	c.must(os.Chtimes(a3, m2.Add(10*time.Second), m2.Add(10*time.Second)))
+	c.put(3, 500)
+	c.wantMtime(m2, a3)
+}
+
+func TestCacheTrimYoungGen(t *testing.T) {
+	skipIfLockUnsupported(t)
+	t.Parallel()
+
+	dir := t.TempDir()
+	c := newTestCache(t, dir, 100, 0)
+	c.sizeMinTarget = 100
+	c.clock = c.start.Add(40 * time.Second)
+	c.put(1, 400)
+	c.putExe(2, 500)
+	c.put(3, 0)
+	c.put(4, 300)
+
+	// Entries 1 to 3 are used before 30m (stay young). Entry 4 is used at 30m (tenured).
+	c.clock = c.start.Add(29*time.Minute + 59*time.Second)
+	for _, id := range []int{1, 2, 3} {
+		c.use(id)
+	}
+	c.clock = c.start.Add(30 * time.Minute)
+	c.use(4)
+
+	seedOver := func() {
+		writeFile(t, dir, "trim.txt", fmt.Sprint(c.clock.Add(-2*time.Hour).Unix()))
+		writeFile(t, dir, "size.txt", "base 0\nestimated 10000\n")
+		c.sampleAcc.Store(100)
+	}
+
+	// Just before 90m, a size triggered trim keeps all young entries and counts them in base.
+	c.clock = c.start.Add(89*time.Minute + 59*time.Second)
+	seedOver()
+	c.must(c.Trim())
+	c.wantEntries(1, 2, 3, 4)
+	wantFile(t, dir, "size.txt", fmt.Sprintf("base %d\nestimated %[1]d\n", 400+500+entrySize+300))
+
+	// At 90m, a size triggered trim removes young entries 1 to 3 and keeps tenured entry 4.
+	c.clock = c.start.Add(90 * time.Minute)
+	seedOver()
+	c.must(c.Trim())
+	c.wantEntries(4)
+	wantFile(t, dir, "size.txt", "base 300\nestimated 300\n")
+
+	// Daily trim (added==0) never deletes young entries early even over target,
+	// treats plain mtimes as tenured, and expires both generations at 5d+1h.
+	dir2 := t.TempDir()
+	c2 := newTestCache(t, dir2, 100, 0)
+	c2.clock = c2.start.Add(10 * 24 * time.Hour)
+	now := c2.clock
+	exp := now.Add(-5*24*time.Hour - time.Hour - time.Minute)
+	mtimes := []time.Time{
+		now.Add(-24 * time.Hour), // young, 1d old: kept, excluded from base
+		exp,                      // young, >5d+1h: expired
+		now.Add(-4*24*time.Hour + 16*time.Second), // plain mtime (tenured), 4d old: kept in base
+		exp.Add(-30 * time.Second),                // tenured, >5d+1h: expired
+	}
+	for i, mt := range mtimes {
+		c2.put(i+1, 400+(i/2)*100)
+		c2.must(os.Chtimes(c2.fileName(dummyID(i+1), "a"), mt, mt))
+		c2.must(os.Chtimes(c2.fileName(c2.outs[i+1], "d"), mt, mt))
+	}
+	writeFile(t, dir2, "trim.txt", fmt.Sprint(now.Add(-24*time.Hour).Unix()))
+	writeFile(t, dir2, "size.txt", "base 100\nestimated 99999\n")
+	c2.sampleAcc.Store(0)
+	c2.must(c2.Trim())
+	c2.wantEntries(1, 3)
+	wantFile(t, dir2, "size.txt", "base 500\nestimated 900\n")
+}
+
+func TestCacheTrimSize(t *testing.T) {
+	skipIfLockUnsupported(t)
+	t.Parallel()
+
+	// Real Put and Trim lifecycle with no seeded size.txt or trim.txt (1000 B stands for 5 GiB).
+	dir := t.TempDir()
+	c := newTestCache(t, dir, 100, 0)
+	c.sizeMinTarget = 1000
+
+	// 0h: the first Trim (a daily trim) records the cold build as the baseline.
+	c.put(1, 300) // shared deps
+	c.put(2, 300) // early edit
+	c.must(c.Trim())
+	wantFile(t, dir, "size.txt", "base 600\nestimated 600\n")
+
+	// 35m: reuse entry 1 (promotes to tenured30m) and add entry 3.
+	c.clock = c.start.Add(35 * time.Minute)
+	c.use(1)
+	c.put(3, 300)
+	c.flush()
+	wantFile(t, dir, "size.txt", "base 600\nestimated 900\n")
+
+	// 2h: crossing targetSize(600) = sizeMinTarget (900 -> 1600) triggers the first
+	// size trim, removing 2h old young entry 2 and keeping 85m old entry 3 in base.
+	c.clock = c.start.Add(2 * time.Hour)
+	c.put(4, 700)
+	c.must(c.Trim())
+	c.wantEntries(1, 3, 4)
+	wantFile(t, dir, "size.txt", "base 1300\nestimated 1300\n")
+	if log, err := os.ReadFile(filepath.Join(dir, "cache.log")); err != nil || !strings.Contains(string(log), " trim: size trigger: ") {
+		t.Errorf("cache.log = %q, %v; want size trigger", log, err)
+	}
+
+	// Crossing targetSize(1300) = 1950 right away waits for the 2h spacing.
+	c.put(5, 900)
+	c.must(c.Trim())
+	c.wantEntries(1, 3, 4, 5)
+	wantFile(t, dir, "size.txt", "base 1300\nestimated 2200\n")
+
+	// Less than 2h spacing blocks a size trim, and an unsampled Trim at 4h is ignored.
+	c.clock = c.start.Add(4*time.Hour - time.Second)
+	c.put(6, 1200)
+	c.must(c.Trim())
+	c.clock = c.start.Add(4 * time.Hour)
+	c.must(c.Trim())
+	c.wantEntries(1, 3, 4, 5, 6)
+
+	// A sampled put at 4h (estimate 3600 >= 1950) reclaims 3, 4, and 5.
+	c.put(7, 200)
+	c.must(c.Trim())
+	c.wantEntries(1, 6, 7)
+	wantFile(t, dir, "size.txt", "base 1700\nestimated 1700\n")
+
+	// Next day (28h): daily trim lowers base to tenured deps (300) without removing 6 or 7.
+	// Two hours later, a small sampled put crosses targetSize(300) = 1000 and reclaims 6 and 7.
+	c.clock = c.start.Add(28 * time.Hour)
+	c.must(c.Trim())
+	c.wantEntries(1, 6, 7)
+	wantFile(t, dir, "size.txt", "base 300\nestimated 1700\n")
+
+	c.clock = c.start.Add(30 * time.Hour)
+	c.put(8, 200)
+	c.must(c.Trim())
+	c.wantEntries(1, 8)
+	wantFile(t, dir, "size.txt", "base 500\nestimated 500\n")
+
+	// Base follows the cache back down: after a 5d+1h expiry, the daily trim records
+	// the smaller baseline, so the next target is sizeMinTarget again.
+	dir2 := t.TempDir()
+	c2 := newTestCache(t, dir2, 200, 0)
+	c2.sizeMinTarget = 1000
+	c2.put(1, 900)
+	c2.must(c2.Trim())
+	wantFile(t, dir2, "size.txt", "base 900\nestimated 900\n")
+	c2.clock = c2.start.Add(6 * 24 * time.Hour)
+	c2.put(2, 200)
+	c2.must(c2.Trim())
+	c2.wantEntries(2)
+	wantFile(t, dir2, "size.txt", "base 200\nestimated 200\n")
+}
+
+func TestCacheCloseKeepsOwnOutput(t *testing.T) {
+	skipIfLockUnsupported(t)
+	t.Parallel()
+
+	dir := t.TempDir()
+	c := newTestCache(t, dir, 100, 0)
+	c.sizeMinTarget = 1000
+	c.put(1, 500)
+
+	// Open a long command at 90m, write entry 2, and Close 2h later.
+	// Close measures youngGenDeleteAge from openTime, so entry 2 is kept while entry 1 is removed.
+	c.clock = c.start.Add(90 * time.Minute)
+	c.openTime = c.clock
+	c.put(2, 800)
+
+	c.clock = c.start.Add(90*time.Minute + 2*time.Hour)
+	writeFile(t, dir, "trim.txt", fmt.Sprint(c.clock.Add(-2*time.Hour).Unix()))
+	writeFile(t, dir, "size.txt", "base 0\nestimated 10000\n")
+	c.sampleAcc.Store(100)
+	c.must(c.Close())
+	c.wantEntries(2)
+	wantFile(t, dir, "size.txt", "base 0\nestimated 800\n")
+}
+
+func TestCacheTrimBuildCacheDisabled(t *testing.T) {
+	skipIfLockUnsupported(t)
+	t.Parallel()
+
+	dir := t.TempDir()
+	c := newTestCache(t, dir, 100, 0)
+	c.trimBuildCache = false
+	c.sizeMinTarget = 100
+
+	c.put(1, 500) // :00 mtime (looks like young gen)
+	c.clock = c.start.Add(40 * time.Second)
+	c.put(2, 500) // raw non-minute mtime
+	c.flush()
+	if got := c.sampleAcc.Load(); got != 0 {
+		t.Errorf("sampleAcc = %d, want 0", got)
+	}
+	wantNoFiles(t, dir, "size.txt", "trim.txt", "cache.log")
+	c.wantMtime(c.clock, c.fileName(dummyID(2), "a"), c.fileName(c.outs[2], "d"))
+
+	// Use at 35m does not trigger 30m promotion (legacy uses 1h).
+	c.clock = c.start.Add(35 * time.Minute)
+	c.use(1)
+	c.wantMtime(c.start, c.fileName(dummyID(1), "a"), c.fileName(c.outs[1], "d"))
+
+	// Trim uses the 5 day legacy rule and does not delete young entries early at 2h.
+	c.clock = c.start.Add(2 * time.Hour)
+	c.must(c.Trim())
+	c.wantEntries(1, 2)
+	wantNoFiles(t, dir, "size.txt", "cache.log")
+
+	c.clock = c.start.Add(6 * 24 * time.Hour)
+	c.must(c.Trim())
+	c.wantEntries()
+	wantNoFiles(t, dir, "size.txt", "cache.log")
 }

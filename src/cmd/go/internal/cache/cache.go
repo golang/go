@@ -64,7 +64,8 @@ type Cache interface {
 	// violated in another process. Namely, a cache trim from one process should
 	// not delete an OutputID from disk that was recently Get or Put from
 	// another process. As a rule of thumb, don't trim things used in the last
-	// day.
+	// day (with GOEXPERIMENT=trimbuildcache, DiskCache may trim young generation
+	// files unused for at least 60 minutes, see youngGenDeleteAge below).
 	Close() error
 
 	// OutputFile returns the path on disk where OutputID is stored.
@@ -84,7 +85,9 @@ type DiskCache struct {
 	now func() time.Time
 
 	trimBuildCache bool         // GOEXPERIMENT=trimbuildcache is enabled
+	openTime       time.Time    // wall time at Open (youngGenDeleteAge cutoff in Close)
 	sizeSample     int64        // sampling stride (defaultSizeSample outside tests)
+	sizeMinTarget  int64        // min size trim target (defaultMinTarget outside tests)
 	sampleAcc      atomic.Int64 // random offset in [0, sizeSample) plus bytes added
 }
 
@@ -118,8 +121,10 @@ func Open(dir string) (*DiskCache, error) {
 		now:            time.Now,
 		trimBuildCache: cfg.Experiment != nil && cfg.Experiment.TrimBuildCache,
 		sizeSample:     defaultSizeSample,
+		sizeMinTarget:  defaultMinTarget,
 	}
 	if c.trimBuildCache {
+		c.openTime = c.now().Round(0)
 		c.sampleAcc.Store(rand.Int64N(c.sizeSample))
 	}
 	return c, nil
@@ -356,11 +361,42 @@ func (c *DiskCache) OutputFile(out OutputID) string {
 // at least trimLimit (5 days). Statistics gathered from a month of usage by
 // Go developers found that essentially all reuse of cached entries happened
 // within 5 days of the previous reuse. See golang.org/issue/22990.
+//
+// Update (GOEXPERIMENT=trimbuildcache):
+// Some users report very large caches when running builds over and over.
+// See go.dev/issue/29561.
+// As an attempt to identify and remove non-useful cache entries earlier,
+// we split the cache logically into a young and tenured30m generation
+// and trigger trims based on cache size growth (see size.txt below).
+// The young generation consists of files that were generated and used
+// in the first 30 minutes after their creation but not reused since.
+// Young generation files that reach 90 minutes old (youngGenDeleteAge) can be removed
+// during a size triggered trim (so every deleted file went unused for at least 60 minutes).
+// A young generation file that is reused after reaching the age of 30 minutes (usedAfter30m)
+// is promoted to the tenured30m generation, becoming a tenured30m file.
+// (The name tenured30m leaves room for a later longer horizon tenured generation.)
+// Tenured30m files that reach 5 days + 1 hour old (trimLimit + mtimeInterval) can be removed.
+//
+// Generations are encoded in file mtimes: newly written files get a whole minute mtime (:00),
+// and tenured30m files get a :30 mtime on promotion and later mtimeInterval refreshes.
+// Any mtime not on a whole minute (including files written by older Go) is treated as tenured30m,
+// and rewriting an already cached entry counts as a use rather than resetting its mark.
+//
+// Size triggered trims run at most once per minTrimSpacing (2 hours) when a command adds
+// sampled bytes and the estimated size in size.txt reaches targetSize(base). Close measures
+// youngGenDeleteAge from openTime so a long go command never deletes its own output.
+// Daily trims (trimInterval, 24 hours) still only delete files unused for 5 days + 1 hour
+// and never delete young generation files early.
+// For more rationale, see https://go.dev/cl/XXXXX.
 const (
 	mtimeInterval = 1 * time.Hour
 	trimInterval  = 24 * time.Hour
 	trimClockSkew = 1 * time.Hour // tolerate future trim.txt timestamps up to this much
 	trimLimit     = 5 * 24 * time.Hour
+
+	minTrimSpacing    = 2 * time.Hour    // min time from any trim to a size triggered trim
+	usedAfter30m      = 30 * time.Minute // reuse at this age promotes to tenured30m
+	youngGenDeleteAge = 90 * time.Minute // size trim delete age for young generation files
 )
 
 // Size constants for estimating cache size in size.txt (GOEXPERIMENT=trimbuildcache).
@@ -372,11 +408,16 @@ const (
 // no bytes never touches size.txt and one adding 1 MiB updates it only once in 64 runs.
 //
 // Each trim scan replaces the estimate with the measured size of the entries it kept,
-// plus any bytes other go commands added during the scan.
+// plus any bytes other go commands added during the scan, and records as the baseline
+// ("base") the kept bytes a size triggered trim could not delete at that moment
+// (tenured30m files, young generation files under 90 minutes old, and undeletable files).
+// A new or cleaned cache has base 0, so its first size triggered trim runs when the
+// estimate reaches defaultMinTarget (5 GiB).
 //
 // Completed trim scans and 'go clean -cache' also append a line to cache.log (see log.go).
 const (
 	defaultSizeSample int64 = 64 << 20 // 64 MiB
+	defaultMinTarget  int64 = 5 << 30  // 5 GiB, floor for targetSize
 	maxSizeBound      int64 = 1 << 60  // cap size arithmetic well clear of overflow
 )
 
@@ -416,7 +457,7 @@ func (c *DiskCache) flush() {
 
 // CleanCache resets trim metadata after 'go clean -cache' removes the cache entries in dir.
 // It truncates trim.txt (so an ongoing trim in another process won't overwrite the reset),
-// zeroes an existing size.txt in place, and logs the clean in cache.log.
+// resets an existing size.txt to zero, and logs the clean in cache.log.
 // It creates nothing in an empty or nonexistent cache.
 func CleanCache(dir string) {
 	exists := func(name string) bool {
@@ -499,6 +540,7 @@ func writeTrimTimestamp(trimFile *lockedfile.File, t int64) ([]byte, error) {
 // cacheSizeState holds the parsed contents of size.txt ("key value\n" lines).
 type cacheSizeState struct {
 	estimated    int64 // estimated logical size of cache entries, in bytes
+	base         int64 // baseline size from the last trim scan (0 if none)
 	hasEstimated bool  // size.txt held a valid estimate
 }
 
@@ -517,6 +559,7 @@ func readSize(dir string) (st cacheSizeState, exists, ok bool) {
 		return cacheSizeState{}, true, false
 	}
 	rest := string(data)
+	var hasBase bool
 	for {
 		line, after, found := strings.Cut(rest, "\n")
 		if !found {
@@ -529,14 +572,16 @@ func readSize(dir string) (st cacheSizeState, exists, ok bool) {
 		}
 		val = strings.TrimSpace(val)
 		switch key {
-		case "estimated":
+		case "estimated", "base":
 			n, err := strconv.ParseInt(val, 10, 64)
 			if err != nil || n < 0 {
 				continue
 			}
 			n = min(n, maxSizeBound)
-			if !st.hasEstimated {
+			if key == "estimated" && !st.hasEstimated {
 				st.estimated, st.hasEstimated = n, true
+			} else if key == "base" && !hasBase {
+				st.base, hasBase = n, true
 			}
 		}
 	}
@@ -546,9 +591,10 @@ func readSize(dir string) (st cacheSizeState, exists, ok bool) {
 // writeSizeLocked writes st to dir/size.txt while holding the trim.txt lock.
 // It rewrites in place (avoiding renames over open files on Windows) and writes
 // before truncating so an ENOSPC failure does not leave an empty file.
-// Any trailing bytes from a crash before Truncate are ignored by readSize.
+// Every write starts with both keys, so any trailing bytes left by a crash
+// before Truncate are ignored by readSize and dropped on the next write.
 func writeSizeLocked(dir string, st cacheSizeState) {
-	buf := fmt.Appendf(nil, "estimated %d\n", st.estimated)
+	buf := fmt.Appendf(nil, "base %d\nestimated %d\n", st.base, st.estimated)
 	f, err := os.OpenFile(filepath.Join(dir, "size.txt"), os.O_WRONLY|os.O_CREATE, 0o666)
 	if err != nil {
 		return
@@ -560,8 +606,8 @@ func writeSizeLocked(dir string, st cacheSizeState) {
 }
 
 // addSizeLocked adds delta to an existing estimate in size.txt while holding the
-// trim.txt lock. If size.txt is missing or has no valid estimate, it does nothing
-// (the next trim scan will record one). If unreadable, it returns ok=false.
+// trim.txt lock, returning the updated state. If size.txt has no valid estimate,
+// it does nothing (the next trim scan records one). If unreadable, it returns ok=false.
 func (c *DiskCache) addSizeLocked(delta int64) (st cacheSizeState, ok bool) {
 	st, _, ok = readSize(c.dir)
 	if ok && st.hasEstimated && delta > 0 {
@@ -569,6 +615,33 @@ func (c *DiskCache) addSizeLocked(delta int64) (st cacheSizeState, ok bool) {
 		writeSizeLocked(c.dir, st)
 	}
 	return st, ok
+}
+
+// targetSize returns the cache size threshold for the next size triggered trim.
+// Modeled lightly on GOGC, it scales with base: 1.5x up to 20 GiB and 1.25x above,
+// floored at c.sizeMinTarget. For more rationale, see https://go.dev/cl/XXXXX.
+// TODO(thepudds): consider smoothing out 1.5x to 1.25x transition, but not critical and important to have two growth factors.
+func (c *DiskCache) targetSize(base int64) int64 {
+	const high = 20 << 30
+	if base > high {
+		return max(c.sizeMinTarget, base+base/4)
+	}
+	return max(c.sizeMinTarget, base+base/2)
+}
+
+// writeTime returns the mtime for a newly written cache file: the current
+// whole minute (:00) under GOEXPERIMENT=trimbuildcache, or c.now().
+func (c *DiskCache) writeTime() time.Time {
+	if c.trimBuildCache {
+		return c.now().Truncate(time.Minute)
+	}
+	return c.now()
+}
+
+// isYoungGen reports whether mt carries the young generation mark (a whole minute, :00).
+// Any other mtime belongs to the tenured30m generation.
+func isYoungGen(mt time.Time) bool {
+	return mt.Nanosecond() == 0 && mt.Unix()%60 == 0
 }
 
 // markUsed makes a best-effort attempt to update mtime on file,
@@ -581,28 +654,42 @@ func (c *DiskCache) addSizeLocked(delta int64) (st cacheSizeState, ok bool) {
 // nearly all of the mtime updates that would otherwise happen,
 // while still keeping the mtimes useful for cache trimming.
 //
+// With GOEXPERIMENT=trimbuildcache, a young generation file is updated
+// once it is at least usedAfter30m old, promoting it to the tenured30m
+// generation by setting mtime to the current minute minus 30 seconds.
+//
 // markUsed reports whether the file is a directory (an executable cache entry).
 func (c *DiskCache) markUsed(file string) (isDir bool) {
 	info, err := os.Stat(file)
 	if err != nil {
 		return false
 	}
-	if now := c.now(); now.Sub(info.ModTime()) >= mtimeInterval {
+	interval := mtimeInterval
+	if c.trimBuildCache && isYoungGen(info.ModTime()) {
+		interval = usedAfter30m
+	}
+	if now := c.now(); now.Sub(info.ModTime()) >= interval {
+		if c.trimBuildCache {
+			now = now.Truncate(time.Minute).Add(-30 * time.Second)
+		}
 		os.Chtimes(file, now, now)
 	}
 	return info.IsDir()
 }
 
-func (c *DiskCache) Close() error { return c.Trim() }
+func (c *DiskCache) Close() error {
+	return c.trim(c.openTime) // never delete this go command's own output
+}
 
 // Trim removes old cache entries that are likely not to be reused.
 func (c *DiskCache) Trim() error {
-	return c.trim()
+	return c.trim(time.Time{})
 }
 
-// trim implements Trim for GOEXPERIMENT=trimbuildcache, flushing sampled bytes to
-// size.txt and, when a trim is due, scanning the cache and logging the result.
-func (c *DiskCache) trim() error {
+// trim implements Trim and Close for GOEXPERIMENT=trimbuildcache, flushing sampled
+// bytes to size.txt, running a daily or size triggered scan when due, and logging
+// the result. Young generation age is measured as of youngGenAsOf (or now if zero).
+func (c *DiskCache) trim(youngGenAsOf time.Time) error {
 	if !c.trimBuildCache {
 		return c.trimLegacy()
 	}
@@ -610,8 +697,11 @@ func (c *DiskCache) trim() error {
 	// mtimes, keeping it in start only to measure scan duration.
 	start := c.now()
 	now := start.Round(0)
+	if youngGenAsOf.IsZero() || youngGenAsOf.After(now) {
+		youngGenAsOf = now
+	}
 
-	// If there are no sampled bytes to add to size.txt, check whether a trim
+	// If there are no sampled bytes to add to size.txt, check whether a daily trim
 	// is due under a shared lock, avoiding an exclusive lock in the common case.
 	if c.sampleAcc.Load() < c.sizeSample {
 		if isInterrupted() {
@@ -623,20 +713,38 @@ func (c *DiskCache) trim() error {
 	}
 
 	var (
-		walk   bool
-		stamp  []byte         // trim.txt content written by this scan
-		sizeOK bool           // size.txt was readable before the scan
-		before cacheSizeState // size.txt state before the scan
+		walk     bool
+		sizeTrim bool           // size triggered trim, false means daily 5 day trim only
+		stamp    []byte         // trim.txt content written by this scan
+		sizeOK   bool           // size.txt was readable before the scan
+		before   cacheSizeState // size.txt state before the scan
 	)
 	err := c.withTrimLock(func(trimFile *lockedfile.File) {
-		delta := c.takeSampledAdded()
-		data, _ := io.ReadAll(trimFile)
-		due := trimDue(data, now, trimInterval) && !isInterrupted()
-		if delta == 0 && !due {
+		added := c.takeSampledAdded()
+		if isInterrupted() {
+			if added > 0 {
+				c.addSizeLocked(added)
+			}
 			return
 		}
-		st, ok := c.addSizeLocked(delta)
-		if !due {
+		data, _ := io.ReadAll(trimFile)
+		var (
+			st cacheSizeState
+			ok bool
+		)
+		switch {
+		case added > 0:
+			// This command grew the cache: update size.txt and check the size trigger.
+			st, ok = c.addSizeLocked(added)
+			sizeTrim = ok && st.hasEstimated && st.estimated >= c.targetSize(st.base) &&
+				trimDue(data, now, minTrimSpacing)
+			if !sizeTrim && !trimDue(data, now, trimInterval) {
+				return
+			}
+		case trimDue(data, now, trimInterval):
+			// Daily 24 hour trim only: never delete young generation files early.
+			st, _, ok = readSize(c.dir)
+		default:
 			return
 		}
 
@@ -657,13 +765,24 @@ func (c *DiskCache) trim() error {
 	// We subtract an additional mtimeInterval
 	// to account for the imprecision of our "last used" mtimes.
 	cutoff := now.Add(-trimLimit - mtimeInterval)
+	classify := func(mt time.Time) (remove, inBase bool) {
+		switch {
+		case mt.Before(cutoff):
+			return true, false // unused for 5 days, either generation
+		case !isYoungGen(mt):
+			return false, true // tenured30m generation
+		}
+		// Young generation: only a size triggered trim deletes it early,
+		// and it counts in the baseline while too young to delete as of now.
+		return sizeTrim && youngGenAsOf.Sub(mt) >= youngGenDeleteAge, now.Sub(mt) < youngGenDeleteAge
+	}
 	var stats trimStats
 	for i := range 256 {
 		if isInterrupted() {
 			return nil
 		}
 		subdir := filepath.Join(c.dir, fmt.Sprintf("%02x", i))
-		c.trimSubdir(subdir, cutoff, &stats)
+		c.trimSubdir(subdir, classify, &stats)
 	}
 	end := c.now()
 	elapsed := end.Sub(start)
@@ -676,6 +795,7 @@ func (c *DiskCache) trim() error {
 		if data, _ := io.ReadAll(trimFile); len(stamp) == 0 || !bytes.Equal(data, stamp) {
 			return
 		}
+		base := min(stats.baseBytes, maxSizeBound)
 		// Keep any bytes that other go commands added during the scan.
 		if sizeOK {
 			if st, _, ok := readSize(c.dir); ok {
@@ -684,19 +804,24 @@ func (c *DiskCache) trim() error {
 					concAdded = max(0, st.estimated-before.estimated)
 				}
 				st.estimated = min(stats.keptBytes+concAdded, maxSizeBound)
+				st.base = base
 				writeSizeLocked(c.dir, st)
 			}
 		}
 		_, _ = writeTrimTimestamp(trimFile, end.Unix())
+		trigger := "24h"
+		if sizeTrim {
+			trigger = "size"
+		}
 		actual := stats.keptBytes + stats.removedBytes
 		var estNote string
 		if before.hasEstimated {
 			estNote = formatEstimateDelta(before.estimated, actual)
 		}
-		appendLogLocked(c.dir, end, "trim: 24h trigger: %s -> %s in %s, removed %d of %d files%s",
-			formatBytes(actual), formatBytes(stats.keptBytes),
+		appendLogLocked(c.dir, end, "trim: %s trigger: %s -> %s in %s, removed %d of %d files, base=%s next=%s%s",
+			trigger, formatBytes(actual), formatBytes(stats.keptBytes),
 			elapsed.Round(time.Millisecond), stats.removedFiles, stats.keptFiles+stats.removedFiles,
-			estNote)
+			formatBytes(base), formatBytes(c.targetSize(base)), estNote)
 	})
 }
 
@@ -744,9 +869,10 @@ func (c *DiskCache) trimLegacy() error {
 	// We subtract an additional mtimeInterval
 	// to account for the imprecision of our "last used" mtimes.
 	cutoff := now.Add(-trimLimit - mtimeInterval)
+	classify := func(mt time.Time) (remove, inBase bool) { return mt.Before(cutoff), false }
 	for i := 0; i < 256; i++ {
 		subdir := filepath.Join(c.dir, fmt.Sprintf("%02x", i))
-		c.trimSubdir(subdir, cutoff, nil)
+		c.trimSubdir(subdir, classify, nil)
 	}
 
 	return nil
@@ -756,10 +882,11 @@ func (c *DiskCache) trimLegacy() error {
 type trimStats struct {
 	keptFiles, keptBytes       int64
 	removedFiles, removedBytes int64
+	baseBytes                  int64 // kept bytes counted toward the baseline
 }
 
 // trimSubdir trims a single cache subdirectory, accumulating counts into stats if non-nil.
-func (c *DiskCache) trimSubdir(subdir string, cutoff time.Time, stats *trimStats) {
+func (c *DiskCache) trimSubdir(subdir string, classify func(mt time.Time) (remove, inBase bool), stats *trimStats) {
 	// Read all directory entries from subdir before removing
 	// any files, in case removing files invalidates the file offset
 	// in the directory scan. Also, ignore error from f.Readdirnames,
@@ -789,7 +916,8 @@ func (c *DiskCache) trimSubdir(subdir string, cutoff time.Time, stats *trimStats
 				size = dirFilesSize(entry)
 			}
 		}
-		if info.ModTime().Before(cutoff) {
+		remove, inBase := classify(info.ModTime())
+		if remove {
 			if info.IsDir() { // executable cache entry
 				err = os.RemoveAll(entry)
 			} else {
@@ -802,10 +930,14 @@ func (c *DiskCache) trimSubdir(subdir string, cutoff time.Time, stats *trimStats
 				}
 				continue
 			}
+			inBase = true // could not be deleted
 		}
 		if stats != nil {
 			stats.keptFiles++
 			stats.keptBytes += size
+			if inBase {
+				stats.baseBytes += size
+			}
 		}
 	}
 }
@@ -848,7 +980,8 @@ func (c *DiskCache) putIndexEntry(id ActionID, out OutputID, size int64, allowVe
 	file := c.fileName(id, "a")
 	var prev fs.FileInfo
 	if c.trimBuildCache {
-		prev, _ = os.Stat(file) // to count only new entries in the cache size
+		// Stat before writing to count new entries and check any prior generation mark.
+		prev, _ = os.Stat(file)
 	}
 
 	// Copy file to cache directory.
@@ -877,7 +1010,26 @@ func (c *DiskCache) putIndexEntry(id ActionID, out OutputID, size int64, allowVe
 		os.Remove(file)
 		return err
 	}
-	os.Chtimes(file, c.now(), c.now()) // mainly for tests
+	mark := c.writeTime()
+	if c.trimBuildCache && prev != nil {
+		// Rewriting an existing index entry counts as a use (matching copyFile):
+		// promote or keep a young generation mark, and refresh an older tenured30m
+		// mark. Skip tenuring if mt > tenured, which can happen when a concurrent
+		// cold write has not yet reached Chtimes and still has its raw OS mtime.
+		mt := prev.ModTime()
+		tenured := mark.Add(-30 * time.Second)
+		switch {
+		case isYoungGen(mt):
+			if mark.Sub(mt) >= usedAfter30m {
+				mark = tenured
+			} else if !mt.After(mark) {
+				mark = mt
+			}
+		case !mt.After(tenured):
+			mark = tenured
+		}
+	}
+	os.Chtimes(file, mark, mark)
 	if prev == nil {
 		c.addBytes(entrySize)
 	}
@@ -960,6 +1112,7 @@ func PutBytes(c Cache, id ActionID, data []byte) error {
 // output ID and size, if that file is not present already.
 func (c *DiskCache) copyFile(file io.ReadSeeker, executableName string, out OutputID, size int64, perm os.FileMode) error {
 	name := c.fileName(out, "d") // TODO(matloob): use a different suffix for the executable cache?
+	entry := name
 	info, err := os.Stat(name)
 	if executableName != "" {
 		// This is an executable file. The file at name won't hold the output itself, but will
@@ -998,6 +1151,9 @@ func (c *DiskCache) copyFile(file io.ReadSeeker, executableName string, out Outp
 			var out2 OutputID
 			h.Sum(out2[:0])
 			if out == out2 {
+				if c.trimBuildCache {
+					c.markUsed(entry) // rewriting counts as a use
+				}
 				return nil
 			}
 		}
@@ -1015,6 +1171,9 @@ func (c *DiskCache) copyFile(file io.ReadSeeker, executableName string, out Outp
 			// This file is being used by an executable. It must have
 			// already been written by another go process and then run.
 			// return without an error.
+			if c.trimBuildCache {
+				c.markUsed(entry)
+			}
 			return nil
 		}
 		return err
@@ -1024,6 +1183,18 @@ func (c *DiskCache) copyFile(file io.ReadSeeker, executableName string, out Outp
 		// File now exists with correct size.
 		// Only one possible zero-length file, so contents are OK too.
 		// Early return here makes sure there's a "last byte" for code below.
+		if c.trimBuildCache {
+			if err := f.Close(); err != nil {
+				os.Remove(name)
+				return err
+			}
+			now := c.writeTime()
+			os.Chtimes(name, now, now)
+			if executableName != "" {
+				// trimSubdir and markUsed check the entry directory's mtime.
+				os.Chtimes(entry, now, now)
+			}
+		}
 		return nil
 	}
 
@@ -1069,7 +1240,12 @@ func (c *DiskCache) copyFile(file io.ReadSeeker, executableName string, out Outp
 		os.Remove(name)
 		return err
 	}
-	os.Chtimes(name, c.now(), c.now()) // mainly for tests
+	now := c.writeTime()
+	os.Chtimes(name, now, now) // sets young generation mark (and used by tests)
+	if c.trimBuildCache && executableName != "" {
+		// trimSubdir and markUsed check the entry directory's mtime.
+		os.Chtimes(entry, now, now)
+	}
 	c.addBytes(size - oldSize)
 
 	return nil

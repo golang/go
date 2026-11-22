@@ -13,9 +13,10 @@ import (
 	"time"
 )
 
-// With GOEXPERIMENT=trimbuildcache, GOCACHE/cache.log records each trim attempt. Sample line:
+// With GOEXPERIMENT=trimbuildcache, GOCACHE/cache.log records each trim attempt. Sample lines:
 //
-//	<time> trim: 24h trigger: 1.200 GiB -> 0.800 GiB in 1.52s, removed 12 of 56 files
+//	<time> trim: size trigger: 9.000 GiB -> 6.000 GiB in 2.123s, removed 9 of 48 files, base=6.000 GiB next=9.000 GiB
+//	<time> trim: 24h trigger: 1.200 GiB -> 0.800 GiB in 1.52s, removed 12 of 56 files, base=0.800 GiB next=5.000 GiB
 //
 // Once cache.log reaches logRollSize, it rotates through cache.1.log and cache.2.log as needed,
 // with an old cache.2.log being discarded. 'go clean -cache' does not delete the logs.
