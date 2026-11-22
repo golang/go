@@ -34,10 +34,20 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
+	"internal/buildcfg"
 )
 
 func Init() (*sys.Arch, ld.Arch) {
 	arch := sys.ArchARM
+
+	linuxdynld := "/lib/ld-linux-armhf.so.3"
+	linuxdynldMusl := "/lib/ld-musl-armhf.so.1"
+	linuxdynldFallbacks := []string{"/lib/ld-linux.so.3", "/lib/ld-musl-arm.so.1"}
+	if buildcfg.GOARM.SoftFloat {
+		linuxdynld = "/lib/ld-linux.so.3"
+		linuxdynldMusl = "/lib/ld-musl-arm.so.1"
+		linuxdynldFallbacks = []string{"/lib/ld-linux-armhf.so.3", "/lib/ld-musl-armhf.so.1"}
+	}
 
 	theArch := ld.Arch{
 		Funcalign:  funcAlign,
@@ -60,14 +70,15 @@ func Init() (*sys.Arch, ld.Arch) {
 		PEreloc1:         pereloc1,
 
 		ELF: ld.ELFArch{
-			Androiddynld:   "/system/bin/linker",
-			Linuxdynld:     "/lib/ld-linux.so.3", // 2 for OABI, 3 for EABI
-			LinuxdynldMusl: "/lib/ld-musl-arm.so.1",
-			Freebsddynld:   "/usr/libexec/ld-elf.so.1",
-			Openbsddynld:   "/usr/libexec/ld.so",
-			Netbsddynld:    "/libexec/ld.elf_so",
-			Dragonflydynld: "XXX",
-			Solarisdynld:   "XXX",
+			Androiddynld:        "/system/bin/linker",
+			Linuxdynld:          linuxdynld,
+			LinuxdynldMusl:      linuxdynldMusl,
+			LinuxdynldFallbacks: linuxdynldFallbacks,
+			Freebsddynld:        "/usr/libexec/ld-elf.so.1",
+			Openbsddynld:        "/usr/libexec/ld.so",
+			Netbsddynld:         "/libexec/ld.elf_so",
+			Dragonflydynld:      "XXX",
+			Solarisdynld:        "XXX",
 
 			Reloc1:    elfreloc1,
 			RelocSize: 8,

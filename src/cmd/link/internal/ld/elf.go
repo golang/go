@@ -150,11 +150,15 @@ type ELFArch struct {
 	Androiddynld   string
 	Linuxdynld     string
 	LinuxdynldMusl string
-	Freebsddynld   string
-	Netbsddynld    string
-	Openbsddynld   string
-	Dragonflydynld string
-	Solarisdynld   string
+	// LinuxdynldFallbacks lists additional fallback Linux dynamic linkers
+	// tried on native builds when neither Linuxdynld nor LinuxdynldMusl
+	// exists on the host (for example, armhf/armel dynamic linkers).
+	LinuxdynldFallbacks []string
+	Freebsddynld        string
+	Netbsddynld         string
+	Openbsddynld        string
+	Dragonflydynld      string
+	Solarisdynld        string
 
 	Reloc1    func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int, int64) bool
 	RelocSize uint32 // size of an ELF relocation record, must match Reloc1.
@@ -1835,13 +1839,22 @@ func asmbElf(ctxt *Link) {
 					}
 				} else {
 					interpreter = thearch.ELF.Linuxdynld
-					// If interpreter does not exist, try musl instead.
-					// This lets the same cmd/link binary work on
-					// both glibc-based and musl-based systems.
+					// If interpreter does not exist, try musl instead (and on native
+					// builds, any arch-specific fallbacks such as armhf/armel).
+					// This lets the same cmd/link binary work on both glibc-based and
+					// musl-based systems, and on armhf/armel hosts regardless of GOARM.
 					if _, err := os.Stat(interpreter); err != nil {
 						if musl := thearch.ELF.LinuxdynldMusl; musl != "" {
 							if _, err := os.Stat(musl); err == nil {
 								interpreter = musl
+							}
+						}
+						if interpreter == thearch.ELF.Linuxdynld && buildcfg.GOOS == runtime.GOOS && buildcfg.GOARCH == runtime.GOARCH {
+							for _, alt := range thearch.ELF.LinuxdynldFallbacks {
+								if _, err := os.Stat(alt); err == nil {
+									interpreter = alt
+									break
+								}
 							}
 						}
 					}

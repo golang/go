@@ -10,6 +10,7 @@ import (
 	"debug/elf"
 	"fmt"
 	"internal/testenv"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -624,5 +625,103 @@ func TestTLSIEtoLERelaxationExe(t *testing.T) {
 	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-buildmode=exe", "-gcflags=all=-shared", "-ldflags=-linkmode=internal", "-o", filepath.Join(tmpdir, "main"), src)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("go build -buildmode=exe -gcflags=all=-shared -ldflags=-linkmode=internal failed: %v\n%s", err, out)
+	}
+}
+
+func TestLinuxARMInterpreter(t *testing.T) {
+	t.Parallel()
+	testenv.MustHaveGoBuild(t)
+
+	dir := t.TempDir()
+	src := filepath.Join(dir, "main.go")
+	const prog = `package main
+
+import _ "runtime/cgo"
+
+func main() {}
+`
+	if err := os.WriteFile(src, []byte(prog), 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	buildAndInterp := func(t *testing.T, goarm string) (binFile, interp string) {
+		t.Helper()
+		binFile = filepath.Join(t.TempDir(), "main")
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-linkmode=internal", "-o", binFile, src)
+		cmd.Env = append(os.Environ(),
+			"GOOS=linux",
+			"GOARCH=arm",
+			"CGO_ENABLED=1",
+			"GOEXPERIMENT=runtimecgopurego",
+		)
+		if goarm != "" {
+			cmd.Env = append(cmd.Env, "GOARM="+goarm)
+		}
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("%v (GOARM=%q): %v:\n%s", cmd.Args, goarm, err, out)
+		}
+
+		ef, err := elf.Open(binFile)
+		if err != nil {
+			t.Fatalf("elf.Open(%s): %v", binFile, err)
+		}
+		defer ef.Close()
+
+		for _, p := range ef.Progs {
+			if p.Type == elf.PT_INTERP {
+				data, err := io.ReadAll(p.Open())
+				if err != nil {
+					t.Fatalf("reading PT_INTERP: %v", err)
+				}
+				interp = strings.TrimRight(string(data), "\x00")
+				break
+			}
+		}
+		if interp == "" {
+			t.Fatal("missing PT_INTERP segment")
+		}
+		return binFile, interp
+	}
+
+	if runtime.GOOS == "linux" && runtime.GOARCH == "arm" {
+		for _, tc := range []struct {
+			name  string
+			goarm string
+		}{
+			{"default", ""},
+			{"goarm5", "5"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				binFile, interp := buildAndInterp(t, tc.goarm)
+				if _, err := os.Stat(interp); err != nil {
+					t.Errorf("PT_INTERP %q does not exist on host: %v", interp, err)
+				}
+				testenv.MustHaveExec(t)
+				if out, err := testenv.Command(t, binFile).CombinedOutput(); err != nil {
+					t.Fatalf("running built binary (PT_INTERP=%q) failed: %v:\n%s", interp, err, out)
+				}
+			})
+		}
+		return
+	}
+
+	for _, tc := range []struct {
+		goarm string
+		want  string
+	}{
+		{"7", "/lib/ld-linux-armhf.so.3"},
+		{"6", "/lib/ld-linux-armhf.so.3"},
+		{"5,hardfloat", "/lib/ld-linux-armhf.so.3"},
+		{"5", "/lib/ld-linux.so.3"},
+		{"7,softfloat", "/lib/ld-linux.so.3"},
+	} {
+		t.Run("GOARM="+tc.goarm, func(t *testing.T) {
+			t.Parallel()
+			_, interp := buildAndInterp(t, tc.goarm)
+			if interp != tc.want {
+				t.Errorf("GOARM=%s: PT_INTERP = %q, want %q", tc.goarm, interp, tc.want)
+			}
+		})
 	}
 }
