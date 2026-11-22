@@ -511,10 +511,10 @@ func (dec *Decoder) ignoreStruct(engine *decEngine) {
 		if delta == 0 { // struct terminator is zero delta fieldnum
 			break
 		}
-		fieldnum := state.fieldnum + delta
-		if fieldnum >= len(engine.instr) {
+		if state.fieldnum >= len(engine.instr)-delta { // subtract to compare without overflow
 			error_(errRange)
 		}
+		fieldnum := state.fieldnum + delta
 		instr := &engine.instr[fieldnum]
 		instr.op(instr, state, noValue)
 		state.fieldnum = fieldnum
