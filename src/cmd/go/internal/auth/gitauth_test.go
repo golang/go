@@ -5,9 +5,47 @@
 package auth
 
 import (
+	"internal/testenv"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+// TestApproveOrRejectCredentialDir checks that 'git credential approve'
+// runs in the GOAUTH=git directory rather than in the current directory.
+func TestApproveOrRejectCredentialDir(t *testing.T) {
+	testenv.MustHaveExecPath(t, "git")
+
+	// Ignore credential helpers from the user's or the system's configuration.
+	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(t.TempDir(), "gitconfig"))
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+
+	dir := t.TempDir()
+	store := filepath.Join(t.TempDir(), "git-credentials")
+	for _, args := range [][]string{
+		{"init"},
+		{"config", "credential.helper", "store --file=" + filepath.ToSlash(store)},
+	} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
+		}
+	}
+
+	credential := "protocol=https\nhost=example.com\nusername=bob\npassword=secr3t\n"
+	approveOrRejectCredential(dir, []byte(credential), true)
+
+	data, err := os.ReadFile(store)
+	if err != nil {
+		t.Fatalf("credential helper in %s was not used: %v", dir, err)
+	}
+	if got, want := strings.TrimSpace(string(data)), "https://bob:secr3t@example.com"; got != want {
+		t.Errorf("stored credential = %q, want %q", got, want)
+	}
+}
 
 func TestParseGitAuth(t *testing.T) {
 	testCases := []struct {
