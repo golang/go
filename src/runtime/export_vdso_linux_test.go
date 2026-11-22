@@ -27,3 +27,8 @@ func VDSOSymbolKeys() []VDSOSymbolKey {
 	}
 	return keys
 }
+
+func VDSOFindVersionWithoutVersionTable() int32 {
+	info := vdsoInfo{valid: true}
+	return vdsoFindVersion(&info, &vdsoLinuxVersion)
+}

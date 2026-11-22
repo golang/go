@@ -50,3 +50,9 @@ func TestVDSOHash(t *testing.T) {
 		})
 	}
 }
+
+func TestVDSOFindVersionWithoutVersionTable(t *testing.T) {
+	if got := runtime.VDSOFindVersionWithoutVersionTable(); got != 0 {
+		t.Errorf("vdsoFindVersion without a version table = %d, want 0", got)
+	}
+}

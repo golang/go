@@ -186,7 +186,7 @@ func vdsoInitFromSysinfoEhdr(info *vdsoInfo, hdr *elfEhdr) {
 }
 
 func vdsoFindVersion(info *vdsoInfo, ver *vdsoVersionKey) int32 {
-	if !info.valid {
+	if !info.valid || info.verdef == nil {
 		return 0
 	}
 
