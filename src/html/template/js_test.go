@@ -390,6 +390,9 @@ func TestIsJsMimeType(t *testing.T) {
 		{"application/json", true},
 		{"application/ld+json", true},
 		{"module", true},
+		{"importmap", true},
+		{"speculationrules", true},
+		{"text/template", false},
 	}
 
 	for _, test := range tests {
