@@ -407,6 +407,8 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 //   - n == 0: the result is nil (zero subslices);
 //   - n < 0: all subslices.
 //
+// Every subslice except the last has capacity equal to its length.
+//
 // To split around the first instance of a separator, see [Cut].
 func SplitN(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
 
@@ -417,6 +419,8 @@ func SplitN(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
 //   - n > 0: at most n subslices; the last subslice will be the unsplit remainder;
 //   - n == 0: the result is nil (zero subslices);
 //   - n < 0: all subslices.
+//
+// Every subslice except the last has capacity equal to its length.
 func SplitAfterN(s, sep []byte, n int) [][]byte {
 	return genSplit(s, sep, len(sep), n)
 }
@@ -444,7 +448,7 @@ var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 // characters, as defined by [unicode.IsSpace], returning a slice of subslices of s or an
 // empty slice if s contains only white space. Every element of the returned slice is
 // non-empty. Unlike [Split], leading and trailing runs of white space characters
-// are discarded.
+// are discarded. Each subslice has capacity equal to its length.
 func Fields(s []byte) [][]byte {
 	// First count the fields.
 	// This is an exact count if s is ASCII, otherwise it is an approximation.
@@ -500,7 +504,7 @@ func Fields(s []byte) [][]byte {
 // returns a slice of subslices of s. If all code points in s satisfy f(c), or
 // len(s) == 0, an empty slice is returned. Every element of the returned slice is
 // non-empty. Unlike [Split], leading and trailing runs of code points
-// satisfying f(c) are discarded.
+// satisfying f(c) are discarded. Each subslice has capacity equal to its length.
 //
 // FieldsFunc makes no guarantees about the order in which it calls f(c)
 // and assumes that f always returns the same value for a given c.
