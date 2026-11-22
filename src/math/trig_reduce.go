@@ -54,8 +54,18 @@ func trigReduce(x float64) (j uint64, z float64) {
 	hi, _ := bits.Add64(z0lo, z1hi, c)
 	// The top 3 bits are j.
 	j = hi >> 61
-	// Extract the fraction and find its magnitude.
+	// Extract the fraction.
 	hi = hi<<3 | lo>>61
+	lo <<= 3
+	// Map zeros to origin. Subtract from 1 in integer arithmetic to avoid
+	// cancellation when the fractional part is close to 1.
+	neg := j&1 == 1
+	if neg {
+		lo, c = bits.Sub64(0, lo, 0)
+		hi, _ = bits.Sub64(0, hi, c)
+		j = (j + 1) & 7
+	}
+	// Find the magnitude of the fraction.
 	lz := uint(bits.LeadingZeros64(hi))
 	e := uint64(bias - (lz + 1))
 	// Clear implicit mantissa bit and shift into place.
@@ -64,11 +74,8 @@ func trigReduce(x float64) (j uint64, z float64) {
 	// Include the exponent and convert to a float.
 	hi |= e << shift
 	z = Float64frombits(hi)
-	// Map zeros to origin.
-	if j&1 == 1 {
-		j++
-		j &= 7
-		z--
+	if neg {
+		z = -z
 	}
 	// Multiply the fractional part by pi/4.
 	return j, z * PI4
