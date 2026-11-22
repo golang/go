@@ -408,7 +408,6 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 //   - n < 0: all subslices.
 //
 // Every subslice except the last has capacity equal to its length.
-// Appending to a subslice therefore does not overwrite a later subslice.
 //
 // To split around the first instance of a separator, see [Cut].
 func SplitN(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
@@ -422,7 +421,6 @@ func SplitN(s, sep []byte, n int) [][]byte { return genSplit(s, sep, 0, n) }
 //   - n < 0: all subslices.
 //
 // Every subslice except the last has capacity equal to its length.
-// Appending to a subslice therefore does not overwrite a later subslice.
 func SplitAfterN(s, sep []byte, n int) [][]byte {
 	return genSplit(s, sep, len(sep), n)
 }
