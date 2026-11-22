@@ -7,14 +7,11 @@
 package simd_test
 
 import (
-	"runtime"
 	"simd/archsimd"
 	"testing"
 )
 
-// This is a subset of the tests in unary_test.go, but notice also
-// that amd64 does not support OnesCount for 128-bit vectors except
-// on AVX512.
+// This is a subset of the tests in unary_test.go.
 
 func TestCeil(t *testing.T) {
 	testFloat32x4Unary(t, archsimd.Float32x4.Ceil, ceilSlice[float32])
@@ -76,8 +73,5 @@ func TestNeg(t *testing.T) {
 
 func TestOnesCount(t *testing.T) {
 	testInt8x16Unary(t, archsimd.Int8x16.OnesCount, map1[int8](onesCount))
-	if runtime.GOARCH == "amd64" && !archsimd.X86.AVX512BITALG() {
-		t.Skip("OnesCount on 128-bit Uint8x16 vectors on amd64 requires AVX512BITALG")
-	}
 	testUint8x16Unary(t, archsimd.Uint8x16.OnesCount, map1[uint8](onesCount))
 }
