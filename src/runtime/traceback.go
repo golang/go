@@ -1493,6 +1493,13 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
 
 	// Print the hex dump.
 	print("stack: frame={sp:", hex(frame.sp), ", fp:", hex(frame.fp), "} stack=[", hex(stk.lo), ",", hex(stk.hi), ")\n")
+	if hi <= lo {
+		// The frame is not on stk, so there is nothing to dump.
+		// This happens, for example, when a signal arrives while
+		// the goroutine is running on the system stack without
+		// having switched g, as in racecall, msancall, and asancall.
+		return
+	}
 	hexdumpWords(lo, hi-lo, func(p uintptr, m hexdumpMarker) {
 		if p == frame.fp {
 			m.start()
