@@ -548,3 +548,9 @@ func ternlogQ512Load() {
 	// amd64:`VPTERNLOGQ \$150, .*\(SB\), Z[0-9]+, Z[0-9]+`
 	a.Xor(b).Xor(c).StoreArray(&ternQ512A)
 }
+
+func simdBreakFalseDep(a archsimd.Int8x64, m archsimd.Mask8x64) archsimd.Int8x64 {
+	// amd64:`VPXORD X\d, X\d`
+	// amd64:`VPEXPANDB\.Z Z\d, K\d, Z\d`
+	return a.Expand(m).Add(a)
+}

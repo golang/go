@@ -30,6 +30,14 @@ import (
 
 func ssaGenSIMD{{.FuncInfix}}Value(s *ssagen.State, v *ssa.Value) bool {
 	var p *obj.Prog
+{{- if .FalseDep}}
+	// Some instructions have a false dependency on their output register,
+	// at least on some CPUs (e.g. AMD Zen 4, Zen 5).
+	switch v.Op {
+	case {{.FalseDep}}:
+		simdBreakFalseDep(s, v)
+	}
+{{- end}}
 	switch v.Op {{"{"}}{{end}}
 {{define "case"}}
 	case {{.Cases}}:
@@ -128,6 +136,7 @@ type tplSSAHeader struct {
 	// name when a target shares another's backend package.
 	// Empty for the primary target.
 	FuncInfix string
+	FalseDep  string
 }
 
 // getArrangementFromOp extracts the arrangement constant from an SSA op name for ARM64.
@@ -159,6 +168,7 @@ func getArrangementFromOp(archInfo ArchInfo, caseStr string) string {
 func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 	archInfo := CurrentArch()
 	var ZeroingMask []string
+	var FalseDep []string
 	// narrowFix maps the case expression of a machine op, such as
 	// "ssaop.OpAMD64VPMOVSXBD256" (or its Merging or load form), to the Go
 	// statements that fix up its narrow registers (see narrowRegFixes).
@@ -329,6 +339,9 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 		if err := classifyOp(op, maskType, shapeIn, shapeOut, caseStr, NoMem, immOpArg, immType); err != nil {
 			panic(err)
 		}
+		if gOp.FalseDep != nil && *gOp.FalseDep {
+			FalseDep = append(FalseDep, caseStr)
+		}
 
 		// Generate hi-half "2" variant SSA lowering case.
 		// The base op gets a suffixed regShape (e.g., "v11ImmNarrow"), and
@@ -359,6 +372,9 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 				}
 			} else if isZeroMasking {
 				ZeroingMask = append(ZeroingMask, caseStr+"load")
+				if gOp.FalseDep != nil && *gOp.FalseDep {
+					FalseDep = append(FalseDep, caseStr+"load")
+				}
 			}
 		}
 	}
@@ -375,6 +391,7 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 		ObjArch:         archInfo.ObjArch,
 		GeneratedHeader: archInfo.GeneratedHeader,
 		FuncInfix:       archInfo.ssaGenFuncInfix(),
+		FalseDep:        strings.Join(FalseDep, ",\n\t\t"),
 	}
 	if err := ssaTemplates.ExecuteTemplate(buffer, "header", headerData); err != nil {
 		panic(fmt.Errorf("failed to execute header template: %w", err))

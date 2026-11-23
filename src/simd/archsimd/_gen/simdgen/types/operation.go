@@ -95,6 +95,7 @@ type RawOperation struct {
 	Commutative     bool      // Commutativity
 	CPUFeature      string    // CPUID/Has* feature name
 	Zeroing         *bool     // nil => use asm suffix ".Z"; false => do not use asm suffix ".Z"
+	FalseDep        *bool     // true => the instruction has a false dependency on its output register
 	Documentation   *string   // Documentation will be appended to the stubs comments.
 	AddDoc          *string   // Additional doc to be appended.
 	// ConstMask is a hack to reduce the size of defs the user writes for const-immediate

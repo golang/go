@@ -445,6 +445,7 @@
 
 - go: Compress
   asm: "VPCOMPRESS[BWDQ]|VCOMPRESSP[SD]"
+  falseDep: true # on AMD Zen 4 and Zen 5, see go.dev/issue/81609
   in:
     # The mask in Compress is a control mask rather than a write mask, so it's not optional.
   - go: $t
@@ -501,6 +502,7 @@
 
 - go: Expand
   asm: "VPEXPAND[BWDQ]|VEXPANDP[SD]"
+  falseDep: true # on AMD Zen 4 and Zen 5, see go.dev/issue/81609
   in:
     # The mask in Expand is a control mask rather than a write mask, so it's not optional.
   - go: $t

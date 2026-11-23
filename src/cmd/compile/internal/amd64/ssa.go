@@ -2080,6 +2080,24 @@ func zeroX15Low(s *ssagen.State, avx bool) {
 	opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 }
 
+// https://go.dev/issue/81609
+func simdBreakFalseDep(s *ssagen.State, v *ssa.Value) {
+	if v.Args[0].Reg() == v.Reg() {
+		// The destination register *is* the source register,
+		// so there actually is a real dependency.
+		return
+	}
+	// Emit VPXORD as a SIMD zeroing idiom, see section 2.9.2 in:
+	// Software Optimization Guide for the AMD Zen5 Microarchitecture.
+	r := v.Reg()
+	p := s.Prog(x86.AVPXORD)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = r
+	p.AddRestSourceReg(r)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = r
+}
+
 // zeroX15 zeroes the X15 register.
 func zeroX15(s *ssagen.State) {
 	if buildcfg.GOAMD64 >= 3 {
