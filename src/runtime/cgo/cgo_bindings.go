@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.runtimecgopurego && !msan && !tsan && (unix || windows)
+//go:build goexperiment.runtimecgopurego && (unix || windows)
 
 package cgo
 
@@ -124,42 +124,6 @@ func cgocallErr(fn, a0, a1, a2, a3, a4, a5 uintptr) (uintptr, uint32) {
 	return f.r1, uint32(errno)
 }
 
-//go:nosplit
-//go:norace
-func tsanAcquire() {}
-
-//go:nosplit
-//go:norace
-func tsanAcquireNoG() {}
-
-//go:nosplit
-//go:norace
-func tsanAcquireMode(noG bool) {}
-
-//go:nosplit
-//go:norace
-func tsanRelease() {}
-
-//go:nosplit
-//go:norace
-func tsanReleaseNoG() {}
-
-//go:nosplit
-//go:norace
-func tsanReleaseMode(noG bool) {}
-
-//go:nosplit
-//go:norace
-func msanUnpoison(addr unsafe.Pointer, size uintptr) {}
-
-//go:nosplit
-//go:norace
-func msanUnpoisonNoG(addr unsafe.Pointer, size uintptr) {}
-
-//go:nosplit
-//go:norace
-func msanUnpoisonMode(noG bool, addr unsafe.Pointer, size uintptr) {}
-
 type cgoContextArg struct {
 	context uintptr
 }
@@ -197,7 +161,7 @@ func cgoWaitRuntimeInit() uintptr {
 func cgoWaitRuntimeInitDone() uintptr {
 	if pfn := cgoWaitRuntimeInit(); pfn != 0 {
 		var arg cgoContextArg
-		msanUnpoisonNoG(unsafe.Pointer(&arg), unsafe.Sizeof(arg))
+		msanUnpoison(unsafe.Pointer(&arg), unsafe.Sizeof(arg))
 		fn := pfn
 		if goos.IsAix != 0 {
 			// On AIX, cgoCallTrampoline expects the address of a
@@ -229,7 +193,7 @@ func cgoReleaseContext(ctxt uintptr) {
 	}
 	if pfn := atomic.Loaduintptr(&cgo_context_function); pfn != 0 {
 		arg := cgoContextArg{context: ctxt}
-		msanUnpoisonNoG(unsafe.Pointer(&arg), unsafe.Sizeof(arg))
+		msanUnpoison(unsafe.Pointer(&arg), unsafe.Sizeof(arg))
 		fn := pfn
 		if goos.IsAix != 0 {
 			// See cgoWaitRuntimeInitDone.

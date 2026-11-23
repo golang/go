@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (!goexperiment.runtimecgopurego || msan || tsan) && unix
+//go:build !goexperiment.runtimecgopurego && unix
 
 // When cross-compiling with clang to linux/armv5, atomics are emulated
 // and cause a compiler warning. This results in a build failure since

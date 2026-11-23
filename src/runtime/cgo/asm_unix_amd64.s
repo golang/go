@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.runtimecgopurego && !msan && !tsan && unix && amd64
+//go:build goexperiment.runtimecgopurego && unix && amd64
 
 #include "go_asm.h"
 #include "textflag.h"
@@ -68,6 +68,17 @@ TEXT ·x_cgo_call_context(SB),NOSPLIT|NOFRAME,$0-0
 	SUBQ	$16, SP
 
 	MOVQ	$0, 0(SP)	// arg.context = 0
+#ifdef const_msanEnabled
+	MOVQ	AX, 8(SP)	// save pfn
+
+	// Unpoison arg on the C stack.
+	LEAQ	·msanUnpoisonFn(SB), AX
+	MOVQ	(AX), AX
+	MOVQ	SP, DI		// &arg
+	MOVQ	$8, SI		// sizeof(arg)
+	CALL	AX
+	MOVQ	8(SP), AX	// pfn
+#endif
 	MOVQ	SP, DI		// &arg
 	CALL	AX
 
@@ -132,7 +143,7 @@ DATA _cgo_init+0(SB)/8, $x_cgo_init<>(SB)
 TEXT ·x_cgo_callers(SB),NOSPLIT|NOFRAME,$0-0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	SUBQ	$64, SP
+	SUBQ	$80, SP
 
 	MOVQ	$0, 0(SP)	// arg.context = 0
 	MOVQ	DX, 8(SP)	// arg.sigContext = context
@@ -143,10 +154,38 @@ TEXT ·x_cgo_callers(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ	SI, 40(SP)	// save info
 	MOVQ	DX, 48(SP)	// save context
 	MOVQ	R9, 56(SP)	// save sigtramp
+	MOVQ	CX, 64(SP)	// save cgoTraceback
 
+#ifdef const_msanEnabled
+	// Unpoison arg on the signal stack (issue #47543).
+	LEAQ	·msanUnpoisonFn(SB), AX
+	MOVQ	(AX), AX
 	MOVQ	SP, DI		// &arg
-	CALL	CX		// (*cgoTraceback)(&arg)
+	MOVQ	$32, SI		// sizeof(arg)
+	CALL	AX
+#endif
+	LEAQ	·tsanAcquireFnPtr(SB), AX
+	MOVQ	(AX), AX
+	MOVQ	(AX), AX
+	TESTQ	AX, AX
+	JZ	callers_acq_done
+	LEAQ	·cgoSyncPtr(SB), DI
+	MOVQ	(DI), DI
+	CALL	AX
+callers_acq_done:
+	MOVQ	SP, DI		// &arg
+	MOVQ	64(SP), AX	// cgoTraceback
+	CALL	AX		// (*cgoTraceback)(&arg)
 
+	LEAQ	·tsanReleaseFnPtr(SB), AX
+	MOVQ	(AX), AX
+	MOVQ	(AX), AX
+	TESTQ	AX, AX
+	JZ	callers_rel_done
+	LEAQ	·cgoSyncPtr(SB), DI
+	MOVQ	(DI), DI
+	CALL	AX
+callers_rel_done:
 	MOVQ	32(SP), DI	// restore sig
 	MOVQ	40(SP), SI	// restore info
 	MOVQ	48(SP), DX	// restore context

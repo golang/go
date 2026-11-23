@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.runtimecgopurego && !msan && !tsan && linux
+//go:build goexperiment.runtimecgopurego && linux
 
 package cgo
 
 import (
 	"internal/goarch"
+	"internal/runtime/atomic"
+	"runtime"
 	"unsafe"
 )
 
@@ -76,9 +78,15 @@ var _cgoClearenv = cgoClearenv
 
 //go:norace
 func cgoClearenv() {
-	tsanAcquire()
+	if acq := atomic.LoadAcquintptr(tsanAcquireFnPtr); acq != 0 {
+		runtime.LockOSThread()
+		tsanCallSlow(acq)
+		asmcgocall(uintptr(libc_clearenv), 0, 0, 0, 0, 0, 0)
+		tsanRelease()
+		runtime.UnlockOSThread()
+		return
+	}
 	asmcgocall(uintptr(libc_clearenv), 0, 0, 0, 0, 0, 0)
-	tsanRelease()
 }
 
 //go:linknamestd _cgoSyscall runtime.cgoSyscall

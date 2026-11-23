@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.runtimecgopurego && !msan && !tsan && unix && (ppc64 || ppc64le)
+//go:build goexperiment.runtimecgopurego && unix && (ppc64 || ppc64le)
 
 #include "go_asm.h"
 #include "textflag.h"
@@ -180,7 +180,7 @@ DATA _cgo_init+0(SB)/8, $x_cgo_init<>(SB)
 TEXT ·x_cgo_callers(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	LR, R0
 	MOVD	R0, 16(R1)
-	MOVDU	R1, -160(R1)
+	MOVDU	R1, -176(R1)
 	MOVD	R2, 24(R1)
 	XOR	R0, R0
 
@@ -194,20 +194,47 @@ TEXT ·x_cgo_callers(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	R4, 136(R1)	// save info
 	MOVD	R5, 144(R1)	// save context
 	MOVD	R8, 152(R1)	// save sigtramp
+	MOVD	R6, 160(R1)	// save cgoTraceback
 
+	MOVD	$·tsanAcquireFnPtr(SB), R12
+	MOVD	(R12), R12
+	MOVD	(R12), R12
+	CMP	R12, $0
+	BEQ	callers_acq_done
+	LWSYNC
+	MOVD	$·cgoSyncPtr(SB), R3
+	MOVD	(R3), R3
+	MOVD	R12, CTR
+	BL	(CTR)
+	XOR	R0, R0
+	MOVD	24(R1), R2
+callers_acq_done:
 	ADD	$96, R1, R3	// &arg
-	MOVD	R6, R12
+	MOVD	160(R1), R12	// cgoTraceback
 	MOVD	R12, CTR
 	BL	(CTR)		// (*cgoTraceback)(&arg)
 	XOR	R0, R0
 	MOVD	24(R1), R2
 
+	MOVD	$·tsanReleaseFnPtr(SB), R12
+	MOVD	(R12), R12
+	MOVD	(R12), R12
+	CMP	R12, $0
+	BEQ	callers_rel_done
+	LWSYNC
+	MOVD	$·cgoSyncPtr(SB), R3
+	MOVD	(R3), R3
+	MOVD	R12, CTR
+	BL	(CTR)
+	XOR	R0, R0
+	MOVD	24(R1), R2
+callers_rel_done:
 	MOVD	128(R1), R3	// restore sig
 	MOVD	136(R1), R4	// restore info
 	MOVD	144(R1), R5	// restore context
 	MOVD	152(R1), R12	// restore sigtramp
 
-	ADD	$160, R1
+	ADD	$176, R1
 	MOVD	16(R1), R9
 	MOVD	R9, LR
 	MOVD	R12, CTR

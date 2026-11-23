@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.runtimecgopurego && !msan && !tsan && unix && loong64
+//go:build goexperiment.runtimecgopurego && unix && loong64
 
 #include "go_asm.h"
 #include "textflag.h"
@@ -106,10 +106,10 @@ DATA _cgo_init+0(SB)/8, $x_cgo_init<>(SB)
 
 // x_cgo_callers is jumped to from runtime.cgoSigtramp on the signal stack.
 TEXT ·x_cgo_callers(SB),NOSPLIT|NOFRAME,$0
-	ADDV	$-80, R3
-	MOVV	g, 64(R3)		// save fp (R22/g)
-	MOVV	R1, 72(R3)
-	ADDV	$80, R3, g
+	ADDV	$-96, R3
+	MOVV	g, 80(R3)		// save fp (R22/g)
+	MOVV	R1, 88(R3)
+	ADDV	$96, R3, g
 
 	MOVV	R0, 0(R3)		// arg.context = 0
 	MOVV	R6, 8(R3)		// arg.sigContext = context
@@ -121,18 +121,46 @@ TEXT ·x_cgo_callers(SB),NOSPLIT|NOFRAME,$0
 	MOVV	R5, 40(R3)		// save info
 	MOVV	R6, 48(R3)		// save context
 	MOVV	R9, 56(R3)		// save sigtramp
+	MOVV	R7, 64(R3)		// save cgoTraceback
 
+#ifdef const_msanEnabled
+	// Unpoison arg on the signal stack (issue #47543).
+	MOVV	$·msanUnpoisonFn(SB), R12
+	MOVV	(R12), R12
 	MOVV	R3, R4			// &arg
-	JAL	(R7)			// (*cgoTraceback)(&arg)
+	MOVV	$32, R5			// sizeof(arg)
+	JAL	(R12)
+#endif
+	MOVV	$·tsanAcquireFnPtr(SB), R12
+	MOVV	(R12), R12
+	MOVV	(R12), R12
+	BEQ	R12, R0, callers_acq_done
+	DBAR
+	MOVV	$·cgoSyncPtr(SB), R4
+	MOVV	(R4), R4
+	JAL	(R12)
+callers_acq_done:
+	MOVV	64(R3), R12		// cgoTraceback
+	MOVV	R3, R4			// &arg
+	JAL	(R12)			// (*cgoTraceback)(&arg)
 
+	MOVV	$·tsanReleaseFnPtr(SB), R12
+	MOVV	(R12), R12
+	MOVV	(R12), R12
+	BEQ	R12, R0, callers_rel_done
+	DBAR
+	MOVV	$·cgoSyncPtr(SB), R4
+	MOVV	(R4), R4
+	JAL	(R12)
+callers_rel_done:
 	MOVV	32(R3), R4		// restore sig
 	MOVV	40(R3), R5		// restore info
 	MOVV	48(R3), R6		// restore context
 	MOVV	56(R3), R12		// restore sigtramp
 
-	MOVV	64(R3), g
-	MOVV	72(R3), R1
-	ADDV	$80, R3
+	MOVV	80(R3), g
+	MOVV	88(R3), R1
+	ADDV	$96, R3
 	JMP	(R12)			// sigtramp(sig, info, context)
 
 GLOBL _cgo_callers(SB), NOPTR, $8

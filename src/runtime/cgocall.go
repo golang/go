@@ -311,7 +311,9 @@ func callbackUpdateSystemStack(mp *m, sp uintptr, signal bool) {
 		// anyway. Not worth it.)
 		var bounds [2]uintptr
 		if goexperiment.RuntimeCgoPurego && cgoGetStackBound != nil {
-			bounds[0], bounds[1] = cgoGetStackBound()
+			systemstack(func() {
+				bounds[0], bounds[1] = cgoGetStackBound()
+			})
 		} else {
 			asmcgocall(_cgo_getstackbound, unsafe.Pointer(&bounds))
 		}

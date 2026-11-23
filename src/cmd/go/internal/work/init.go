@@ -23,7 +23,6 @@ import (
 	"runtime"
 	"slices"
 	"strconv"
-	"strings"
 	"sync"
 )
 
@@ -147,9 +146,6 @@ func fuzzInstrumentFlags() []string {
 }
 
 func instrumentInit() {
-	if cfg.BuildContext.CgoEnabled == build.CgoEnabled && cgoTSanEnabled() {
-		cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, "tsan")
-	}
 	if !cfg.BuildRace && !cfg.BuildMSan && !cfg.BuildASan {
 		return
 	}
@@ -234,41 +230,6 @@ func instrumentInit() {
 	}
 	cfg.BuildContext.InstallSuffix += mode
 	cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, mode)
-}
-
-// cgoTSanEnabled reports whether the C compiler flags in CC, CGO_CPPFLAGS, or
-// CGO_CFLAGS enable ThreadSanitizer (-fsanitize=thread).
-func cgoTSanEnabled() bool {
-	tsan := false
-	for _, key := range []string{"CC", "CGO_CPPFLAGS", "CGO_CFLAGS"} {
-		v := cfg.Getenv(key)
-		if key == "CC" && v == "" {
-			v = cfg.DefaultCC(cfg.Goos, cfg.Goarch)
-		}
-		args, err := quoted.Split(v)
-		if err != nil {
-			continue
-		}
-		if key == "CC" && len(args) > 0 {
-			args = args[1:]
-		}
-		for _, arg := range args {
-			if list, ok := strings.CutPrefix(arg, "-fsanitize="); ok {
-				for s := range strings.SplitSeq(list, ",") {
-					if s == "thread" {
-						tsan = true
-					}
-				}
-			} else if list, ok := strings.CutPrefix(arg, "-fno-sanitize="); ok {
-				for s := range strings.SplitSeq(list, ",") {
-					if s == "thread" || s == "all" {
-						tsan = false
-					}
-				}
-			}
-		}
-	}
-	return tsan
 }
 
 func buildModeInit() {

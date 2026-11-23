@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.runtimecgopurego && !msan && !tsan && unix
+//go:build goexperiment.runtimecgopurego && unix
 
 package cgo
 
@@ -10,8 +10,109 @@ import (
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/sys"
+	"runtime"
 	"unsafe"
 )
+
+// Export TSAN hook pointers and _cgo_sync statically so cmd/cgo's constructor
+// in _cgo_export.c can populate them when C code is compiled with
+// -fsanitize=thread.
+//
+//go:cgo_export_static _cgo_tsan_acquire_fn
+//go:cgo_export_static _cgo_tsan_release_fn
+//go:cgo_export_static _cgo_sync
+//go:cgo_export_static _cgo_yield
+
+//go:linkname tsanAcquireFn _cgo_tsan_acquire_fn
+//go:linkname tsanReleaseFn _cgo_tsan_release_fn
+//go:linkname cgoSync _cgo_sync
+var (
+	tsanAcquireFn uintptr
+	tsanReleaseFn uintptr
+	cgoSync       int64
+)
+
+// Access the statically exported TSAN variables through non-exported pointers
+// so .text does not reference global data symbols directly (which fails under
+// -buildmode=c-shared -Wl,-Bsymbolic-functions).
+var (
+	tsanAcquireFnPtr = &tsanAcquireFn
+	tsanReleaseFnPtr = &tsanReleaseFn
+	cgoSyncPtr       = &cgoSync
+)
+
+// tsanCallSlow, tsanCallNoGSlow, and tsanCallModeSlow are out-of-line slow
+// paths so the fast-path nil checks in tsanAcquire/tsanRelease/tsanCall inline.
+//
+//go:noinline
+//go:nosplit
+//go:norace
+//go:nocheckptr
+func tsanCallSlow(fn uintptr) {
+	runtime_asmcgocall(*(*unsafe.Pointer)(unsafe.Pointer(&fn)), unsafe.Pointer(cgoSyncPtr))
+}
+
+//go:noinline
+//go:nosplit
+//go:norace
+//go:nocheckptr
+func tsanCallNoGSlow(fn uintptr) {
+	runtime_asmcgocall_no_g(*(*unsafe.Pointer)(unsafe.Pointer(&fn)), unsafe.Pointer(cgoSyncPtr))
+}
+
+//go:nosplit
+//go:norace
+//go:nocheckptr
+func tsanCallModeSlow(fn uintptr, noG bool) {
+	if noG {
+		runtime_asmcgocall_no_g(*(*unsafe.Pointer)(unsafe.Pointer(&fn)), unsafe.Pointer(cgoSyncPtr))
+	} else {
+		runtime_asmcgocall(*(*unsafe.Pointer)(unsafe.Pointer(&fn)), unsafe.Pointer(cgoSyncPtr))
+	}
+}
+
+// tsanCall calls *fnp(&_cgo_sync), if set, on the system stack, or on the
+// current stack if noG is set.
+//
+//go:nosplit
+//go:norace
+func tsanCall(fnp *uintptr, noG bool) {
+	if fn := atomic.LoadAcquintptr(fnp); fn != 0 {
+		tsanCallModeSlow(fn, noG)
+	}
+}
+
+//go:nosplit
+//go:norace
+func tsanAcquire() {
+	if fn := atomic.LoadAcquintptr(tsanAcquireFnPtr); fn != 0 {
+		tsanCallSlow(fn)
+	}
+}
+
+//go:nosplit
+//go:norace
+func tsanAcquireNoG() {
+	if fn := atomic.LoadAcquintptr(tsanAcquireFnPtr); fn != 0 {
+		tsanCallNoGSlow(fn)
+	}
+}
+
+//go:nosplit
+//go:norace
+func tsanRelease() {
+	if fn := atomic.LoadAcquintptr(tsanReleaseFnPtr); fn != 0 {
+		tsanCallSlow(fn)
+	}
+}
+
+//go:nosplit
+//go:norace
+func tsanReleaseNoG() {
+	if fn := atomic.LoadAcquintptr(tsanReleaseFnPtr); fn != 0 {
+		tsanCallNoGSlow(fn)
+	}
+}
 
 //go:linkname _cgo_libc_setenv _cgo_libc_setenv
 var _cgo_libc_setenv byte
@@ -126,9 +227,15 @@ var _cgoSetenv = cgoSetenv
 
 //go:norace
 func cgoSetenv(k, v unsafe.Pointer) {
-	tsanAcquire()
+	if acq := atomic.LoadAcquintptr(tsanAcquireFnPtr); acq != 0 {
+		runtime.LockOSThread()
+		tsanCallSlow(acq)
+		asmcgocall(uintptr(libc_setenv), uintptr(k), uintptr(v), 1, 0, 0, 0)
+		tsanRelease()
+		runtime.UnlockOSThread()
+		return
+	}
 	asmcgocall(uintptr(libc_setenv), uintptr(k), uintptr(v), 1, 0, 0, 0)
-	tsanRelease()
 }
 
 //go:linknamestd _cgoUnsetenv runtime.cgoUnsetenv
@@ -136,9 +243,15 @@ var _cgoUnsetenv = cgoUnsetenv
 
 //go:norace
 func cgoUnsetenv(k unsafe.Pointer) {
-	tsanAcquire()
+	if acq := atomic.LoadAcquintptr(tsanAcquireFnPtr); acq != 0 {
+		runtime.LockOSThread()
+		tsanCallSlow(acq)
+		asmcgocall(uintptr(libc_unsetenv), uintptr(k), 0, 0, 0, 0, 0)
+		tsanRelease()
+		runtime.UnlockOSThread()
+		return
+	}
 	asmcgocall(uintptr(libc_unsetenv), uintptr(k), 0, 0, 0, 0, 0)
-	tsanRelease()
 }
 
 //go:linknamestd _cgoGetStackBound runtime.cgoGetStackBound
@@ -200,9 +313,11 @@ func cgoThreadStackSize(attr *pthreadAttr) uintptr {
 func cgoGetStackBound() (uintptr, uintptr) {
 	switch {
 	case goos.IsDarwin|goos.IsIos != 0:
+		tsanAcquireNoG()
 		self := asmcgocallNoG(uintptr(libc_pthread_self), 0, 0, 0, 0, 0, 0)
 		high := asmcgocallNoG(uintptr(libc_pthread_get_stackaddr_np), self, 0, 0, 0, 0, 0)
 		size := asmcgocallNoG(uintptr(libc_pthread_get_stacksize_np), self, 0, 0, 0, 0, 0)
+		tsanReleaseNoG()
 		return high - size, high
 
 	case goos.IsLinux|goos.IsAndroid|goos.IsSolaris|goos.IsIllumos != 0:
@@ -217,6 +332,7 @@ func cgoGetStackBound() (uintptr, uintptr) {
 		} else {
 			getattr = libc_pthread_getattr_np
 		}
+		tsanAcquireNoG()
 		// Needed before pthread_getattr_np, too, since before glibc 2.32
 		// it did not call pthread_attr_init in all cases (see #65625).
 		asmcgocallNoG(uintptr(libc_pthread_attr_init), uintptr(unsafe.Pointer(&attr)), 0, 0, 0, 0, 0)
@@ -225,6 +341,7 @@ func cgoGetStackBound() (uintptr, uintptr) {
 			asmcgocallNoG(uintptr(libc_pthread_attr_getstack), uintptr(unsafe.Pointer(&attr)), uintptr(unsafe.Pointer(&addr)), uintptr(unsafe.Pointer(&size)), 0, 0, 0)
 		}
 		asmcgocallNoG(uintptr(libc_pthread_attr_destroy), uintptr(unsafe.Pointer(&attr)), 0, 0, 0, 0, 0)
+		tsanReleaseNoG()
 		return addr, addr + size
 
 	default:
@@ -386,7 +503,6 @@ func threadentry(v unsafe.Pointer) {
 			size  uintptr
 			flags int32
 		}{flags: _SS_DISABLE}
-		msanUnpoisonNoG(unsafe.Pointer(&ss), unsafe.Sizeof(ss))
 		asmcgocallNoG(uintptr(libc_sigaltstack), uintptr(unsafe.Pointer(&ss)), 0, 0, 0, 0, 0)
 	}
 	runtime_setg(uintptr(v))

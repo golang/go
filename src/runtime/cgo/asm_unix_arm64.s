@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.runtimecgopurego && !msan && !tsan && unix && arm64
+//go:build goexperiment.runtimecgopurego && unix && arm64
 
 #include "go_asm.h"
 #include "textflag.h"
@@ -82,11 +82,27 @@ callctx:
 TEXT ·x_cgo_call_context(SB),NOSPLIT|NOFRAME,$0
 	STP.W	(R29, R30), -16(RSP)
 	MOVD	RSP, R29
+#ifdef const_msanEnabled
+	SUB	$32, RSP
+
+	MOVD	ZR, 0(RSP)		// arg.context = 0
+	STP	(R0, R27), 8(RSP)	// save pfn, R27 (clobbered by global loads under -dynlink)
+
+	// Unpoison arg on the C stack.
+	MOVD	$·msanUnpoisonFn(SB), R9
+	MOVD	(R9), R9
+	MOVD	16(RSP), R27
+	MOVD	RSP, R0			// &arg
+	MOVD	$8, R1			// sizeof(arg)
+	BL	(R9)
+	MOVD	8(RSP), R9		// pfn
+#else
 	SUB	$16, RSP
 
-	MOVD	R0, R9		// pfn
-	MOVD	ZR, 0(RSP)	// arg.context = 0
-	MOVD	RSP, R0		// &arg
+	MOVD	R0, R9			// pfn
+	MOVD	ZR, 0(RSP)		// arg.context = 0
+#endif
+	MOVD	RSP, R0			// &arg
 	BL	(R9)
 
 	MOVD	0(RSP), R0	// return arg.context
@@ -133,7 +149,7 @@ DATA _cgo_init+0(SB)/8, $x_cgo_init<>(SB)
 TEXT ·x_cgo_callers(SB),NOSPLIT|NOFRAME,$0
 	STP.W	(R29, R30), -16(RSP)
 	MOVD	RSP, R29
-	SUB	$64, RSP
+	SUB	$80, RSP
 
 	STP	(ZR, R2), 0(RSP)	// arg.context = 0, arg.sigContext = context
 	MOVD	$32, R6
@@ -141,10 +157,40 @@ TEXT ·x_cgo_callers(SB),NOSPLIT|NOFRAME,$0
 
 	STP	(R0, R1), 32(RSP)	// save sig, info
 	STP	(R2, R5), 48(RSP)	// save context, sigtramp
+	STP	(R3, R27), 64(RSP)	// save cgoTraceback, R27
 
+#ifdef const_msanEnabled
+	// Unpoison arg on the signal stack (issue #47543).
+	MOVD	$·msanUnpoisonFn(SB), R9
+	MOVD	(R9), R9
+	MOVD	72(RSP), R27
 	MOVD	RSP, R0			// &arg
-	BL	(R3)			// (*cgoTraceback)(&arg)
+	MOVD	$32, R1			// sizeof(arg)
+	BL	(R9)
+#endif
+	MOVD	$·tsanAcquireFnPtr(SB), R9
+	MOVD	(R9), R9
+	LDAR	(R9), R9
+	CBZ	R9, callers_acq_done
+	MOVD	$·cgoSyncPtr(SB), R0
+	MOVD	(R0), R0
+	MOVD	72(RSP), R27
+	BL	(R9)
+callers_acq_done:
+	LDP	64(RSP), (R9, R27)	// restore cgoTraceback, R27 (clobbered above under -dynlink)
+	MOVD	RSP, R0			// &arg
+	BL	(R9)			// (*cgoTraceback)(&arg)
 
+	MOVD	$·tsanReleaseFnPtr(SB), R9
+	MOVD	(R9), R9
+	LDAR	(R9), R9
+	CBZ	R9, callers_rel_done
+	MOVD	$·cgoSyncPtr(SB), R0
+	MOVD	(R0), R0
+	MOVD	72(RSP), R27
+	BL	(R9)
+callers_rel_done:
+	MOVD	72(RSP), R27		// restore R27 (clobbered above under -dynlink)
 	LDP	32(RSP), (R0, R1)	// restore sig, info
 	LDP	48(RSP), (R2, R5)	// restore context, sigtramp
 

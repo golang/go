@@ -62,6 +62,27 @@ var cgoSetContextFunction func(context uintptr)
 //go:linknamestd cgoBindM
 var cgoBindM func(g uintptr)
 
+// Filled in by runtime/cgo on Unix when GOEXPERIMENT=runtimecgopurego is
+// enabled and C/C++ TSAN is active.
+//
+//go:linkname _cgo_tsan_acquire_fn _cgo_tsan_acquire_fn
+//go:linkname _cgo_tsan_release_fn _cgo_tsan_release_fn
+//go:linkname _cgo_sync _cgo_sync
+var (
+	_cgo_tsan_acquire_fn unsafe.Pointer
+	_cgo_tsan_release_fn unsafe.Pointer
+	_cgo_sync            int64
+)
+
+// Access the statically exported TSAN symbols through non-exported pointers
+// so .text does not reference global data symbols directly (which fails under
+// -buildmode=c-shared -Wl,-Bsymbolic-functions).
+var (
+	cgo_tsan_acquire_fn = &_cgo_tsan_acquire_fn
+	cgo_tsan_release_fn = &_cgo_tsan_release_fn
+	cgo_sync            = &_cgo_sync
+)
+
 // iscgo is set to true by the runtime/cgo package
 //
 // iscgo should be an internal detail,
@@ -116,6 +137,11 @@ func cgoKeepAlive(any) { throw("cgoKeepAlive should not be called") }
 // escape/alive analysis result. The test is cheaper than the call.
 var cgoAlwaysFalse bool
 
+// cgo_yield points to _cgo_yield, which is nil unless C/C++ TSAN is active.
+// Under GOEXPERIMENT=runtimecgopurego, a C constructor sets _cgo_yield once
+// monotonically from nil to a static function pointer (before Go runtime
+// startup on executables and ELF libraries), so plain pointer loads are safe
+// without atomic barriers on scheduler hot paths.
 var cgo_yield = &_cgo_yield
 
 func cgoNoCallback(v bool) {

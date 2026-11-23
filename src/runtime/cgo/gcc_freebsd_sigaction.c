@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (!goexperiment.runtimecgopurego || msan || tsan) && freebsd && amd64
+//go:build !goexperiment.runtimecgopurego && freebsd && amd64
 
 #include <errno.h>
 #include <stddef.h>

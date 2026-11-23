@@ -1,0 +1,38 @@
+# Test that runtime/cgo uses pure-Go files under GOEXPERIMENT=runtimecgopurego
+# even when -msan or -fsanitize=thread is enabled, and falls back to C files
+# only when GOEXPERIMENT=noruntimecgopurego is set.
+
+env GOOS=linux
+env GOARCH=amd64
+env CGO_ENABLED=1
+env GOEXPERIMENT=runtimecgopurego
+env CC=
+env CGO_CPPFLAGS=
+env CGO_CFLAGS=
+
+# Default: pure-Go runtime/cgo (no C files).
+go list -f '{{.CFiles}}' runtime/cgo
+stdout '^\[\]$'
+
+# CGO_CFLAGS=-fsanitize=thread still uses pure-Go runtime/cgo.
+env CGO_CFLAGS=-fsanitize=thread
+go list -f '{{.CFiles}}' runtime/cgo
+stdout '^\[\]$'
+
+# -msan still uses pure-Go runtime/cgo (and includes cgo_msan.go).
+env CGO_CFLAGS=
+go list -msan -f '{{.CFiles}}' runtime/cgo
+stdout '^\[\]$'
+go list -msan -f '{{.GoFiles}}' runtime/cgo
+stdout 'cgo_msan\.go'
+
+# GOEXPERIMENT=noruntimecgopurego uses C runtime/cgo files.
+env GOEXPERIMENT=noruntimecgopurego
+go list -f '{{.CFiles}}' runtime/cgo
+stdout 'gcc_libinit_unix.c'
+
+-- go.mod --
+module m
+
+-- p.go --
+package p

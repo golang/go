@@ -1846,16 +1846,42 @@ func printOneCgoTraceback(pc uintptr, commitFrame func() (pr, stop bool), arg *c
 	}
 }
 
+// callCgoTracebackFunc calls a SetCgoTraceback callback fn(arg), wrapping it
+// in TSAN acquire/release when GOEXPERIMENT=runtimecgopurego and C/C++ TSAN
+// are active.
+func callCgoTracebackFunc(fn, arg unsafe.Pointer) {
+	sysStack := panicking.Load() > 0 || getg().m.curg != getg()
+	if goexperiment.RuntimeCgoPurego && iscgo {
+		if acq := atomic.Loadp(unsafe.Pointer(cgo_tsan_acquire_fn)); acq != nil {
+			rel := atomic.Loadp(unsafe.Pointer(cgo_tsan_release_fn))
+			sync := unsafe.Pointer(cgo_sync)
+			if sysStack {
+				asmcgocall(acq, sync)
+				asmcgocall(fn, arg)
+				asmcgocall(rel, sync)
+			} else {
+				lockOSThread()
+				asmcgocall(acq, sync)
+				cgocall(fn, arg)
+				asmcgocall(rel, sync)
+				unlockOSThread()
+			}
+			return
+		}
+	}
+	if sysStack {
+		// We do not want to call into the scheduler when panicking
+		// or when on the system stack.
+		asmcgocall(fn, arg)
+	} else {
+		cgocall(fn, arg)
+	}
+}
+
 // callCgoSymbolizer calls the cgoSymbolizer function.
 //
 // Preconditions: cgoSymbolizerAvailable returns true.
 func callCgoSymbolizer(arg *cgoSymbolizerArg) {
-	call := cgocall
-	if panicking.Load() > 0 || getg().m.curg != getg() {
-		// We do not want to call into the scheduler when panicking
-		// or when on the system stack.
-		call = asmcgocall
-	}
 	if msanenabled {
 		msanwrite(unsafe.Pointer(arg), unsafe.Sizeof(cgoSymbolizerArg{}))
 	}
@@ -1864,21 +1890,22 @@ func callCgoSymbolizer(arg *cgoSymbolizerArg) {
 	}
 	fn := _cgo_call_symbolizer_function
 	if goexperiment.RuntimeCgoPurego && fn == nil {
-		fn = cgoSymbolizer
+		callCgoTracebackFunc(cgoSymbolizer, noescape(unsafe.Pointer(arg)))
+		return
 	}
-	call(fn, noescape(unsafe.Pointer(arg)))
+	if panicking.Load() > 0 || getg().m.curg != getg() {
+		// We do not want to call into the scheduler when panicking
+		// or when on the system stack.
+		asmcgocall(fn, noescape(unsafe.Pointer(arg)))
+	} else {
+		cgocall(fn, noescape(unsafe.Pointer(arg)))
+	}
 }
 
 // cgoContextPCs gets the PC values from a cgo traceback.
 //
 // Preconditions: cgoTracebackAvailable returns true.
 func cgoContextPCs(ctxt uintptr, buf []uintptr) {
-	call := cgocall
-	if panicking.Load() > 0 || getg().m.curg != getg() {
-		// We do not want to call into the scheduler when panicking
-		// or when on the system stack.
-		call = asmcgocall
-	}
 	arg := cgoTracebackArg{
 		context: ctxt,
 		buf:     (*uintptr)(noescape(unsafe.Pointer(&buf[0]))),
@@ -1892,7 +1919,14 @@ func cgoContextPCs(ctxt uintptr, buf []uintptr) {
 	}
 	fn := _cgo_call_traceback_function
 	if goexperiment.RuntimeCgoPurego && fn == nil {
-		fn = cgoTraceback
+		callCgoTracebackFunc(cgoTraceback, noescape(unsafe.Pointer(&arg)))
+		return
 	}
-	call(fn, noescape(unsafe.Pointer(&arg)))
+	if panicking.Load() > 0 || getg().m.curg != getg() {
+		// We do not want to call into the scheduler when panicking
+		// or when on the system stack.
+		asmcgocall(fn, noescape(unsafe.Pointer(&arg)))
+	} else {
+		cgocall(fn, noescape(unsafe.Pointer(&arg)))
+	}
 }

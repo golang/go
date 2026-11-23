@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.cgobindings && !msan && !tsan && android && (386 || arm)
+//go:build goexperiment.cgobindings && android && (386 || arm)
 
 package cgo
 

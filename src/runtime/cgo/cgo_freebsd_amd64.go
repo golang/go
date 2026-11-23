@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.runtimecgopurego && !msan && !tsan && freebsd && amd64
+//go:build goexperiment.runtimecgopurego && freebsd && amd64
 
 package cgo
 
@@ -36,7 +36,7 @@ var _cgoSigaction = cgoSigaction
 //go:norace
 //go:nocheckptr
 func cgoSigaction(signum uintptr, goact, oldgoact *freebsdSigaction, noG bool) int32 {
-	tsanAcquireMode(noG)
+	tsanCall(tsanAcquireFnPtr, noG)
 
 	var act, oldact freebsdSigaction
 	var actPtr, oldactPtr uintptr
@@ -54,7 +54,7 @@ func cgoSigaction(signum uintptr, goact, oldgoact *freebsdSigaction, noG bool) i
 	if ret == -1 {
 		errnoPtr := asmcgocallMode(noG, uintptr(libc_errno_location), 0, 0, 0, 0, 0, 0)
 		errno := *(*int32)(unsafe.Pointer(errnoPtr))
-		tsanReleaseMode(noG)
+		tsanCall(tsanReleaseFnPtr, noG)
 		return errno
 	}
 
@@ -63,6 +63,6 @@ func cgoSigaction(signum uintptr, goact, oldgoact *freebsdSigaction, noG bool) i
 		msanUnpoisonMode(noG, unsafe.Pointer(oldgoact), unsafe.Sizeof(*oldgoact))
 	}
 
-	tsanReleaseMode(noG)
+	tsanCall(tsanReleaseFnPtr, noG)
 	return ret
 }

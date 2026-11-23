@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.cgobindings && unix && !msan && !tsan
+//go:build goexperiment.cgobindings && unix
 
 package cgo
 
@@ -47,6 +47,7 @@ func dlopen(path string) (uintptr, error) {
 	defer tsanRelease()
 
 	asmcgocall(uintptr(libc_dlerror), 0, 0, 0, 0, 0, 0)
+	msanUnpoison(unsafe.Pointer(&cpath[0]), uintptr(len(cpath)))
 	h := cgocall(uintptr(libc_dlopen), uintptr(unsafe.Pointer(&cpath[0])), dlopenFlags, 0, 0, 0, 0)
 	runtime.KeepAlive(cpath)
 	if h == 0 {
@@ -72,6 +73,7 @@ func dlsym(h uintptr, name string) (unsafe.Pointer, string) {
 	defer tsanRelease()
 
 	asmcgocall(uintptr(libc_dlerror), 0, 0, 0, 0, 0, 0)
+	msanUnpoison(unsafe.Pointer(&cname[0]), uintptr(len(cname)))
 	ret := cgocall(uintptr(libc_dlsym), h, uintptr(unsafe.Pointer(&cname[0])), 0, 0, 0, 0)
 	runtime.KeepAlive(cname)
 	if ret == 0 {

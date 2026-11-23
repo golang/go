@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !goexperiment.runtimecgopurego || msan || tsan
+//go:build !goexperiment.runtimecgopurego
 
 /*
  * On AIX, call to _cgo_topofstack and Go main are forced to be a longcall.

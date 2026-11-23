@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (!goexperiment.runtimecgopurego || msan || tsan) && unix
+//go:build !goexperiment.runtimecgopurego && unix
 
 #ifndef _GNU_SOURCE // pthread_getattr_np
 #define _GNU_SOURCE

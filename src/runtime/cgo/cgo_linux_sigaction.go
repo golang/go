@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.runtimecgopurego && !msan && !tsan && linux && (386 || amd64 || arm64 || loong64 || ppc64 || ppc64le || riscv64)
+//go:build goexperiment.runtimecgopurego && linux && (386 || amd64 || arm64 || loong64 || ppc64 || ppc64le || riscv64)
 
 package cgo
 
@@ -63,7 +63,7 @@ func cgoSigaction(signum uintptr, goact, oldgoact *goSigaction, noG bool) int32 
 	// See the comment on fixSigactionForCgo.
 	const _SA_RESTORER = 0x4000000
 
-	tsanAcquireMode(noG)
+	tsanCall(tsanAcquireFnPtr, noG)
 
 	var oldact cSigaction
 	var actPtr, oldactPtr uintptr
@@ -86,7 +86,7 @@ func cgoSigaction(signum uintptr, goact, oldgoact *goSigaction, noG bool) int32 
 		// runtime.rt_sigaction expects _cgo_sigaction to return errno on error.
 		errnoPtr := sigactionCall(noG, uintptr(libc_errno_location), 0, 0, 0)
 		errno := *(*int32)(unsafe.Pointer(errnoPtr))
-		tsanReleaseMode(noG)
+		tsanCall(tsanReleaseFnPtr, noG)
 		return errno
 	}
 
@@ -100,6 +100,6 @@ func cgoSigaction(signum uintptr, goact, oldgoact *goSigaction, noG bool) int32 
 		msanUnpoisonMode(noG, unsafe.Pointer(oldgoact), unsafe.Sizeof(*oldgoact))
 	}
 
-	tsanReleaseMode(noG)
+	tsanCall(tsanReleaseFnPtr, noG)
 	return ret
 }
