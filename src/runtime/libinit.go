@@ -27,6 +27,13 @@ var rt0LibGoFn uintptr
 //go:nowritebarrierrec
 //go:nosplit
 func libInit() {
+	// On Darwin, Mach-O __mod_init_func runs go.o's _rt0_*_darwin_lib
+	// before host object constructors such as _cgo_sanitizer_init. Probe
+	// for C/C++ TSAN synchronously before libpreinit and runtime startup.
+	if goexperiment.RuntimeCgoPurego && cgoInitTSan != nil {
+		cgoInitTSan()
+	}
+
 	// Synchronous initialization.
 	libpreinit()
 

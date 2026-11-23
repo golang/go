@@ -62,6 +62,9 @@ var cgoSetContextFunction func(context uintptr)
 //go:linknamestd cgoBindM
 var cgoBindM func(g uintptr)
 
+//go:linknamestd cgoInitTSan
+var cgoInitTSan func()
+
 // Filled in by runtime/cgo on Unix when GOEXPERIMENT=runtimecgopurego is
 // enabled and C/C++ TSAN is active.
 //
@@ -138,10 +141,10 @@ func cgoKeepAlive(any) { throw("cgoKeepAlive should not be called") }
 var cgoAlwaysFalse bool
 
 // cgo_yield points to _cgo_yield, which is nil unless C/C++ TSAN is active.
-// Under GOEXPERIMENT=runtimecgopurego, a C constructor sets _cgo_yield once
-// monotonically from nil to a static function pointer (before Go runtime
-// startup on executables and ELF libraries), so plain pointer loads are safe
-// without atomic barriers on scheduler hot paths.
+// Under GOEXPERIMENT=runtimecgopurego, _cgo_yield is set at most once before
+// Go runtime startup (by _cgo_sanitizer_init on executables and ELF
+// libraries, or by cgoInitTSan in libInit on Darwin libraries), so plain
+// pointer loads are safe without atomic barriers on scheduler hot paths.
 var cgo_yield = &_cgo_yield
 
 func cgoNoCallback(v bool) {

@@ -200,3 +200,21 @@ callers_rel_done:
 
 GLOBL _cgo_callers(SB), NOPTR, $8
 DATA _cgo_callers+0(SB)/8, $·x_cgo_callers(SB)
+
+#ifdef GOOS_darwin
+#define CGO_DARWIN
+#endif
+#ifdef GOOS_ios
+#define CGO_DARWIN
+#endif
+#ifdef CGO_DARWIN
+// cgoTSanYield calls strncpy(&cgoYieldDst, &cgoYieldSrc, 0) using the C ABI
+// so TSAN libc interceptors deliver pending asynchronous signals.
+TEXT ·cgoTSanYield(SB),NOSPLIT|NOFRAME,$0-0
+	MOVD	$·cgoYieldDst(SB), R0
+	MOVD	$·cgoYieldSrc(SB), R1
+	MOVD	ZR, R2
+	MOVD	$·libc_strncpy(SB), R9
+	MOVD	(R9), R9
+	B	(R9)
+#endif

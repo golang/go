@@ -26,10 +26,12 @@ import (
 //go:linkname tsanAcquireFn _cgo_tsan_acquire_fn
 //go:linkname tsanReleaseFn _cgo_tsan_release_fn
 //go:linkname cgoSync _cgo_sync
+//go:linkname cgoYield _cgo_yield
 var (
 	tsanAcquireFn uintptr
 	tsanReleaseFn uintptr
 	cgoSync       int64
+	cgoYield      uintptr
 )
 
 // Access the statically exported TSAN variables through non-exported pointers
@@ -39,6 +41,7 @@ var (
 	tsanAcquireFnPtr = &tsanAcquireFn
 	tsanReleaseFnPtr = &tsanReleaseFn
 	cgoSyncPtr       = &cgoSync
+	cgoYieldPtr      = &cgoYield
 )
 
 // tsanCallSlow, tsanCallNoGSlow, and tsanCallModeSlow are out-of-line slow
@@ -192,7 +195,7 @@ var libc_sigaltstack = unsafe.Pointer(&_cgo_libc_sigaltstack)
 
 // libc_dlopen, libc_dlsym, and libc_dlerror are imported for
 // Open only when the cgobindings experiment is enabled (see library_*.go),
-// except on Android, where runtime/cgo initialization uses them.
+// except on Android (TLS initialization) and Darwin (TSAN libInit detection).
 
 //go:linkname _cgo_libc_dlopen _cgo_libc_dlopen
 var _cgo_libc_dlopen byte
