@@ -1,6 +1,7 @@
 # Verify that go list -export (with golistexportnewformat) and go list -compiled
 # work for cgo binding packages without a C compiler.
 
+env origGOEXPERIMENT=$GOEXPERIMENT
 env GOEXPERIMENT=$GOEXPERIMENT,runtimecgopurego,cgobindings,golistexportnewformat
 [!GOEXPERIMENT:cgobindings] skip
 [GOOS:plan9] skip
@@ -10,6 +11,14 @@ env GOEXPERIMENT=$GOEXPERIMENT,runtimecgopurego,cgobindings,golistexportnewforma
 [GOOS:freebsd] [GOARCH:riscv64] skip
 [GOOS:linux] [GOARCH:sparc64] skip
 
+# Build the pure-Go verifier under the host GOEXPERIMENT in parallel so it
+# reuses the warm standard library GOCACHE instead of rebuilding go/importer
+# under cgobindings.
+env GOEXPERIMENT=$origGOEXPERIMENT
+env CGO_ENABLED=0
+go build -o q$GOEXE q.go &
+
+env GOEXPERIMENT=$origGOEXPERIMENT,runtimecgopurego,cgobindings,golistexportnewformat
 env CGO_ENABLED=bindings
 [!GOOS:windows] env CC=/bin/false
 
@@ -17,16 +26,16 @@ env CGO_ENABLED=bindings
 # the package's Go files.
 go list -export -json b.go
 cp stdout out.json
-go run q.go out.json
-stdout 'func\(\w+ \*byte\) int32'
 
 # Verify that CompiledGoFiles[len(GoFiles)] is _cgo_gotypes.go for cgo binding
 # packages (relied on by x/tools/go/packages TypecheckCgo).
-go list -compiled -f '{{len .GoFiles}} {{len .CgoFiles}} {{len .CompiledGoFiles}}' b.go b_plain.go
+go list -compiled -f '{{println (len .GoFiles) (len .CgoFiles) (len .CompiledGoFiles)}}{{index .CompiledGoFiles 1}}' b.go b_plain.go
 stdout '^1 1 3$'
-go list -compiled -f '{{index .CompiledGoFiles 1}}' b.go b_plain.go
-cp stdout cgotypes.path
-go run check_compiled.go cgotypes.path
+cp stdout compiled.txt
+
+wait
+exec ./q$GOEXE out.json compiled.txt
+stdout 'func\(\w+ \*byte\) int32'
 
 -- b.go --
 package p
@@ -43,29 +52,6 @@ package p
 
 var Plain = 1
 
--- check_compiled.go --
-package main
-
-import (
-	"log"
-	"os"
-	"strings"
-)
-
-func main() {
-	path, err := os.ReadFile(os.Args[1])
-	if err != nil {
-		log.Fatal(err)
-	}
-	cgoTypes, err := os.ReadFile(strings.TrimSpace(string(path)))
-	if err != nil {
-		log.Fatal(err)
-	}
-	if !strings.Contains(string(cgoTypes), "_cgo_runtime_cgocall") {
-		log.Fatalf("CompiledGoFiles[1] does not look like _cgo_gotypes.go:\n%s", cgoTypes)
-	}
-}
-
 -- q.go --
 package main
 
@@ -77,6 +63,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -105,4 +92,20 @@ func main() {
 		log.Fatal(err)
 	}
 	fmt.Println(pkg.Scope().Lookup("V").Type())
+
+	compiled, err := os.ReadFile(os.Args[2])
+	if err != nil {
+		log.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(compiled)), "\n")
+	if len(lines) < 2 {
+		log.Fatalf("unexpected compiled.txt:\n%s", compiled)
+	}
+	cgoTypes, err := os.ReadFile(strings.TrimSpace(lines[1]))
+	if err != nil {
+		log.Fatal(err)
+	}
+	if !strings.Contains(string(cgoTypes), "_cgo_runtime_cgocall") {
+		log.Fatalf("CompiledGoFiles[1] does not look like _cgo_gotypes.go:\n%s", cgoTypes)
+	}
 }

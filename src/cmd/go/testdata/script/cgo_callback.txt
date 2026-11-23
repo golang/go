@@ -6,10 +6,11 @@ env GOEXPERIMENT=$GOEXPERIMENT,runtimecgopurego,cgobindings
 [!GOARCH:amd64] [!GOARCH:arm64] skip
 [!exec:cc] skip
 
-cd p
-cc -fPIC -shared -o libcb.so ../c/cb.c
+cc -fPIC -shared -o p/libcb.so c/cb.c
+[!cgolinkext] cc -fPIC -c -o staticfp/static.syso c/static.c
 
 # Generate the binding file with cgo -gen-binding.
+cd p
 go tool cgo -gen-binding ../gen/bind.go
 stdout '^import "C"$'
 stdout '^//cgo:type cb_fn C\.cb_fn$'
@@ -19,67 +20,71 @@ stdout '^func CallMeBack\(p0 \*\[0\]byte, p1 int32, p2 int32\) int32$'
 ! stdout 'GoCallback'
 cp stdout binding.go
 
-# Verify go run works without a C compiler using generated and handwritten bindings.
+# Verify go build works without a C compiler using generated and handwritten
+# bindings, static .syso symbols, and -buildmode=c-archive export headers.
 env CGO_ENABLED=bindings
 env CC=/bin/false
 [GOOS:linux] env LD_LIBRARY_PATH=.
-go run .
+
+# -buildmode=c-archive uses distinct build flags from regular builds, so start
+# it in parallel without duplicating GOCACHE work.
+go build -C ../exp_archive -buildmode=c-archive -o libexp.a . &
+
+# Build p once (warming GOCACHE for cgobindings), then build the handwritten
+# variant and staticfp in parallel while exercising the built binary.
+go build -o app$GOEXE .
+cp ../handwritten.go binding.go
+go build -o app_hand$GOEXE . &
+[!cgolinkext] go build -C ../staticfp -ldflags=-linkmode=internal -o staticfp$GOEXE . &
+
+exec ./app$GOEXE
 stdout 'Callback=300'
 
 # Verify GODEBUG=cgocheck=1 panic message preserves the full //export function name.
 env GODEBUG=cgocheck=1
-! go run . badptr
+! exec ./app$GOEXE badptr
 stderr 'result of Go function GoPtrCallback called from cgo is unpinned Go unsafe pointer'
-! go run . badptr_direct
+! exec ./app$GOEXE badptr_direct
 stderr 'result of Go function GoPtrCallback called from cgo is unpinned Go unsafe pointer'
-! go run . badarg_direct
+! exec ./app$GOEXE badarg_direct
 stderr 'argument of cgo function has Go pointer to unpinned Go pointer'
-go run . goodarg_direct
+exec ./app$GOEXE goodarg_direct
 stdout '^GoodArg=99$'
 env GODEBUG=
 
 # Test calling //export functions via C.<name>(...) and passing bound C
 # functions (shared library and libc) as C function pointers.
-go run . direct_and_fp
+exec ./app$GOEXE direct_and_fp
 stdout '^DirectExp=300,30,555$'
 stdout '^CFuncPtr=15,15,42$'
 
 # Test Go stack growth during a callback invoked from a MayCallback C call
 # with a large PassByPtr struct arg and large struct return (exercising
 # _cgo_topofstack relocation and G0Off scratch copies).
-go run . growstack
+exec ./app$GOEXE growstack
 stdout 'GrowStack=555'
 
 # Test packed stack arguments (narrow scalars, float32 HFAs, small/medium
 # non-HFA structs, and >16B PassByPtr structs) in both Go->C and C->Go directions.
-go run . packed
+exec ./app$GOEXE packed
 stdout '^Packed=100,200$'
-
-# Replace the generated binding with a handwritten one and re-run.
-cp ../handwritten.go binding.go
-go run .
-stdout 'Callback=300'
 
 # Verify C.<export> and C.<cfunc> in non-call context are neither assignable
 # nor addressable (issue #7757).
-cd ../badfp
-! go build .
+! go build -C ../badfp .
 stderr 'badfp\.go:17:.*cannot assign to'
 stderr 'badfp\.go:18:.*cannot take address of'
 stderr 'badfp\.go:19:.*cannot assign to'
 stderr 'badfp\.go:20:.*cannot take address of'
 
-# Test static (.syso) bound C function used in both call and non-call context.
-cd ../staticfp
-cc -fPIC -c -o static.syso ../c/static.c
-[!cgolinkext] go run -ldflags=-linkmode=internal .
+# Check the parallel builds: handwritten binding, staticfp, and c-archive header.
+wait
+exec ./app_hand$GOEXE
+stdout 'Callback=300'
+[!cgolinkext] exec ../staticfp/staticfp$GOEXE
 [!cgolinkext] stdout '^StaticFP=42,42$'
-
-# Test -buildmode=c-archive export header generation (preamble + prototype).
-cd ../exp_archive
-go build -buildmode=c-archive -o libexp.a .
-grep 'typedef struct { int x; } ExpPair;' libexp.h
-grep 'extern ExpPair GoDoublePair\(ExpPair p\);' libexp.h
+grep 'typedef struct { int x; } ExpPair;' ../exp_archive/libexp.h
+grep 'extern ExpPair GoDoublePair\(ExpPair p\);' ../exp_archive/libexp.h
 
 -- c/cb.c --
 #include <stdbool.h>

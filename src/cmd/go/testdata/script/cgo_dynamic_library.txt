@@ -17,7 +17,10 @@ env CGO_ENABLED=bindings
 env CC=/bin/false
 env LIBMUL=$PWD/../lib/libmul.so
 env LIBADD=$PWD/../lib/libadd.so
-go run .
+go build -o dyn$GOEXE . &
+[!short] [race] go build -race -o dyn_race$GOEXE . &
+wait
+exec ./dyn$GOEXE
 stdout '^mul: compute=42 counter=7 name=mul$'
 stdout '^add: compute=13 counter=7 name=add$'
 stdout '^mul: counter=8$'
@@ -28,8 +31,8 @@ stdout '^init: ok$'
 stdout '^directives: ok$'
 stdout '^concurrent: ok$'
 
-[race] go run -race .
-[race] stdout '^concurrent: ok$'
+[!short] [race] exec ./dyn_race$GOEXE
+[!short] [race] stdout '^concurrent: ok$'
 
 -- c/mul.c --
 int Counter = 7;

@@ -2,23 +2,28 @@
 # entries from #cgo LDFLAGS in DT_RUNPATH, without duplicates, and that
 # -ldflags=-r takes precedence.
 
+env origGOEXPERIMENT=$GOEXPERIMENT
 env GOEXPERIMENT=$GOEXPERIMENT,runtimecgopurego,cgobindings
 [!GOEXPERIMENT:cgobindings] skip
 [!GOOS:linux] skip
 [!GOARCH:amd64] [!GOARCH:arm64] skip
 
+# Build the pure-Go ELF checker under the host GOEXPERIMENT in parallel so
+# debug/elf reuses the warm GOCACHE instead of rebuilding under cgobindings.
+env GOEXPERIMENT=$origGOEXPERIMENT
+env CGO_ENABLED=0
+go build -o checkrunpath$GOEXE ./runpath &
+
+env GOEXPERIMENT=$origGOEXPERIMENT,runtimecgopurego,cgobindings
 env CGO_ENABLED=bindings
 env CC=/bin/false
 go build -ldflags=-linkmode=internal -o prog.exe ./prog
-env CGO_ENABLED=0
-go run ./runpath prog.exe
-stdout '^/opt/cgo-rpath-a:/opt/cgo-rpath-b:/opt/cgo-rpath-c$'
-
-env CGO_ENABLED=bindings
 go build -ldflags='-linkmode=internal -r /explicit' -o prog2.exe ./prog
-env CGO_ENABLED=0
-go run ./runpath prog2.exe
-stdout '^/explicit$'
+
+wait
+exec ./checkrunpath$GOEXE prog.exe prog2.exe
+stdout '^prog\.exe: /opt/cgo-rpath-a:/opt/cgo-rpath-b:/opt/cgo-rpath-c$'
+stdout '^prog2\.exe: /explicit$'
 
 -- go.mod --
 module example.com/rpath
@@ -49,14 +54,16 @@ import (
 )
 
 func main() {
-	f, err := elf.Open(os.Args[1])
-	if err != nil {
-		log.Fatal(err)
+	for _, arg := range os.Args[1:] {
+		f, err := elf.Open(arg)
+		if err != nil {
+			log.Fatal(err)
+		}
+		s, err := f.DynString(elf.DT_RUNPATH)
+		f.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("%s: %s\n", arg, strings.Join(s, "\n"))
 	}
-	defer f.Close()
-	s, err := f.DynString(elf.DT_RUNPATH)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(strings.Join(s, "\n"))
 }

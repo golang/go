@@ -22,20 +22,45 @@ env CGO_ENABLED=bindings
 # C files (or other sources needing a C compiler), under both
 # CGO_ENABLED=bindings and CGO_ENABLED=1. Without them, a binding package
 # calling libc works.
-cd withcfile
-! go build .
+! go build -C withcfile .
 stderr 'source files requiring a C compiler not allowed in a package using cgo binding pragmas: cfile.c$'
 env CGO_ENABLED=1
-! go build .
+! go build -C withcfile .
 stderr 'source files requiring a C compiler not allowed in a package using cgo binding pragmas: cfile.c$'
-rm cfile.c
-go run .
-stdout '^abs=7 cabs=7 strlen=5$'
-stdout '^builtins=hi!,hi,abcd,xyz$'
+rm withcfile/cfile.c
+
+# Build withcfile first to warm GOCACHE for cgobindings, then overlap the
+# remaining independent builds across CGO_ENABLED=1, 0, and bindings.
+go build -C withcfile -o withcfile1$GOEXE .
+
+# Verify build constraints across CGO_ENABLED=bindings, 1, and 0:
+# //go:build cgobindings and cgo || cgobindings files (Go + asm) are selected
+# in bindings and 1 modes, !cgo && !cgobindings fallbacks and their imports
+# are selected only in 0 mode, and the cgo tag is false in bindings mode.
+go build -C dual -o dual1$GOEXE . &
+go list -C dual -f '{{println .CgoFiles}}{{.GoFiles}}' .
+stdout '^\[binding\.go\]$'
+stdout 'cgo_only\.go'
+
+env CGO_ENABLED=0
+go build -C dual -o dual0$GOEXE . &
+go list -C dual -f '{{println .CgoFiles}}{{.Deps}}' .
+stdout '^\[\]$'
+stdout 'dual/nocgoonly'
+
 env CGO_ENABLED=bindings
-go run .
-stdout '^abs=7 cabs=7 strlen=5$'
-stdout '^builtins=hi!,hi,abcd,xyz$'
+go build -C withcfile -o withcfileb$GOEXE . &
+go build -C dual -o dualb$GOEXE . &
+go build -C checks -o checks$GOEXE . &
+
+go list -C dual -f '{{println .CgoFiles}}{{println .IgnoredGoFiles}}{{.Deps}}' .
+stdout '^\[binding\.go\]$'
+stdout 'cgo_only\.go'
+! stdout 'dual/nocgoonly'
+
+# Bound functions may only use types with C equivalents.
+! go build -C badtype .
+stderr '//cgo:func Puts: parameter type string cannot be passed to C: it contains a Go string'
 
 # Building with CGO_ENABLED=bindings requires the cgobindings experiment, but
 # commands that do not build, like go env and go version, still work.
@@ -44,60 +69,38 @@ env GOEXPERIMENT=nocgobindings
 go env CGO_ENABLED
 stdout '^bindings$'
 go version
-! go build .
+! go build -C withcfile .
 stderr '^go: CGO_ENABLED=bindings requires GOEXPERIMENT=cgobindings$'
 env GOEXPERIMENT=$origGOEXPERIMENT
 
-# Verify build constraints across CGO_ENABLED=bindings, 1, and 0:
-# //go:build cgobindings and cgo || cgobindings files (Go + asm) are selected
-# in bindings and 1 modes, !cgo && !cgobindings fallbacks and their imports
-# are selected only in 0 mode, and the cgo tag is false in bindings mode.
-cd ../dual
-go list -f '{{.CgoFiles}}' .
-stdout '^\[binding\.go\]$'
-go list -deps .
-! stdout 'dual/nocgoonly'
-go list -f '{{.IgnoredGoFiles}}' .
-stdout 'cgo_only\.go'
-go run .
-stdout '^mode=binding-helper abs=128$'
+exec ./withcfile/withcfile1$GOEXE
+stdout '^abs=7 cabs=7 strlen=5$'
+stdout '^builtins=hi!,hi,abcd,xyz$'
 
-env CGO_ENABLED=1
-go list -f '{{.CgoFiles}}' .
-stdout '^\[binding\.go\]$'
-go list -f '{{.GoFiles}}' .
-stdout 'cgo_only\.go'
-go run .
+wait
+exec ./withcfile/withcfileb$GOEXE
+stdout '^abs=7 cabs=7 strlen=5$'
+stdout '^builtins=hi!,hi,abcd,xyz$'
+exec ./dual/dualb$GOEXE
 stdout '^mode=binding-helper abs=128$'
-
-env CGO_ENABLED=0
-go list -f '{{.CgoFiles}}' .
-stdout '^\[\]$'
-go list -deps .
-stdout 'dual/nocgoonly'
-go run .
+exec ./dual/dual1$GOEXE
+stdout '^mode=binding-helper abs=128$'
+exec ./dual/dual0$GOEXE
 stdout '^mode=nocgo-fallback$'
-env CGO_ENABLED=bindings
-
-# Bound functions may only use types with C equivalents.
-cd ../badtype
-! go build .
-stderr '//cgo:func Puts: parameter type string cannot be passed to C: it contains a Go string'
 
 # Arguments that might contain Go pointers get cgocheck pointer checks, as in
 # traditional cgo. Calls in the package check only the memory that &x, &a[i],
 # and a[i:j] arguments refer to; indirect calls check the whole allocation.
-cd ../checks
-go run . narrow
+exec ./checks/checks$GOEXE narrow
 stdout '^narrow ok$'
-! go run . unpinned
+! exec ./checks/checks$GOEXE unpinned
 stderr 'argument of cgo function has Go pointer to unpinned Go pointer'
-go run . pinned
+exec ./checks/checks$GOEXE pinned
 stdout '^pinned ok$'
-! go run . indirect
+! exec ./checks/checks$GOEXE indirect
 stderr 'argument of cgo function has Go pointer to unpinned Go pointer'
 env GODEBUG=cgocheck=0
-go run . unpinned
+exec ./checks/checks$GOEXE unpinned
 stdout '^unpinned ok$'
 env GODEBUG=
 
@@ -106,10 +109,20 @@ env GODEBUG=
 [!GOOS:darwin] [!GOOS:linux] stop
 [!exec:cc] stop
 
-cd ../p
-cc -fPIC -shared -o libx.so ../c/c.c
+# Build the shared-library and static-symbol binaries in parallel.
+# Host objects in non-standard packages make cmd/link default to external
+# linking, so request internal linking explicitly for s (which works with
+# CC=/bin/false); cgolinkext targets link with the real C toolchain.
+cc -fPIC -shared -o p/libx.so c/c.c
+cc -fPIC -c -o s/static.syso c/static.c
+go build -C p -o p$GOEXE . &
+[!cgolinkext] go build -C s -ldflags=-linkmode=internal -o s$GOEXE . &
+[cgolinkext] go build -C s -o s$GOEXE . &
+wait
+
+cd p
 [GOOS:linux] env LD_LIBRARY_PATH=.
-go run .
+exec ./p$GOEXE
 stdout '^add=30$'
 stdout '^addFloat=6.25$'
 stdout '^sumTen=55$'
@@ -118,15 +131,8 @@ stdout '^packedFloats=-391$'
 stdout '^ptr=42$'
 stdout '^strlen=5$'
 
-# A static symbol is resolved at link time from a .syso file. Host objects
-# in non-standard packages make cmd/link default to external linking, so
-# request internal linking explicitly, which works with CC=/bin/false.
-# Targets that require external linking (cgolinkext) link with the real C
-# toolchain, since CC was not overridden for them above.
 cd ../s
-cc -fPIC -c -o static.syso ../c/static.c
-[!cgolinkext] go run -ldflags=-linkmode=internal .
-[cgolinkext] go run .
+exec ./s$GOEXE
 stdout '^static=42$'
 stdout '^counter=42$'
 

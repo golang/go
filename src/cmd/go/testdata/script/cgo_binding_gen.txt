@@ -81,32 +81,15 @@ cp stdout regen.go
 go tool cgo -gen-binding regen.go z.go
 cmp stdout ../p/binding.go
 
-# A generated //cgo:dynload type.
-go tool cgo -gen-binding gendyn.go
-stdout '^type Gen struct \{\n\tcgo\.Library\n\}$'
-stdout '^func \(\*Gen\) Mul\(p0 int32, p1 int32\) int32$'
-stdout '^import "runtime/cgo"$'
-
-# -trimpath and no -srcdir work too.
-go tool cgo -gen-binding -trimpath=$WORK=>/trimmed/path x.go
-stdout '^func Add\(p0 int32, p1 int32\) int32$'
-
-# Pragmas must name C declarations of the right kind.
-! go tool cgo -gen-binding bad.go
-stderr 'bad\.go:5:1: could not determine what C\.NoSuchFunc refers to'
-! go tool cgo -gen-binding kind.go
-stderr 'kind\.go:5:1: //cgo:type T: C\.Add is a func, not a type'
-
-# Method pragmas must name //cgo:dynload types, and declarations in the
-# input must be bodiless and declared once.
-! go tool cgo -gen-binding dynload.go
-stderr 'dynload\.go:6:1: //cgo:func Nope\.Add: Nope is not declared with //cgo:dynload'
-stderr 'dynload\.go:10:1: -gen-binding: Calc\.Add must be declared on its own'
-stderr 'dynload\.go:12:1: -gen-binding: //cgo:func method Unused must have a pointer receiver \(\*Calc\)'
-! go tool cgo -gen-binding x.go zdup.go
-stderr 'zdup\.go:6:1: -gen-binding: AddFloat is declared more than once'
-! go tool cgo -gen-binding x.go otherpkg.go
-stderr 'otherpkg\.go:1:9: -gen-binding: package q; expected package main'
+# Run the remaining independent -gen-binding checks in parallel (each with its
+# own -objdir to avoid colliding on _obj/) while building and running p.
+go tool cgo -gen-binding -objdir=$WORK/obj_gendyn gendyn.go &
+go tool cgo -gen-binding -objdir=$WORK/obj_trimpath -trimpath=$WORK=>/trimmed/path x.go &
+! go tool cgo -gen-binding -objdir=$WORK/obj_bad bad.go &
+! go tool cgo -gen-binding -objdir=$WORK/obj_kind kind.go &
+! go tool cgo -gen-binding -objdir=$WORK/obj_dynload dynload.go &
+! go tool cgo -gen-binding -objdir=$WORK/obj_zdup x.go zdup.go &
+! go tool cgo -gen-binding -objdir=$WORK/obj_otherpkg x.go otherpkg.go &
 
 # The generated file builds and runs without a C compiler.
 cd ../p
@@ -119,6 +102,21 @@ go run .
 stdout '^add=3 addf=3.5 count=7 small=2 process=46 scale=7.5 union=4.0 limit=100 green=5$'
 stdout '^anon: handle=9 param=9 union=1 s=9$'
 stdout '^dynload: mul=42 count=7$'
+
+# Verify outputs from the parallel -gen-binding checks:
+# generated //cgo:dynload type, -trimpath without -srcdir, and error diagnostics.
+wait
+stdout '^type Gen struct \{\n\tcgo\.Library\n\}$'
+stdout '^func \(\*Gen\) Mul\(p0 int32, p1 int32\) int32$'
+stdout '^import "runtime/cgo"$'
+stdout '^func Add\(p0 int32, p1 int32\) int32$'
+stderr 'bad\.go:5:1: could not determine what C\.NoSuchFunc refers to'
+stderr 'kind\.go:5:1: //cgo:type T: C\.Add is a func, not a type'
+stderr 'dynload\.go:6:1: //cgo:func Nope\.Add: Nope is not declared with //cgo:dynload'
+stderr 'dynload\.go:10:1: -gen-binding: Calc\.Add must be declared on its own'
+stderr 'dynload\.go:12:1: -gen-binding: //cgo:func method Unused must have a pointer receiver \(\*Calc\)'
+stderr 'zdup\.go:6:1: -gen-binding: AddFloat is declared more than once'
+stderr 'otherpkg\.go:1:9: -gen-binding: package q; expected package main'
 
 -- gen/c.h --
 typedef struct {
