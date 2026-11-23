@@ -17,6 +17,7 @@
 package ecdsa
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/ecdh"
 	"crypto/elliptic"
@@ -307,7 +308,8 @@ func privateKeyBytes[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey) ([]b
 	if err != nil {
 		return nil, err
 	}
-	return k.Bytes(), nil
+	// k.Bytes returns its internal buffer.
+	return bytes.Clone(k.Bytes()), nil
 }
 
 // Sign signs a hash (which should be the result of hashing a larger message
