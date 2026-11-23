@@ -337,6 +337,7 @@ type goTest struct {
 	bench    bool     // Run benchmarks (briefly), not tests.
 	runTests string   // Regexp of tests to run
 	cpu      string   // If non-empty, -cpu flag
+	parallel int      // If > 0, -p flag
 	skip     string   // If non-empty, -skip flag
 
 	gcflags   string // If non-empty, build with -gcflags=all=X
@@ -489,6 +490,9 @@ func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, 
 	if opts.cpu != "" {
 		run = append(run, "-cpu="+opts.cpu)
 	}
+	if opts.parallel > 0 {
+		build = append(build, "-p="+strconv.Itoa(opts.parallel))
+	}
 	if opts.skip != "" {
 		run = append(run, "-skip="+opts.skip)
 	}
@@ -586,6 +590,11 @@ var (
 	benchMatches []string
 )
 
+// maxTestGOMAXPROCS caps per-process GOMAXPROCS when running many test
+// packages concurrently on high-core-count machines, avoiding severe
+// N*N thread oversubscription while keeping full build parallelism via -p.
+const maxTestGOMAXPROCS = 32
+
 func (t *tester) registerStdTest(pkg string) {
 	const stdTestHeading = "Testing packages." // known to addTest for a safety check
 	gcflags := gogcflags
@@ -605,11 +614,18 @@ func (t *tester) registerStdTest(pkg string) {
 		stdSpan := startSpan("go test std cmd")
 		defer stdSpan.done()
 
-		return (&goTest{
+		gt := &goTest{
 			gcflags: gcflags,
 			pkgs:    stdMatches,
 			trace:   "std",
-		}).run(t)
+		}
+		if len(stdMatches) > 1 && t.hasParallelism() && !isEnvSet("GOMAXPROCS") {
+			if n := runtime.GOMAXPROCS(0); n > maxTestGOMAXPROCS {
+				gt.parallel = n
+				gt.env = []string{"GOMAXPROCS=" + strconv.Itoa(maxTestGOMAXPROCS)}
+			}
+		}
+		return gt.run(t)
 	})
 }
 
@@ -1477,7 +1493,11 @@ func (t *tester) runPending(nextTest *distTest) {
 		pendingSpan = startSpan("runPending")
 	}
 	maxbg := runtime.GOMAXPROCS(0)
+	capProcs := len(worklist) > 1 && t.hasParallelism() && !isEnvSet("GOMAXPROCS") && maxbg > maxTestGOMAXPROCS
 	for i, w := range worklist {
+		if capProcs && !slices.ContainsFunc(w.cmd.Env, func(kv string) bool { return strings.HasPrefix(kv, "GOMAXPROCS=") }) {
+			setEnv(w.cmd, "GOMAXPROCS", strconv.Itoa(maxTestGOMAXPROCS))
+		}
 		w.start = make(chan bool)
 		w.end = make(chan struct{})
 		// w.cmd must be set up to write to w.out. We can't check that, but we
