@@ -113,6 +113,7 @@ var filemap = map[string]action{
 	"array.go":          nil,
 	"api_predicates.go": nil,
 	"basic.go":          nil,
+	"boundedtype.go":    func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
 	"builtins.go": func(f *ast.File) {
 		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
 		renameIdents(f, "syntax->ast")
@@ -250,7 +251,6 @@ var filemap = map[string]action{
 		fixGlobalTypVarDecl(f)
 	},
 	"util_test.go": fixTokenPos,
-	"validtype.go": func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
 	"version.go":   func(f *ast.File) { renameIdents(f, "poser->positioner") },
 }
 
