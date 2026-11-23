@@ -823,6 +823,16 @@
 (MOVHUreg x:(ANDconst [c] y)) && c >= 0 && int64(uint16(c)) == c => x
 (MOVWUreg x:(ANDconst [c] y)) && c >= 0 && int64(uint32(c)) == c => x
 
+// Avoid sign extension after word shifts/rotates.
+// The .w forms (sll.w/srl.w/sra.w/rotr.w) already sign-extend their
+// 32-bit result to 64 bits. Careful to not omit the sign extension
+// in cases where regalloc might restore without it (see the
+// corresponding RISCV64 rules and issue 80577).
+(MOVWreg x:((SLL|SRL|SRA|ROTR) _ _)) &&
+	(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => x
+(MOVWreg x:((SLLconst|SRLconst|SRAconst|ROTRconst) _)) &&
+	(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => x
+
 // Don't bother extending if we're not using the higher bits.
 (MOV(B|BU)reg x) && v.Type.Size() <= 1 => x
 (MOV(H|HU)reg x) && v.Type.Size() <= 2 => x

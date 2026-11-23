@@ -5525,6 +5525,94 @@ func rewriteValue_OpLOONG64MOVWreg(v *ssa.Value) bool {
 		v.CopyOf(x)
 		return true
 	}
+	// match: (MOVWreg x:(SLL _ _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpLOONG64SLL || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (MOVWreg x:(SRL _ _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpLOONG64SRL || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (MOVWreg x:(SRA _ _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpLOONG64SRA || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (MOVWreg x:(ROTR _ _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpLOONG64ROTR || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (MOVWreg x:(SLLconst _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpLOONG64SLLconst || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (MOVWreg x:(SRLconst _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpLOONG64SRLconst || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (MOVWreg x:(SRAconst _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpLOONG64SRAconst || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (MOVWreg x:(ROTRconst _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpLOONG64ROTRconst || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
 	// match: (MOVWreg x)
 	// cond: v.Type.Size() <= 4
 	// result: x

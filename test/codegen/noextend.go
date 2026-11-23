@@ -260,6 +260,21 @@ func noSignEXT(x int) int64 {
 	// loong64:-"MOVB"
 	ret += int64(int8(x & 0x7f))
 
+	// loong64:"SLL" -"MOVW"
+	ret += int64(t1 << 3)
+
+	// loong64:"SRA" -"MOVW"
+	ret += int64(t1 >> 5)
+
+	// loong64:"SRA" -"MOVW"
+	ret += int64(t1 >> (x & 31))
+
+	// loong64:"SRL" -"MOVW"
+	ret += int64((t1 & 0x7fffffff) >> 3)
+
+	// loong64:"ROTR" -"MOVW"
+	ret += int64(t1<<3 | int32(uint32(t1)>>29))
+
 	return ret
 }
 
@@ -267,6 +282,7 @@ func noSignEXT(x int) int64 {
 
 func shouldSignEXT(x int) int64 {
 	t1 := int32(x)
+	t2 := uint32(x)
 
 	var ret int64
 
@@ -289,6 +305,12 @@ func shouldSignEXT(x int) int64 {
 	// arm64:"MOVB"
 	// loong64:"MOVB"
 	ret += int64(int8(x & 0x1100000000000011))
+
+	// loong64:"MOVW"
+	ret += int64(int32(t2 << 3))
+
+	// loong64:"ROTR" "MOVW"
+	ret += int64(int32(bits.RotateLeft32(t2, -7)))
 
 	return ret
 }
