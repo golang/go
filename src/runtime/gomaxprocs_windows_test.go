@@ -15,7 +15,7 @@ func TestGOMAXPROCSUpdate(t *testing.T) {
 	}
 	t.Parallel()
 
-	got := runTestProg(t, "testprog", "WindowsUpdateGOMAXPROCS")
+	got := runTestProg(t, "testprog", "WindowsUpdateGOMAXPROCS", "GOMAXPROCS=")
 	if strings.Contains(got, "SKIP") {
 		t.Skip(got)
 	}
@@ -34,7 +34,7 @@ func TestCgroupGOMAXPROCSDontUpdate(t *testing.T) {
 	// update feature.
 	for _, v := range []string{"GOMAXPROCS=4", "GODEBUG=updatemaxprocs=0"} {
 		t.Run(v, func(t *testing.T) {
-			got := runTestProg(t, "testprog", "WindowsDontUpdateGOMAXPROCS", v)
+			got := runTestProg(t, "testprog", "WindowsDontUpdateGOMAXPROCS", "GOMAXPROCS=", v)
 			if strings.Contains(got, "SKIP") {
 				t.Skip(got)
 			}

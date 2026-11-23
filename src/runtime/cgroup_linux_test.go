@@ -57,7 +57,7 @@ func TestCgroupGOMAXPROCS(t *testing.T) {
 					t.Fatalf("unable to set CPU limit: %v", err)
 				}
 
-				got := runBuiltTestProg(t, exe, "PrintGOMAXPROCS", fmt.Sprintf("GODEBUG=containermaxprocs=%d", tc.godebug))
+				got := runBuiltTestProg(t, exe, "PrintGOMAXPROCS", "GOMAXPROCS=", fmt.Sprintf("GODEBUG=containermaxprocs=%d", tc.godebug))
 				want := fmt.Sprintf("%d\n", tc.want)
 				if got != want {
 					t.Fatalf("output got %q want %q", got, want)
@@ -79,7 +79,7 @@ func TestCgroupGOMAXPROCSNoLimit(t *testing.T) {
 			t.Fatalf("unable to set CPU limit: %v", err)
 		}
 
-		got := runBuiltTestProg(t, exe, "PrintGOMAXPROCS")
+		got := runBuiltTestProg(t, exe, "PrintGOMAXPROCS", "GOMAXPROCS=")
 		want := fmt.Sprintf("%d\n", runtime.NumCPU())
 		if got != want {
 			t.Fatalf("output got %q want %q", got, want)
@@ -99,7 +99,7 @@ func TestCgroupGOMAXPROCSHigherThanNumCPU(t *testing.T) {
 			t.Fatalf("unable to set CPU limit: %v", err)
 		}
 
-		got := runBuiltTestProg(t, exe, "PrintGOMAXPROCS")
+		got := runBuiltTestProg(t, exe, "PrintGOMAXPROCS", "GOMAXPROCS=")
 		want := fmt.Sprintf("%d\n", runtime.NumCPU())
 		if got != want {
 			t.Fatalf("output got %q want %q", got, want)
@@ -153,7 +153,7 @@ func TestCgroupGOMAXPROCSRound(t *testing.T) {
 					t.Fatalf("unable to set CPU limit: %v", err)
 				}
 
-				got := runBuiltTestProg(t, exe, "PrintGOMAXPROCS")
+				got := runBuiltTestProg(t, exe, "PrintGOMAXPROCS", "GOMAXPROCS=")
 				want := fmt.Sprintf("%d\n", tc.want)
 				if got != want {
 					t.Fatalf("output got %q want %q", got, want)
@@ -226,7 +226,7 @@ func TestCgroupGOMAXPROCSSchedAffinity(t *testing.T) {
 			}
 		}()
 
-		got := runBuiltTestProg(t, exe, "PrintGOMAXPROCS")
+		got := runBuiltTestProg(t, exe, "PrintGOMAXPROCS", "GOMAXPROCS=")
 		want := "2\n"
 		if got != want {
 			t.Fatalf("output got %q want %q", got, want)
@@ -262,6 +262,7 @@ func TestCgroupGOMAXPROCSSetDefault(t *testing.T) {
 		t.Run(fmt.Sprintf("containermaxprocs=%d", tc.godebug), func(t *testing.T) {
 			cgrouptest.InCgroupV2(t, func(c *cgrouptest.CgroupV2) {
 				env := []string{
+					"GOMAXPROCS=",
 					fmt.Sprintf("GO_TEST_CPU_MAX_PATH=%s", c.CPUMaxPath()),
 					"GO_TEST_CPU_MAX_QUOTA=300000",
 					fmt.Sprintf("GODEBUG=containermaxprocs=%d", tc.godebug),
@@ -289,7 +290,7 @@ func TestCgroupGOMAXPROCSUpdate(t *testing.T) {
 	}
 
 	cgrouptest.InCgroupV2(t, func(c *cgrouptest.CgroupV2) {
-		got := runBuiltTestProg(t, exe, "UpdateGOMAXPROCS", fmt.Sprintf("GO_TEST_CPU_MAX_PATH=%s", c.CPUMaxPath()))
+		got := runBuiltTestProg(t, exe, "UpdateGOMAXPROCS", "GOMAXPROCS=", fmt.Sprintf("GO_TEST_CPU_MAX_PATH=%s", c.CPUMaxPath()))
 		if !strings.Contains(got, "OK") {
 			t.Fatalf("output got %q want OK", got)
 		}
@@ -314,6 +315,7 @@ func TestCgroupGOMAXPROCSDontUpdate(t *testing.T) {
 		t.Run(v, func(t *testing.T) {
 			cgrouptest.InCgroupV2(t, func(c *cgrouptest.CgroupV2) {
 				got := runBuiltTestProg(t, exe, "DontUpdateGOMAXPROCS",
+					"GOMAXPROCS=",
 					fmt.Sprintf("GO_TEST_CPU_MAX_PATH=%s", c.CPUMaxPath()),
 					v)
 				if !strings.Contains(got, "OK") {
