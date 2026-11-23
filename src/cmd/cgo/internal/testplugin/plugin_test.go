@@ -9,6 +9,7 @@ import (
 	"cmd/cgo/internal/cgotest"
 	"flag"
 	"fmt"
+	"internal/buildcfg"
 	"internal/platform"
 	"internal/testenv"
 	"log"
@@ -436,4 +437,18 @@ func TestIssue81303(t *testing.T) {
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue81303p3.so", "./issue81303/plugin3.go")
 	goCmd(t, "build", "-o", "issue81303.exe", "./issue81303/main.go")
 	run(t, "./issue81303.exe")
+}
+
+func TestSIMD(t *testing.T) {
+	// A plugin that uses package simd must load, and the host must be
+	// able to call its exported functions. The compiler makes a copy of
+	// each function that uses simd for each vector size, and the plugin
+	// must not try to export those copies.
+	globalSkip(t)
+	if !buildcfg.Experiment.SIMDStable {
+		t.Skip("requires GOEXPERIMENT=simdstable")
+	}
+	goCmd(t, "build", "-buildmode=plugin", "-o", "simd.so", "./simd/plugin.go")
+	goCmd(t, "build", "-o", "simd.exe", "./simd/main.go")
+	run(t, "./simd.exe")
 }

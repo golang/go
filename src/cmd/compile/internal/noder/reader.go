@@ -19,6 +19,7 @@ import (
 	"cmd/compile/internal/inline"
 	"cmd/compile/internal/inline/interleaved"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/midway"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/reflectdata"
@@ -3764,7 +3765,10 @@ func (r *reader) pkgObjs(target *ir.Package) []*ir.Name {
 			}
 		}
 
-		if base.Ctxt.Flag_dynlink && types.LocalPkg.Name == "main" && types.IsExported(sym.Name) && name.Op() == ir.ONAME {
+		// The size-specialized copies that midway makes of a declaration
+		// are an implementation detail, like the instantiations of a
+		// generic function, so a plugin doesn't export them.
+		if base.Ctxt.Flag_dynlink && types.LocalPkg.Name == "main" && types.IsExported(sym.Name) && name.Op() == ir.ONAME && !midway.IsSpecializedName(sym.Name) {
 			assert(!sym.OnExportList())
 			target.PluginExports = append(target.PluginExports, name)
 			sym.SetOnExportList(true)

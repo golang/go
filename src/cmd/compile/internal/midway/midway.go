@@ -6,6 +6,7 @@ package midway
 
 import (
 	"internal/buildcfg"
+	"strings"
 )
 
 func rewriteSizes() []int {
@@ -30,6 +31,13 @@ const archPkg = "bridge"
 const archPkgAlias = "@bridge"
 const vectorSizeFn = "VectorBits"
 const emulatedFn = "Emulated"
+
+// IsSpecializedName reports whether name is the name midway gave to a
+// size-specialized copy of a package-level declaration, such as "F@simd128".
+// "@" can't appear in a Go identifier, so no user declaration has such a name.
+func IsSpecializedName(name string) bool {
+	return strings.Contains(name, "@simd")
+}
 
 func isSimdTypeName(s string) bool {
 	switch s {
