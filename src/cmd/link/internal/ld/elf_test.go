@@ -629,6 +629,9 @@ func TestTLSIEtoLERelaxationExe(t *testing.T) {
 }
 
 func TestLinuxARMInterpreter(t *testing.T) {
+	if testing.Short() && (runtime.GOOS != "linux" || runtime.GOARCH != "arm") {
+		t.Skipf("skipping on %s/%s in short mode", runtime.GOOS, runtime.GOARCH)
+	}
 	t.Parallel()
 	testenv.MustHaveGoBuild(t)
 

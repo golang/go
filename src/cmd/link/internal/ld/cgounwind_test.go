@@ -11,12 +11,18 @@ import (
 	"internal/testenv"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
 func TestCgoUnwind(t *testing.T) {
 	// Test that the linker emits static unwind info for runtime/cgo trampolines
 	// in runtimecgopurego binaries and omits it from pure-Go binaries.
+	if testing.Short() &&
+		(runtime.GOOS != "linux" && runtime.GOOS != "darwin" ||
+			runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64") {
+		t.Skipf("skipping cross-compile test on %s/%s in short mode", runtime.GOOS, runtime.GOARCH)
+	}
 	testenv.MustHaveGoBuild(t)
 	t.Parallel()
 	tmpdir := t.TempDir()
@@ -62,6 +68,9 @@ func TestCgoUnwind(t *testing.T) {
 		{"linux_arm64_pie", "linux", "arm64", []string{"-buildmode=pie"}},
 	}
 	for _, tt := range elfTests {
+		if testing.Short() && (tt.goos != runtime.GOOS || tt.goarch != runtime.GOARCH) {
+			continue
+		}
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			exe := build(t, tt.goos, tt.goarch, "1", cgoSrc, tt.extra...)
@@ -78,6 +87,9 @@ func TestCgoUnwind(t *testing.T) {
 		{"darwin_arm64", "arm64", 0x04000000},
 	}
 	for _, tt := range darwinTests {
+		if testing.Short() && (runtime.GOOS != "darwin" || tt.goarch != runtime.GOARCH) {
+			continue
+		}
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			exe := build(t, "darwin", tt.goarch, "1", cgoSrc)
@@ -85,36 +97,40 @@ func TestCgoUnwind(t *testing.T) {
 		})
 	}
 
-	t.Run("pure_linux_amd64", func(t *testing.T) {
-		t.Parallel()
-		exe := build(t, "linux", "amd64", "0", pureSrc)
-		f, err := elf.Open(exe)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer f.Close()
-		if f.Section(".eh_frame") != nil || f.Section(".eh_frame_hdr") != nil {
-			t.Fatalf("unexpected .eh_frame section in pure-Go binary")
-		}
-		for _, p := range f.Progs {
-			if p.Type == elf.PT_GNU_EH_FRAME {
-				t.Fatalf("unexpected PT_GNU_EH_FRAME in pure-Go binary")
+	if !testing.Short() || (runtime.GOOS == "linux" && runtime.GOARCH == "amd64") {
+		t.Run("pure_linux_amd64", func(t *testing.T) {
+			t.Parallel()
+			exe := build(t, "linux", "amd64", "0", pureSrc)
+			f, err := elf.Open(exe)
+			if err != nil {
+				t.Fatal(err)
 			}
-		}
-	})
+			defer f.Close()
+			if f.Section(".eh_frame") != nil || f.Section(".eh_frame_hdr") != nil {
+				t.Fatalf("unexpected .eh_frame section in pure-Go binary")
+			}
+			for _, p := range f.Progs {
+				if p.Type == elf.PT_GNU_EH_FRAME {
+					t.Fatalf("unexpected PT_GNU_EH_FRAME in pure-Go binary")
+				}
+			}
+		})
+	}
 
-	t.Run("pure_darwin_arm64", func(t *testing.T) {
-		t.Parallel()
-		exe := build(t, "darwin", "arm64", "0", pureSrc)
-		f, err := macho.Open(exe)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer f.Close()
-		if f.Section("__unwind_info") != nil {
-			t.Fatalf("unexpected __unwind_info section in pure-Go binary")
-		}
-	})
+	if !testing.Short() || (runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") {
+		t.Run("pure_darwin_arm64", func(t *testing.T) {
+			t.Parallel()
+			exe := build(t, "darwin", "arm64", "0", pureSrc)
+			f, err := macho.Open(exe)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer f.Close()
+			if f.Section("__unwind_info") != nil {
+				t.Fatalf("unexpected __unwind_info section in pure-Go binary")
+			}
+		})
+	}
 }
 
 func verifyELFCgoUnwind(t *testing.T, path string) {

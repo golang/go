@@ -314,6 +314,12 @@ func checkText() {}
 `
 
 	arches := []string{"386", "amd64", "arm", "arm64", "loong64", "ppc64", "ppc64le", "riscv64", "s390x"}
+	if testing.Short() {
+		if runtime.GOOS != "linux" || !slices.Contains(arches, runtime.GOARCH) {
+			t.Skipf("skipping cross-compile test on %s/%s in short mode", runtime.GOOS, runtime.GOARCH)
+		}
+		arches = []string{runtime.GOARCH}
+	}
 	for _, goarch := range arches {
 		modes := []string{"exe"}
 		if platform.InternalLinkPIESupported("linux", goarch) {
