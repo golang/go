@@ -23,3 +23,12 @@ unreachable.
 
 Special thanks to Felix Geisendörfer and Nick Ripley at Datadog for
 contributing this work.
+
+### Execution traces {#execution-traces}
+<!-- go.dev/issue/82084 -->
+
+Execution traces on Linux can now show where an asynchronous preemption
+request first failed since an OS thread last entered the scheduler.
+`go tool trace` shows the captured stack and, when the goroutine is observed
+yielding on the same thread and processor, the time until it yielded.
+This diagnostic is unavailable on Linux ARM (32-bit) and Linux MIPS (32-bit).

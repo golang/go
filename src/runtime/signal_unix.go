@@ -346,6 +346,8 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
 		if ok, newpc := isAsyncSafePoint(gp, ctxt.sigpc(), ctxt.sigsp(), ctxt.siglr()); ok {
 			// Adjust the PC and inject a call to asyncPreempt.
 			ctxt.pushCall(abi.FuncPCABI0(asyncPreempt), newpc)
+		} else if tracePreemptFailedSupported && traceEnabled() {
+			traceGoPreemptFailed(gp, ctxt.sigpc(), ctxt.sigsp(), ctxt.siglr())
 		}
 	}
 

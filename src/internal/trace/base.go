@@ -225,30 +225,31 @@ type extraStringID uint64
 // stackID is an index into the stack table for a generation.
 type stackID uint64
 
-// cpuSample represents a CPU profiling sample captured by the trace.
-type cpuSample struct {
+// stackSample represents a sample captured by a signal handler.
+type stackSample struct {
 	schedCtx
 	time  Time
 	stack stackID
+	typ   tracev2.EventType
 }
 
-// asEvent produces a complete Event from a cpuSample. It needs
+// asEvent produces a complete Event from a stackSample. It needs
 // the evTable from the generation that created it.
 //
 // We don't just store it as an Event in generation to minimize
 // the amount of pointer data floating around.
-func (s cpuSample) asEvent(table *evTable) Event {
+func (s stackSample) asEvent(table *evTable) Event {
 	// TODO(mknyszek): This is go122-specific, but shouldn't be.
 	// Generalize this in the future.
 	e := Event{
 		table: table,
 		ctx:   s.schedCtx,
 		base: baseEvent{
-			typ:  tracev2.EvCPUSample,
+			typ:  s.typ,
 			time: s.time,
 		},
 	}
-	e.base.args[0] = uint64(s.stack)
+	e.base.args[3] = uint64(s.stack)
 	return e
 }
 

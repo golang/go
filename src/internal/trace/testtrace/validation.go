@@ -166,7 +166,7 @@ func (v *Validator) Event(ev trace.Event) error {
 				e.Errorf("label for invalid thread %d", id)
 			}
 		}
-	case trace.EventStackSample:
+	case trace.EventStackSample, trace.EventGoPreemptFailed:
 		// Not much to check here. It's basically a sched context and a stack.
 		// The sched context is also not guaranteed to align with other events.
 		// We already checked the stack above.

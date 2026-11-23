@@ -19,7 +19,7 @@ func TestTraceV1(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to glob for tests: %s", err)
 	}
-	var testedUserRegions bool
+	var testedUserRegions, testedCPUSampleStack bool
 	for _, p := range traces {
 		testName, err := filepath.Rel("./internal/tracev1/testdata", p)
 		if err != nil {
@@ -49,6 +49,12 @@ func TestTraceV1(t *testing.T) {
 				}
 				if err := v.Event(ev); err != nil {
 					t.Fatalf("converted event did not validate; event: \n%s\nerror: %s", ev, err)
+				}
+				if ev.Kind() == trace.EventStackSample {
+					for range ev.Stack().Frames() {
+						testedCPUSampleStack = true
+						break
+					}
 				}
 
 				if testName == "user_task_region_1_21_good" {
@@ -85,5 +91,8 @@ func TestTraceV1(t *testing.T) {
 	}
 	if !testedUserRegions {
 		t.Fatal("didn't see expected test case user_task_region_1_21_good")
+	}
+	if !testedCPUSampleStack {
+		t.Fatal("didn't see a converted CPU sample with a stack")
 	}
 }

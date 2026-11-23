@@ -89,6 +89,11 @@ const (
 	// Users are expected to understand the format and perform their own validation. These events
 	// may always be safely ignored.
 	EventExperimental
+
+	// EventGoPreemptFailed samples a goroutine that could not be preempted
+	// asynchronously. Like EventStackSample, it is a best-effort annotation
+	// and may be slightly out of order with respect to StateTransitions.
+	EventGoPreemptFailed
 )
 
 // String returns a string form of the EventKind.
@@ -115,6 +120,7 @@ var eventKindStrings = [...]string{
 	EventLog:             "Log",
 	EventStateTransition: "StateTransition",
 	EventExperimental:    "Experimental",
+	EventGoPreemptFailed: "GoPreemptFailed",
 }
 
 const maxTime = Time(math.MaxInt64)
@@ -467,9 +473,9 @@ func MakeEvent[T EventDetails](c EventConfig[T]) (e Event, err error) {
 		if l, ok := any(c.Details).(Log); ok {
 			return makeLogEvent(e, l)
 		}
-	case EventStackSample:
+	case EventStackSample, EventGoPreemptFailed:
 		if _, ok := any(c.Details).(StackSample); ok {
-			return makeStackSampleEvent(e, c.Stack)
+			return makeStackSampleEvent(e, c.Kind, c.Stack)
 		}
 	}
 	return Event{}, fmt.Errorf("the Kind field %s is incompatible with Details type %T", c.Kind, c.Details)
@@ -768,10 +774,15 @@ func makeLogEvent(e Event, l Log) (Event, error) {
 	return e, nil
 }
 
-func makeStackSampleEvent(e Event, s Stack) (Event, error) {
+func makeStackSampleEvent(e Event, kind EventKind, s Stack) (Event, error) {
 	e.base.typ = tracev2.EvCPUSample
-	frames := slices.Collect(s.Frames())
-	e.base.args[0] = uint64(addStack(e.table, frames))
+	if kind == EventGoPreemptFailed {
+		e.base.typ = tracev2.EvGoPreemptFailed
+	}
+	if s != NoStack {
+		frames := slices.Collect(s.Frames())
+		e.base.args[3] = uint64(addStack(e.table, frames))
+	}
 	return e, nil
 }
 
@@ -849,9 +860,6 @@ func (e Event) Thread() ThreadID {
 func (e Event) Stack() Stack {
 	if e.base.typ == evSync {
 		return NoStack
-	}
-	if e.base.typ == tracev2.EvCPUSample {
-		return Stack{table: e.table, id: stackID(e.base.args[0])}
 	}
 	spec := tracev2.Specs()[e.base.typ]
 	if len(spec.StackIDs) == 0 {
@@ -1178,6 +1186,7 @@ const evSync = ^tracev2.EventType(0)
 
 var tracev2Type2Kind = [...]EventKind{
 	tracev2.EvCPUSample:           EventStackSample,
+	tracev2.EvGoPreemptFailed:     EventGoPreemptFailed,
 	tracev2.EvProcsChange:         EventMetric,
 	tracev2.EvProcStart:           EventStateTransition,
 	tracev2.EvProcStop:            EventStateTransition,

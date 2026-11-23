@@ -30,6 +30,7 @@ type mTraceState struct {
 	link          *m                                   // Snapshot of alllink or freelink.
 	reentered     uint32                               // Whether we've reentered tracing from within tracing.
 	entryGen      uintptr                              // The generation value on first entry.
+	preemptFailed bool                                 // This M has sampled an async preemption failure since entering schedule.
 	oldthrowsplit bool                                 // gp.throwsplit upon calling traceLocker.writer. For debugging.
 }
 

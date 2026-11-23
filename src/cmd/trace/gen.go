@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"internal/trace"
 	"internal/trace/traceviewer"
+	"maps"
+	"slices"
 	"strings"
 )
 
@@ -39,6 +41,7 @@ type generator interface {
 
 // runGenerator produces a trace into ctx by running the generator over the parsed trace.
 func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace, opts *genOpts) {
+	var preemptFailures map[trace.GoID]*trace.Event
 	for i := range parsed.events {
 		ev := &parsed.events[i]
 
@@ -47,6 +50,20 @@ func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace, opts *gen
 			g.Sync()
 		case trace.EventStackSample:
 			g.StackSample(ctx, ev)
+		case trace.EventGoPreemptFailed:
+			if ev.Goroutine() == trace.NoGoroutine || ev.Thread() == trace.NoThread {
+				emitPreemptFailure(ctx, opts, ev, nil)
+				break
+			}
+			if preemptFailures == nil {
+				preemptFailures = make(map[trace.GoID]*trace.Event)
+			}
+			// A second sample without an observed yield leaves the first
+			// sample's endpoint ambiguous.
+			if prev := preemptFailures[ev.Goroutine()]; prev != nil {
+				emitPreemptFailure(ctx, opts, prev, nil)
+			}
+			preemptFailures[ev.Goroutine()] = ev
 		case trace.EventRangeBegin, trace.EventRangeActive, trace.EventRangeEnd:
 			r := ev.Range()
 			switch r.Scope.Kind {
@@ -65,15 +82,33 @@ func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace, opts *gen
 				g.GoroutineLabel(ctx, ev)
 			}
 		case trace.EventStateTransition:
-			switch ev.StateTransition().Resource.Kind {
+			st := ev.StateTransition()
+			switch st.Resource.Kind {
 			case trace.ResourceProc:
 				g.ProcTransition(ctx, ev)
 			case trace.ResourceGoroutine:
 				g.GoroutineTransition(ctx, ev)
+				goid := st.Resource.Goroutine()
+				if failure := preemptFailures[goid]; failure != nil {
+					from, to := st.Goroutine()
+					// A status snapshot can follow a signal sample. It does
+					// not mark the end of a running interval.
+					if from != to && from != trace.GoUndetermined {
+						var yield *trace.Event
+						if from == trace.GoRunning && !to.Executing() && ev.Thread() == failure.Thread() && ev.Proc() == failure.Proc() {
+							yield = ev
+						}
+						emitPreemptFailure(ctx, opts, failure, yield)
+						delete(preemptFailures, goid)
+					}
+				}
 			}
 		case trace.EventLog:
 			g.Log(ctx, ev)
 		}
+	}
+	for _, goid := range slices.Sorted(maps.Keys(preemptFailures)) {
+		emitPreemptFailure(ctx, opts, preemptFailures[goid], nil)
 	}
 	for i, task := range opts.tasks {
 		emitTask(ctx, task, i)
@@ -84,6 +119,41 @@ func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace, opts *gen
 		}
 	}
 	g.Finish(ctx)
+}
+
+// emitPreemptFailure shows the interval from the first failed attempt to an
+// observed yield on the same thread. If a syscall or the end of the trace
+// prevents us from observing the yield, show only the failed attempt.
+func emitPreemptFailure(ctx *traceContext, opts *genOpts, failure, yield *trace.Event) {
+	resource := int64(failure.Proc())
+	if opts.mode&traceviewer.ModeGoroutineOriented != 0 {
+		resource = int64(failure.Goroutine())
+	} else if opts.mode&traceviewer.ModeThreadOriented != 0 {
+		resource = int64(failure.Thread())
+	}
+	if resource == noResource {
+		return
+	}
+	const name = "Failed async preemption"
+	ts := ctx.elapsed(failure.Time())
+	stack := ctx.Stack(viewerFrames(failure.Stack()))
+	if yield == nil {
+		ctx.Instant(traceviewer.InstantEvent{Name: name, Ts: ts, Resource: uint64(resource), Stack: stack})
+		return
+	}
+	// Use an async slice because the interval can overlap other slices on the
+	// same lane without being contained in them (for example, GC mark assist).
+	ctx.AsyncSlice(traceviewer.AsyncSliceEvent{
+		SliceEvent: traceviewer.SliceEvent{
+			Name:     name,
+			Ts:       ts,
+			Dur:      yield.Time().Sub(failure.Time()),
+			Resource: uint64(resource),
+			Stack:    stack,
+			EndStack: ctx.Stack(viewerFrames(yield.Stack())),
+		},
+		Category: "scheduler",
+	})
 }
 
 // emitTask emits information about a task into the trace viewer's event stream.
