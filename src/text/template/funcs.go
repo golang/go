@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"unicode"
+	"unicode/utf16"
 	"unicode/utf8"
 )
 
@@ -762,6 +763,11 @@ func JSEscape(w io.Writer, b []byte) {
 			r, size := utf8.DecodeRune(b[i:])
 			if unicode.IsPrint(r) {
 				w.Write(b[i : i+size])
+			} else if r1, r2 := utf16.EncodeRune(r); r1 != unicode.ReplacementChar {
+				// A \u escape takes exactly four hex digits, so a rune
+				// outside the Basic Multilingual Plane is written as
+				// a UTF-16 surrogate pair.
+				fmt.Fprintf(w, "\\u%04X\\u%04X", r1, r2)
 			} else {
 				fmt.Fprintf(w, "\\u%04X", r)
 			}
