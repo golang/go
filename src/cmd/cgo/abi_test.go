@@ -1528,6 +1528,7 @@ func TestCallbackLargeFramePPC64(t *testing.T) {
 
 	for _, tgt := range targets {
 		t.Run(tgt[0]+"_"+tgt[1], func(t *testing.T) {
+			t.Parallel()
 			cfg := getABI(tgt[0], tgt[1])
 			// Pick exact struct sizes hitting total == 32752 (max fast path)
 			// and total == 32768 (min large path) for each target's LocalFrameOff
@@ -1577,6 +1578,7 @@ func TestCallbackLargeFramePPC64(t *testing.T) {
 
 			for _, tc := range cases {
 				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
 					var buf bytes.Buffer
 					buf.WriteString("#include \"textflag.h\"\n\n")
 					cfg.writeCallbackTrampoline(&buf, tc.fn, typeMap)
@@ -1636,56 +1638,59 @@ func TestCallbackLargeFramePPC64(t *testing.T) {
 						return
 					}
 					for _, goppc64 := range []string{"power8", "power10"} {
-						dir := t.TempDir()
-						sfile := filepath.Join(dir, "cb.s")
-						ofile := filepath.Join(dir, "cb.o")
-						if err := os.WriteFile(sfile, buf.Bytes(), 0o666); err != nil {
-							t.Fatal(err)
-						}
-						cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-v", "-p", "main",
-							"-I", filepath.Join(testenv.GOROOT(t), "src", "runtime"), "-o", ofile, sfile)
-						cmd.Env = append(os.Environ(), "GOOS="+tgt[0], "GOARCH="+tgt[1], "GOPPC64="+goppc64)
-						asmOut, err := cmd.CombinedOutput()
-						if err != nil {
-							t.Fatalf("go tool asm (GOPPC64=%s): %v\n%s", goppc64, err, asmOut)
-						}
-						if strings.Contains(string(asmOut), "auto-SPWRITE:") {
-							t.Errorf("GOPPC64=%s: unexpected auto-SPWRITE:\n%s", goppc64, asmOut)
-						}
-						out, err := testenv.Command(t, testenv.GoToolPath(t), "tool", "objdump", ofile).CombinedOutput()
-						if err != nil {
-							t.Fatalf("go tool objdump (GOPPC64=%s): %v\n%s", goppc64, err, out)
-						}
-						var r31 []string
-						for _, line := range strings.Split(string(out), "\n") {
-							f := strings.Fields(line)
-							if len(f) < 4 {
-								continue
+						t.Run(goppc64, func(t *testing.T) {
+							t.Parallel()
+							dir := t.TempDir()
+							sfile := filepath.Join(dir, "cb.s")
+							ofile := filepath.Join(dir, "cb.o")
+							if err := os.WriteFile(sfile, buf.Bytes(), 0o666); err != nil {
+								t.Fatal(err)
 							}
-							insn := strings.Join(f[3:], " ")
-							if strings.Contains(insn, "R31") {
-								r31 = append(r31, insn)
+							cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-v", "-p", "main",
+								"-I", filepath.Join(testenv.GOROOT(t), "src", "runtime"), "-o", ofile, sfile)
+							cmd.Env = append(os.Environ(), "GOOS="+tgt[0], "GOARCH="+tgt[1], "GOPPC64="+goppc64)
+							asmOut, err := cmd.CombinedOutput()
+							if err != nil {
+								t.Fatalf("go tool asm (GOPPC64=%s): %v\n%s", goppc64, err, asmOut)
 							}
-						}
-						if len(r31) < 2 {
-							t.Fatalf("GOPPC64=%s: expected R31 save/restore in objdump, got %q", goppc64, r31)
-						}
-						if tc.large {
-							wantFirst := "MOVD R31,0(R1)"
-							wantLast := "MOVD 0(R1),R31"
-							if r31[0] != wantFirst || r31[len(r31)-1] != wantLast {
-								t.Errorf("GOPPC64=%s: first/last R31 uses = %q .. %q (count=%d), want %q .. %q",
-									goppc64, r31[0], r31[len(r31)-1], len(r31), wantFirst, wantLast)
+							if strings.Contains(string(asmOut), "auto-SPWRITE:") {
+								t.Errorf("GOPPC64=%s: unexpected auto-SPWRITE:\n%s", goppc64, asmOut)
 							}
-							if tc.expectR31Op && goppc64 == "power8" && len(r31) < 3 {
-								t.Errorf("GOPPC64=%s: expected assembler REGTMP (R31) expansion between save and restore, got %q", goppc64, r31)
+							out, err := testenv.Command(t, testenv.GoToolPath(t), "tool", "objdump", ofile).CombinedOutput()
+							if err != nil {
+								t.Fatalf("go tool objdump (GOPPC64=%s): %v\n%s", goppc64, err, out)
 							}
-						} else {
-							if !strings.HasPrefix(r31[0], "MOVD R31,") || !strings.HasPrefix(r31[len(r31)-1], "MOVD ") || !strings.HasSuffix(r31[len(r31)-1], ",R31") {
-								t.Errorf("GOPPC64=%s: small-frame R31 uses = %q .. %q, want save first and restore last",
-									goppc64, r31[0], r31[len(r31)-1])
+							var r31 []string
+							for _, line := range strings.Split(string(out), "\n") {
+								f := strings.Fields(line)
+								if len(f) < 4 {
+									continue
+								}
+								insn := strings.Join(f[3:], " ")
+								if strings.Contains(insn, "R31") {
+									r31 = append(r31, insn)
+								}
 							}
-						}
+							if len(r31) < 2 {
+								t.Fatalf("GOPPC64=%s: expected R31 save/restore in objdump, got %q", goppc64, r31)
+							}
+							if tc.large {
+								wantFirst := "MOVD R31,0(R1)"
+								wantLast := "MOVD 0(R1),R31"
+								if r31[0] != wantFirst || r31[len(r31)-1] != wantLast {
+									t.Errorf("GOPPC64=%s: first/last R31 uses = %q .. %q (count=%d), want %q .. %q",
+										goppc64, r31[0], r31[len(r31)-1], len(r31), wantFirst, wantLast)
+								}
+								if tc.expectR31Op && goppc64 == "power8" && len(r31) < 3 {
+									t.Errorf("GOPPC64=%s: expected assembler REGTMP (R31) expansion between save and restore, got %q", goppc64, r31)
+								}
+							} else {
+								if !strings.HasPrefix(r31[0], "MOVD R31,") || !strings.HasPrefix(r31[len(r31)-1], "MOVD ") || !strings.HasSuffix(r31[len(r31)-1], ",R31") {
+									t.Errorf("GOPPC64=%s: small-frame R31 uses = %q .. %q, want save first and restore last",
+										goppc64, r31[0], r31[len(r31)-1])
+								}
+							}
+						})
 					}
 				})
 			}
@@ -1693,31 +1698,37 @@ func TestCallbackLargeFramePPC64(t *testing.T) {
 			// Also verify large-frame Go-to-C trampolines assemble cleanly without
 			// auto-SPWRITE or spadj overflow on both power8 and power10.
 			if testenv.HasGoBuild() {
-				var buf bytes.Buffer
-				buf.WriteString("#include \"textflag.h\"\n\n")
-				cfg.writeTrampoline(&buf, BindingFunc{
-					Name:        "BigTramp",
-					CName:       "c_big_tramp",
-					Params:      []string{"OddBig", "int64"},
-					Ret:         "Odd9",
-					MayCallback: true,
-				}, typeMap)
-				for _, goppc64 := range []string{"power8", "power10"} {
-					dir := t.TempDir()
-					sfile := filepath.Join(dir, "tramp.s")
-					ofile := filepath.Join(dir, "tramp.o")
-					if err := os.WriteFile(sfile, buf.Bytes(), 0o666); err != nil {
-						t.Fatal(err)
+				t.Run("big_tramp", func(t *testing.T) {
+					t.Parallel()
+					var buf bytes.Buffer
+					buf.WriteString("#include \"textflag.h\"\n\n")
+					cfg.writeTrampoline(&buf, BindingFunc{
+						Name:        "BigTramp",
+						CName:       "c_big_tramp",
+						Params:      []string{"OddBig", "int64"},
+						Ret:         "Odd9",
+						MayCallback: true,
+					}, typeMap)
+					for _, goppc64 := range []string{"power8", "power10"} {
+						t.Run(goppc64, func(t *testing.T) {
+							t.Parallel()
+							dir := t.TempDir()
+							sfile := filepath.Join(dir, "tramp.s")
+							ofile := filepath.Join(dir, "tramp.o")
+							if err := os.WriteFile(sfile, buf.Bytes(), 0o666); err != nil {
+								t.Fatal(err)
+							}
+							cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-v", "-p", "main",
+								"-I", filepath.Join(testenv.GOROOT(t), "src", "runtime"), "-o", ofile, sfile)
+							cmd.Env = append(os.Environ(), "GOOS="+tgt[0], "GOARCH="+tgt[1], "GOPPC64="+goppc64)
+							if out, err := cmd.CombinedOutput(); err != nil {
+								t.Fatalf("large trampoline go tool asm (GOPPC64=%s): %v\n%s", goppc64, err, out)
+							} else if strings.Contains(string(out), "auto-SPWRITE:") {
+								t.Errorf("large trampoline GOPPC64=%s: unexpected auto-SPWRITE:\n%s", goppc64, out)
+							}
+						})
 					}
-					cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-v", "-p", "main",
-						"-I", filepath.Join(testenv.GOROOT(t), "src", "runtime"), "-o", ofile, sfile)
-					cmd.Env = append(os.Environ(), "GOOS="+tgt[0], "GOARCH="+tgt[1], "GOPPC64="+goppc64)
-					if out, err := cmd.CombinedOutput(); err != nil {
-						t.Fatalf("large trampoline go tool asm (GOPPC64=%s): %v\n%s", goppc64, err, out)
-					} else if strings.Contains(string(out), "auto-SPWRITE:") {
-						t.Errorf("large trampoline GOPPC64=%s: unexpected auto-SPWRITE:\n%s", goppc64, out)
-					}
-				}
+				})
 			}
 		})
 	}
