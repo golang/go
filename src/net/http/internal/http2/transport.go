@@ -2503,10 +2503,13 @@ func (rl *clientConnReadLoop) processData(f *DataFrame) error {
 				return ConnectionError(ErrCodeFlowControl)
 			}
 			if connAdd > 0 {
-				cc.wmu.Lock()
-				cc.fr.WriteWindowUpdate(0, uint32(connAdd))
-				cc.bw.Flush()
-				cc.wmu.Unlock()
+				// Defer the unlock, as below, in case the write panics.
+				func() {
+					cc.wmu.Lock()
+					defer cc.wmu.Unlock()
+					cc.fr.WriteWindowUpdate(0, uint32(connAdd))
+					cc.bw.Flush()
+				}()
 			}
 		}
 		return nil
@@ -2580,15 +2583,20 @@ func (rl *clientConnReadLoop) processData(f *DataFrame) error {
 		cc.mu.Unlock()
 
 		if sendConn > 0 || sendStream > 0 {
-			cc.wmu.Lock()
-			if sendConn > 0 {
-				cc.fr.WriteWindowUpdate(0, uint32(sendConn))
-			}
-			if sendStream > 0 {
-				cc.fr.WriteWindowUpdate(cs.ID, uint32(sendStream))
-			}
-			cc.bw.Flush()
-			cc.wmu.Unlock()
+			// Release cc.wmu if the write panics, for the same reason as
+			// cc.mu above: cleanup resets the connection's open streams,
+			// which needs cc.wmu.
+			func() {
+				cc.wmu.Lock()
+				defer cc.wmu.Unlock()
+				if sendConn > 0 {
+					cc.fr.WriteWindowUpdate(0, uint32(sendConn))
+				}
+				if sendStream > 0 {
+					cc.fr.WriteWindowUpdate(cs.ID, uint32(sendStream))
+				}
+				cc.bw.Flush()
+			}()
 		}
 
 		if err != nil {
