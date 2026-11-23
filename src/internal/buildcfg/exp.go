@@ -78,30 +78,6 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	// things like .debug_addr (needed for DWARF 5).
 	dwarf5Supported := (goos != "darwin" && goos != "ios" && goos != "aix")
 
-	var cgoBindingsSupported bool
-	switch goos {
-	case "aix":
-		cgoBindingsSupported = goarch == "ppc64"
-	case "linux":
-		switch goarch {
-		case "386", "amd64", "arm", "arm64", "loong64", "mips", "mipsle", "mips64", "mips64le", "ppc64", "ppc64le", "riscv64", "s390x":
-			cgoBindingsSupported = true
-		}
-	case "android", "netbsd":
-		cgoBindingsSupported = goarch == "386" || goarch == "amd64" || goarch == "arm" || goarch == "arm64"
-	case "darwin", "ios":
-		cgoBindingsSupported = goarch == "amd64" || goarch == "arm64"
-	case "freebsd", "openbsd":
-		switch goarch {
-		case "386", "amd64", "arm", "arm64", "riscv64":
-			cgoBindingsSupported = true
-		}
-	case "dragonfly", "solaris", "illumos":
-		cgoBindingsSupported = goarch == "amd64"
-	case "windows":
-		cgoBindingsSupported = goarch == "386" || goarch == "amd64" || goarch == "arm64"
-	}
-
 	baseline := goexperiment.Flags{
 		RegabiWrappers:        regabiSupported,
 		RegabiArgs:            regabiSupported,
@@ -186,10 +162,6 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	// Check regabi dependencies.
 	if flags.RegabiArgs && !flags.RegabiWrappers {
 		return nil, fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers")
-	}
-	// Disable cgobindings on unsupported platforms.
-	if !cgoBindingsSupported {
-		flags.CgoBindings = false
 	}
 	// Check cgobindings dependencies.
 	if flags.CgoBindings && !flags.RuntimeCgoPurego {

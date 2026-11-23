@@ -414,7 +414,7 @@ func main() {
 		if !buildcfg.Experiment.CgoBindings {
 			fatalf("-binding requires GOEXPERIMENT=cgobindings")
 		}
-		if !platform.CgoSupported(goos, goarch) {
+		if !platform.CgoSupported(goos, goarch) || platform.Broken(goos, goarch) {
 			fatalf("-binding is not supported on %s/%s", goos, goarch)
 		}
 		p.processBinding(goFiles)
@@ -425,7 +425,7 @@ func main() {
 		if !buildcfg.Experiment.CgoBindings {
 			fatalf("-gen-binding requires GOEXPERIMENT=cgobindings")
 		}
-		if !platform.CgoSupported(goos, goarch) {
+		if !platform.CgoSupported(goos, goarch) || platform.Broken(goos, goarch) {
 			fatalf("-gen-binding is not supported on %s/%s", goos, goarch)
 		}
 	}

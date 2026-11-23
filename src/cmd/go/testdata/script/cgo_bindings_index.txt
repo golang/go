@@ -4,6 +4,12 @@
 
 env GOEXPERIMENT=$GOEXPERIMENT,runtimecgopurego,cgobindings
 [!GOEXPERIMENT:cgobindings] skip
+[GOOS:plan9] skip
+[GOOS:js] skip
+[GOOS:wasip1] skip
+[GOOS:openbsd] [GOARCH:ppc64] skip
+[GOOS:freebsd] [GOARCH:riscv64] skip
+[GOOS:linux] [GOARCH:sparc64] skip
 
 env CGO_ENABLED=bindings
 [!GOOS:windows] [!cgolinkext] env CC=/bin/false
