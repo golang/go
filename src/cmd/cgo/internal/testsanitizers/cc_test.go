@@ -583,20 +583,31 @@ func (c *config) checkRuntime() (skip bool, err error) {
 		return false, nil
 	}
 
-	// libcgo.h sets CGO_TSAN if it detects TSAN support in the C compiler.
+	// Both cmd/cgo's tsanProlog and libcgo.h detect TSAN via
+	// __SANITIZE_THREAD__ or __has_feature(thread_sanitizer).
 	// Dump the preprocessor defines to check that works.
 	// (Sometimes it doesn't: see https://golang.org/issue/15983.)
 	cmd, err := cc(context.Background(), c.cFlags...)
 	if err != nil {
 		return false, err
 	}
-	cmd.Args = append(cmd.Args, "-dM", "-E", "../../../../runtime/cgo/libcgo.h")
+	const probe = `
+#if defined(__SANITIZE_THREAD__)
+#define _CGO_TSAN 1
+#elif defined(__has_feature)
+#if __has_feature(thread_sanitizer)
+#define _CGO_TSAN 1
+#endif
+#endif
+`
+	cmd.Args = append(cmd.Args, "-dM", "-E", "-x", "c", "-")
+	cmd.Stdin = strings.NewReader(probe)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return false, fmt.Errorf("%#q exited with %v\n%s", cmd, err, out)
 	}
-	if !bytes.Contains(out, []byte("#define CGO_TSAN")) {
-		return true, fmt.Errorf("%#q did not define CGO_TSAN", cmd)
+	if !bytes.Contains(out, []byte("#define _CGO_TSAN")) {
+		return true, fmt.Errorf("%#q did not define _CGO_TSAN", cmd)
 	}
 	return false, nil
 }

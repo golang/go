@@ -150,7 +150,7 @@ struct cgoSetTracebackFunctionsArg {
 // cmd/cgo generates calls to _cgo_tsan_acquire and _cgo_tsan_release. For
 // other cgo calls, manual calls are required.
 //
-// These must match the definitions in yesTsanProlog in cmd/cgo/out.go.
+// These must match the definitions in tsanProlog in cmd/cgo/out.go.
 // In general we should call _cgo_tsan_acquire when we enter C code,
 // and call _cgo_tsan_release when we return to Go code.
 //

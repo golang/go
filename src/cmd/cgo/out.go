@@ -1635,12 +1635,6 @@ extern char* _cgo_topofstack(void);
 `
 
 // Prologue defining TSAN functions in C.
-const noTsanProlog = `
-#define CGO_NO_SANITIZE_THREAD
-#define _cgo_tsan_acquire()
-#define _cgo_tsan_release()
-`
-
 // This must match the TSAN code in runtime/cgo/libcgo.h.
 // This is used when the code is built with the C/C++ Thread SANitizer,
 // which is not the same as the Go race detector.
@@ -1663,7 +1657,16 @@ const noTsanProlog = `
 // we will be hiding races. But when using TSAN on mixed Go C/C++ code
 // it is more important to avoid false positives, which reduce confidence
 // in the tool, than to avoid false negatives.
-const yesTsanProlog = `
+const tsanProlog = `
+#undef _CGO_TSAN
+#if defined(__SANITIZE_THREAD__)
+#define _CGO_TSAN 1
+#elif defined(__has_feature)
+#if __has_feature(thread_sanitizer)
+#define _CGO_TSAN 1
+#endif
+#endif
+#ifdef _CGO_TSAN
 #line 1 "cgo-tsan-prolog"
 #define CGO_NO_SANITIZE_THREAD __attribute__ ((no_sanitize_thread))
 
@@ -1673,37 +1676,41 @@ extern void __tsan_acquire(void*);
 extern void __tsan_release(void*);
 
 __attribute__ ((unused))
-static void _cgo_tsan_acquire() {
+static void _cgo_tsan_acquire(void) {
 	__tsan_acquire(&_cgo_sync);
 }
 
 __attribute__ ((unused))
-static void _cgo_tsan_release() {
+static void _cgo_tsan_release(void) {
 	__tsan_release(&_cgo_sync);
 }
+#line 1 "cgo-generated-wrappers"
+#else
+#define CGO_NO_SANITIZE_THREAD
+#define _cgo_tsan_acquire()
+#define _cgo_tsan_release()
+#endif
 `
 
-// Set to yesTsanProlog if we see -fsanitize=thread in the flags for gcc.
-var tsanProlog = noTsanProlog
-
-// noMsanProlog is a prologue defining an MSAN function in C.
-// This is used when not compiling with -fsanitize=memory.
-const noMsanProlog = `
-#define _cgo_msan_write(addr, sz)
-`
-
-// yesMsanProlog is a prologue defining an MSAN function in C.
-// This is used when compiling with -fsanitize=memory.
+// msanProlog is a prologue defining an MSAN function in C.
 // See the comment above where _cgo_msan_write is called.
-const yesMsanProlog = `
+const msanProlog = `
+#undef _CGO_MSAN
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#define _CGO_MSAN 1
+#endif
+#endif
+#ifdef _CGO_MSAN
+#line 1 "cgo-msan-prolog"
 extern void __msan_unpoison(const volatile void *, size_t);
 
 #define _cgo_msan_write(addr, sz) __msan_unpoison((addr), (sz))
+#line 1 "cgo-generated-wrappers"
+#else
+#define _cgo_msan_write(addr, sz)
+#endif
 `
-
-// msanProlog is set to yesMsanProlog if we see -fsanitize=memory in the flags
-// for the C compiler.
-var msanProlog = noMsanProlog
 
 const builtinProlog = `
 #line 1 "cgo-builtin-prolog"

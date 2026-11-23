@@ -365,15 +365,6 @@ func main() {
 	copy(osArgs, os.Args[:])
 	goFiles := args[i:]
 
-	for _, arg := range args[:i] {
-		if arg == "-fsanitize=thread" {
-			tsanProlog = yesTsanProlog
-		}
-		if arg == "-fsanitize=memory" {
-			msanProlog = yesMsanProlog
-		}
-	}
-
 	p := newPackage(args[:i], fset)
 
 	flag.Visit(func(f *flag.Flag) {
