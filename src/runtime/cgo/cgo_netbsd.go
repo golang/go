@@ -17,7 +17,7 @@ const (
 //go:cgo_import_dynamic _ _ "libc.so.12"
 //go:cgo_import_dynamic _ _ "libpthread.so.1"
 //go:cgo_import_dynamic _cgo_libc_setenv setenv "libc.so.12"
-//go:cgo_import_dynamic _cgo_libc_unsetenv unsetenv "libc.so.12"
+//go:cgo_import_dynamic _cgo_libc_unsetenv __unsetenv13 "libc.so.12"
 //go:cgo_import_dynamic _cgo_libc_sigfillset __sigfillset14 "libc.so.12"
 //go:cgo_import_dynamic _cgo_libc_sigaltstack __sigaltstack14 "libc.so.12"
 //go:cgo_import_dynamic _cgo_libc_pthread_create pthread_create "libpthread.so.1"
