@@ -6,10 +6,24 @@ package rsa_test
 
 import (
 	"crypto"
+	"crypto/internal/cryptotest"
 	"crypto/rsa"
 	"crypto/x509"
 	"testing"
 )
+
+func TestKeys(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
+
+	t.Run("PrivateKey", func(t *testing.T) {
+		cryptotest.TestPrivateKey(t, test512Key, test512KeyTwo,
+			x509.ParsePKCS1PrivateKey, x509.MarshalPKCS1PrivateKey)
+	})
+	t.Run("PublicKey", func(t *testing.T) {
+		cryptotest.TestPublicKey(t, &test512Key.PublicKey, &test512KeyTwo.PublicKey,
+			x509.ParsePKCS1PublicKey, x509.MarshalPKCS1PublicKey)
+	})
+}
 
 func TestEqual(t *testing.T) {
 	t.Setenv("GODEBUG", "rsa1024min=0")
@@ -40,14 +54,6 @@ func TestEqual(t *testing.T) {
 	}
 	if !private.Equal(decoded) {
 		t.Errorf("private key is not equal to itself after decoding: %v", private)
-	}
-
-	other := test512KeyTwo
-	if public.Equal(other.Public()) {
-		t.Errorf("different public keys are Equal")
-	}
-	if private.Equal(other) {
-		t.Errorf("different private keys are Equal")
 	}
 
 	noPrecomp := *private

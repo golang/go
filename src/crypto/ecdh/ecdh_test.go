@@ -6,9 +6,9 @@ package ecdh_test
 
 import (
 	"bytes"
-	"crypto"
 	"crypto/cipher"
 	"crypto/ecdh"
+	"crypto/internal/cryptotest"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -24,16 +24,6 @@ import (
 	"golang.org/x/crypto/chacha20"
 )
 
-// Check that PublicKey and PrivateKey implement the interfaces documented in
-// crypto.PublicKey and crypto.PrivateKey.
-var _ interface {
-	Equal(x crypto.PublicKey) bool
-} = &ecdh.PublicKey{}
-var _ interface {
-	Public() crypto.PublicKey
-	Equal(x crypto.PrivateKey) bool
-} = &ecdh.PrivateKey{}
-
 func TestECDH(t *testing.T) {
 	testAllCurves(t, func(t *testing.T, curve ecdh.Curve) {
 		aliceKey, err := curve.GenerateKey(rand.Reader)
@@ -43,28 +33,6 @@ func TestECDH(t *testing.T) {
 		bobKey, err := curve.GenerateKey(rand.Reader)
 		if err != nil {
 			t.Fatal(err)
-		}
-
-		alicePubKey, err := curve.NewPublicKey(aliceKey.PublicKey().Bytes())
-		if err != nil {
-			t.Error(err)
-		}
-		if !bytes.Equal(aliceKey.PublicKey().Bytes(), alicePubKey.Bytes()) {
-			t.Error("encoded and decoded public keys are different")
-		}
-		if !aliceKey.PublicKey().Equal(alicePubKey) {
-			t.Error("encoded and decoded public keys are different")
-		}
-
-		alicePrivKey, err := curve.NewPrivateKey(aliceKey.Bytes())
-		if err != nil {
-			t.Error(err)
-		}
-		if !bytes.Equal(aliceKey.Bytes(), alicePrivKey.Bytes()) {
-			t.Error("encoded and decoded private keys are different")
-		}
-		if !aliceKey.Equal(alicePrivKey) {
-			t.Error("encoded and decoded private keys are different")
 		}
 
 		bobSecret, err := bobKey.ECDH(aliceKey.PublicKey())
@@ -357,6 +325,25 @@ func TestNewPublicKey(t *testing.T) {
 				t.Errorf("boringcrypto error leaked out: %v", err)
 			}
 		}
+	})
+}
+
+func TestKeys(t *testing.T) {
+	testAllCurves(t, func(t *testing.T, curve ecdh.Curve) {
+		k1, err := curve.GenerateKey(rand.Reader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		k2, err := curve.GenerateKey(rand.Reader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Run("PrivateKey", func(t *testing.T) {
+			cryptotest.TestPrivateKey(t, k1, k2, curve.NewPrivateKey, (*ecdh.PrivateKey).Bytes)
+		})
+		t.Run("PublicKey", func(t *testing.T) {
+			cryptotest.TestPublicKey(t, k1.PublicKey(), k2.PublicKey(), curve.NewPublicKey, (*ecdh.PublicKey).Bytes)
+		})
 	})
 }
 

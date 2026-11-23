@@ -98,6 +98,30 @@ func testRoundTrip[E encapsulationKey, D decapsulationKey[E]](
 	}
 }
 
+func TestKeyEncoding(t *testing.T) {
+	dk768, err := GenerateKey768()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Run("DecapsulationKey768", func(t *testing.T) {
+		cryptotest.TestKeyEncoding(t, dk768, NewDecapsulationKey768, (*DecapsulationKey768).Bytes)
+	})
+	t.Run("EncapsulationKey768", func(t *testing.T) {
+		cryptotest.TestKeyEncoding(t, dk768.EncapsulationKey(), NewEncapsulationKey768, (*EncapsulationKey768).Bytes)
+	})
+
+	dk1024, err := GenerateKey1024()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Run("DecapsulationKey1024", func(t *testing.T) {
+		cryptotest.TestKeyEncoding(t, dk1024, NewDecapsulationKey1024, (*DecapsulationKey1024).Bytes)
+	})
+	t.Run("EncapsulationKey1024", func(t *testing.T) {
+		cryptotest.TestKeyEncoding(t, dk1024.EncapsulationKey(), NewEncapsulationKey1024, (*EncapsulationKey1024).Bytes)
+	})
+}
+
 func TestSharedKeyCapacity(t *testing.T) {
 	cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.28.0")
 	check := func(t *testing.T, K []byte) {

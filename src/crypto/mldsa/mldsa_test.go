@@ -129,31 +129,6 @@ func testAllParameters(t *testing.T, f func(*testing.T, Parameters)) {
 	}
 }
 
-func TestGenerateKey(t *testing.T) {
-	testAllParameters(t, testGenerateKey)
-}
-
-func testGenerateKey(t *testing.T, params Parameters) {
-	k1, err := GenerateKey(params)
-	if err != nil {
-		t.Fatalf("GenerateKey: %v", err)
-	}
-	k2, err := GenerateKey(params)
-	if err != nil {
-		t.Fatalf("GenerateKey: %v", err)
-	}
-	if k1.Equal(k2) {
-		t.Errorf("two generated keys are equal")
-	}
-	k1x, err := NewPrivateKey(params, k1.Bytes())
-	if err != nil {
-		t.Fatalf("NewPrivateKey: %v", err)
-	}
-	if !k1.Equal(k1x) {
-		t.Errorf("generated key and re-parsed key are not equal")
-	}
-}
-
 func TestAllocations(t *testing.T) {
 	// We allocate
 	//
@@ -439,6 +414,31 @@ func TestExternalMu(t *testing.T) {
 	})
 }
 
+func TestKeys(t *testing.T) {
+	testAllParameters(t, testKeys)
+}
+
+func testKeys(t *testing.T, params Parameters) {
+	k1, err := GenerateKey(params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	k2, err := GenerateKey(params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Run("PrivateKey", func(t *testing.T) {
+		cryptotest.TestPrivateKey(t, k1, k2, func(b []byte) (*PrivateKey, error) {
+			return NewPrivateKey(params, b)
+		}, (*PrivateKey).Bytes)
+	})
+	t.Run("PublicKey", func(t *testing.T) {
+		cryptotest.TestPublicKey(t, k1.PublicKey(), k2.PublicKey(), func(b []byte) (*PublicKey, error) {
+			return NewPublicKey(params, b)
+		}, (*PublicKey).Bytes)
+	})
+}
+
 func TestPublicKey(t *testing.T) {
 	cases := []struct {
 		params  Parameters
@@ -486,54 +486,7 @@ func TestPublicKey(t *testing.T) {
 			if !pk.Equal(pub2) {
 				t.Errorf("PrivateKey.Public() does not equal PublicKey()")
 			}
-
-			// Round-trip via NewPrivateKey/NewPublicKey.
-			sk2, err := NewPrivateKey(tc.params, sk.Bytes())
-			if err != nil {
-				t.Fatalf("NewPrivateKey round-trip: %v", err)
-			}
-			if !sk.Equal(sk2) {
-				t.Errorf("PrivateKey round-trip not equal")
-			}
-			pk2, err := NewPublicKey(tc.params, pk.Bytes())
-			if err != nil {
-				t.Fatalf("NewPublicKey round-trip: %v", err)
-			}
-			if !pk.Equal(pk2) {
-				t.Errorf("PublicKey round-trip not equal")
-			}
 		})
-	}
-}
-
-func TestEqualWrongType(t *testing.T) {
-	sk, err := GenerateKey(MLDSA44())
-	if err != nil {
-		t.Fatalf("GenerateKey: %v", err)
-	}
-	if sk.Equal("not a key") {
-		t.Errorf("PrivateKey.Equal(string) = true, want false")
-	}
-	if sk.Equal((*PublicKey)(nil)) {
-		t.Errorf("PrivateKey.Equal(*PublicKey) = true, want false")
-	}
-	if sk.PublicKey().Equal("not a key") {
-		t.Errorf("PublicKey.Equal(string) = true, want false")
-	}
-	if sk.PublicKey().Equal((*PrivateKey)(nil)) {
-		t.Errorf("PublicKey.Equal(*PrivateKey) = true, want false")
-	}
-
-	// Distinct keys are not Equal.
-	sk2, err := GenerateKey(MLDSA44())
-	if err != nil {
-		t.Fatalf("GenerateKey: %v", err)
-	}
-	if sk.Equal(sk2) {
-		t.Errorf("two random PrivateKeys are Equal")
-	}
-	if sk.PublicKey().Equal(sk2.PublicKey()) {
-		t.Errorf("two random PublicKeys are Equal")
 	}
 }
 

@@ -899,18 +899,6 @@ func testInvalidPrivateKeys(t *testing.T, curve elliptic.Curve) {
 			t.Errorf("ParseRawPrivateKey accepted overflow key")
 		}
 	})
-	t.Run("Length", func(t *testing.T) {
-		b := []byte{1, 2, 3}
-		if _, err := ParseRawPrivateKey(curve, b); err == nil {
-			t.Errorf("ParseRawPrivateKey accepted short key")
-		}
-
-		b = make([]byte, (curve.Params().BitSize+7)/8)
-		b = append(b, []byte{1, 2, 3}...)
-		if _, err := ParseRawPrivateKey(curve, b); err == nil {
-			t.Errorf("ParseRawPrivateKey accepted long key")
-		}
-	})
 }
 
 // TestKeyGenerationVectors tests GenerateKey with the deterministic keygen

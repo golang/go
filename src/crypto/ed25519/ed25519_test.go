@@ -13,6 +13,7 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 	"encoding/hex"
+	"errors"
 	"log"
 	"os"
 	"strings"
@@ -251,26 +252,52 @@ func TestCryptoSigner(t *testing.T) {
 	}
 }
 
-func TestEqual(t *testing.T) {
-	public, private, _ := GenerateKey(rand.Reader)
-
-	if !public.Equal(public) {
-		t.Errorf("public key is not equal to itself: %q", public)
+func TestKeys(t *testing.T) {
+	pub1, k1, err := GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !public.Equal(crypto.Signer(private).Public()) {
-		t.Errorf("private.Public() is not Equal to public: %q", public)
-	}
-	if !private.Equal(private) {
-		t.Errorf("private key is not equal to itself: %q", private)
+	pub2, k2, err := GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	otherPub, otherPriv, _ := GenerateKey(rand.Reader)
-	if public.Equal(otherPub) {
-		t.Errorf("different public keys are Equal")
-	}
-	if private.Equal(otherPriv) {
-		t.Errorf("different private keys are Equal")
-	}
+	t.Run("PrivateKey", func(t *testing.T) {
+		newPrivateKey := func(seed []byte) (PrivateKey, error) {
+			if len(seed) != SeedSize {
+				return nil, errors.New("NewKeyFromSeed would panic")
+			}
+			return NewKeyFromSeed(seed), nil
+		}
+		cryptotest.TestPrivateKey(t, k1, k2, newPrivateKey, PrivateKey.Seed)
+	})
+
+	// A PublicKey is its own encoding, so only the Equal tests are meaningful.
+	t.Run("PublicKey", func(t *testing.T) {
+		newPublicKey := func(b []byte) (PublicKey, error) {
+			if len(b) != PublicKeySize {
+				return nil, errors.New("wrong public key length")
+			}
+			return bytes.Clone(b), nil
+		}
+		cryptotest.TestPublicKey(t, pub1, pub2, newPublicKey, func(k PublicKey) []byte {
+			return bytes.Clone(k)
+		})
+	})
+
+	// A PrivateKey can't be made from its public key, so only the test that
+	// Public returns a copy is meaningful.
+	t.Run("PrivateKey.Public", func(t *testing.T) {
+		newPrivateKey := func(pub []byte) (PrivateKey, error) {
+			if !bytes.Equal(pub, pub1) {
+				return nil, errors.New("wrong public key")
+			}
+			return bytes.Clone(k1), nil
+		}
+		cryptotest.TestKeyEncoding(t, k1, newPrivateKey, func(k PrivateKey) []byte {
+			return k.Public().(PublicKey)
+		})
+	})
 }
 
 func TestGolden(t *testing.T) {

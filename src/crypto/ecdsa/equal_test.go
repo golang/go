@@ -8,10 +8,65 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/internal/cryptotest"
 	"crypto/rand"
 	"crypto/x509"
+	"strings"
 	"testing"
 )
+
+func TestKeys(t *testing.T) {
+	testAllCurves(t, testKeys)
+}
+
+func testKeys(t *testing.T, curve elliptic.Curve) {
+	if strings.HasSuffix(t.Name(), "/Generic") {
+		t.Skip("these methods don't support generic curves")
+	}
+	k1, err := ecdsa.GenerateKey(curve, rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	k2, err := ecdsa.GenerateKey(curve, rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newPrivateKey := func(b []byte) (*ecdsa.PrivateKey, error) {
+		return ecdsa.ParseRawPrivateKey(curve, b)
+	}
+	newPublicKey := func(b []byte) (*ecdsa.PublicKey, error) {
+		return ecdsa.ParseUncompressedPublicKey(curve, b)
+	}
+	t.Run("PrivateKey", func(t *testing.T) {
+		cryptotest.TestPrivateKey(t, k1, k2, newPrivateKey, (*ecdsa.PrivateKey).Bytes)
+	})
+	t.Run("PublicKey", func(t *testing.T) {
+		cryptotest.TestPublicKey(t, &k1.PublicKey, &k2.PublicKey, newPublicKey, (*ecdsa.PublicKey).Bytes)
+	})
+
+	if curve == elliptic.P224() {
+		return // not supported by crypto/ecdh
+	}
+	// The crypto/ecdh keys use the same encodings as the Bytes methods.
+	t.Run("PrivateKey.ECDH", func(t *testing.T) {
+		cryptotest.TestKeyEncoding(t, k1, newPrivateKey, func(k *ecdsa.PrivateKey) ([]byte, error) {
+			kk, err := k.ECDH()
+			if err != nil {
+				return nil, err
+			}
+			return kk.Bytes(), nil
+		})
+	})
+	t.Run("PublicKey.ECDH", func(t *testing.T) {
+		cryptotest.TestKeyEncoding(t, &k1.PublicKey, newPublicKey, func(k *ecdsa.PublicKey) ([]byte, error) {
+			kk, err := k.ECDH()
+			if err != nil {
+				return nil, err
+			}
+			return kk.Bytes(), nil
+		})
+	})
+}
 
 func testEqual(t *testing.T, c elliptic.Curve) {
 	private, _ := ecdsa.GenerateKey(c, rand.Reader)
@@ -40,14 +95,6 @@ func testEqual(t *testing.T, c elliptic.Curve) {
 	}
 	if !private.Equal(decoded) {
 		t.Errorf("private key is not equal to itself after decoding: %v", private)
-	}
-
-	other, _ := ecdsa.GenerateKey(c, rand.Reader)
-	if public.Equal(other.Public()) {
-		t.Errorf("different public keys are Equal")
-	}
-	if private.Equal(other) {
-		t.Errorf("different private keys are Equal")
 	}
 
 	// Ensure that keys with the same coordinates but on different curves
