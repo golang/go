@@ -430,6 +430,7 @@ func TestGoexitCrash(t *testing.T) {
 // A frame that Goexit unwinds must not keep its own dead stack objects alive
 // through the panic record. See issue 82394.
 func TestGCPanicFramePointer(t *testing.T) {
+	t.Parallel()
 	output := runTestProg(t, "testprog", "GCPanicFramePointer")
 	want := "OK\n"
 	if output != want {
