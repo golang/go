@@ -3694,8 +3694,26 @@ func (r *reader) splitLargeInitOrder(initOrder []ir.Node) []*ir.Func {
 	return initFuncs
 }
 
+// midwayOriginals is the set of package-level declarations in the
+// local package that the midway rewrite kept only for type checking
+// and export data (see [midway.RewriteWrapper]). The methods of a type
+// in this set are also originals.
+//
+// The reader still reads the originals, because writing the export
+// data requires their IR. But nothing that gets compiled refers to
+// them, so the reader doesn't add them to the target package. That
+// keeps the backend from generating code, type descriptors, or
+// storage for them.
+var midwayOriginals map[*types.Sym]bool
+
 func (r *reader) pkgDecls(target *ir.Package) {
 	r.Sync(pkgbits.SyncDecls)
+	for _, name := range r.Strings() {
+		if midwayOriginals == nil {
+			midwayOriginals = make(map[*types.Sym]bool)
+		}
+		midwayOriginals[types.LocalPkg.Lookup(name)] = true
+	}
 	for {
 		switch code := codeDecl(r.Code(pkgbits.SyncDecl)); code {
 		default:
@@ -3707,6 +3725,9 @@ func (r *reader) pkgDecls(target *ir.Package) {
 		case declFunc:
 			names := r.pkgObjs(target)
 			assert(len(names) == 1)
+			if midwayOriginals[names[0].Sym()] {
+				break
+			}
 			target.Funcs = append(target.Funcs, names[0].Func)
 
 		case declMethod:
@@ -3714,6 +3735,9 @@ func (r *reader) pkgDecls(target *ir.Package) {
 			sym := r.selector()
 
 			method := typecheck.Lookdot1(nil, sym, typ, typ.Methods(), 0)
+			if midwayOriginals[typ.Sym()] {
+				break
+			}
 			target.Funcs = append(target.Funcs, method.Nname.(*ir.Name).Func)
 
 		case declVar:
@@ -3745,7 +3769,7 @@ func (r *reader) pkgObjs(target *ir.Package) []*ir.Name {
 		nodes[i] = name
 
 		sym := name.Sym()
-		if sym.IsBlank() {
+		if sym.IsBlank() || midwayOriginals[sym] {
 			continue
 		}
 
@@ -4155,6 +4179,10 @@ func MakeWrappers(target *ir.Package) {
 	haveWrapperTypes = nil
 
 	for _, typ := range needWrapperTypes {
+		if midwayOriginals[typ.Sym()] {
+			// Nothing refers to this type's method wrappers.
+			continue
+		}
 		wrapType(typ, target, seen, true)
 	}
 	needWrapperTypes = nil

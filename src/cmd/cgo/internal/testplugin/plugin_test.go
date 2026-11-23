@@ -443,7 +443,9 @@ func TestSIMD(t *testing.T) {
 	// A plugin that uses package simd must load, and the host must be
 	// able to call its exported functions. The compiler makes a copy of
 	// each function that uses simd for each vector size, and the plugin
-	// must not try to export those copies.
+	// must not try to export those copies. It doesn't compile the
+	// original of a function or variable that has a SIMD type, so the
+	// plugin must not try to export those either.
 	globalSkip(t)
 	if !buildcfg.Experiment.SIMDStable {
 		t.Skip("requires GOEXPERIMENT=simdstable")

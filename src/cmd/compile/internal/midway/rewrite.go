@@ -66,9 +66,17 @@ import (
 // Non-boundary dependent function and methods are not rewritten into dispatch
 // functions/methods, but remain in the generated code because they must be
 // present in the export data so that other packages that import them will still
-// compile before rewriting.  Their bodies are replaced with panic(...) to allow
-// compilation while preventing even worse chaos in the event of a bug either in
-// the compiler or through ambitious use of reflection or assembly language.
+// compile before rewriting.  Their bodies are replaced with panic(...) so that
+// they still type check.
+//
+// These, and the dependent types and variables, which also remain, are the
+// "originals".  Rewritten code never refers to an original; it refers to the
+// specialized versions instead.  In this respect an original is like a generic
+// declaration whose type argument is the vector size, and the specialized
+// versions are its instantiations.  As with a generic declaration, the compiler
+// writes an original to the export data but doesn't compile it: no code, type
+// descriptor, or storage is generated for it.  RewriteWrapper reports which
+// declarations are originals.
 //
 
 /* Example rewrites
@@ -578,25 +586,52 @@ func (r *Rewriter) shouldIncludeDecl(decl syntax.Decl) bool {
 	return false
 }
 
-// Generate an API matching the standalone compilation call
-func RewriteWrapper(pkg *types2.Package, info *types2.Info, files []*syntax.File) bool {
+// originals returns the names of the package-level types, variables, and
+// functions that are originals, in sorted order. The methods of an original
+// type are originals too, but aren't listed.
+func (a *Analyzer) originals() []string {
+	var names []string
+	scope := a.pkg.Scope()
+	for _, name := range scope.Names() {
+		obj := scope.Lookup(name)
+		if !a.isDependentObj[obj] {
+			continue
+		}
+		if fn, ok := obj.(*types2.Func); ok && !a.HasDependentSignature(fn.Signature()) {
+			// A boundary function. It keeps its name and
+			// becomes the dispatcher.
+			continue
+		}
+		names = append(names, name)
+	}
+	return names
+}
+
+// RewriteWrapper applies the midway rewrite to files, which are the type
+// checked files of pkg. It reports whether it changed files, in which case
+// the caller must type check them again.
+//
+// It also returns the names of the package-level declarations that are
+// originals (see the comment at the top of this file). Every method of an
+// original type is also an original.
+func RewriteWrapper(pkg *types2.Package, info *types2.Info, files []*syntax.File) (originals []string, changed bool) {
 	if !buildcfg.Experiment.SIMDStable {
-		return false
+		return nil, false
 	}
 
 	switch buildcfg.GOARCH {
 	case "wasm", "amd64", "arm64":
 	default:
-		return false
+		return nil, false
 	}
 
 	sizes := rewriteSizes()
 	if len(sizes) == 0 {
-		return false
+		return nil, false
 	}
 	analyzer := NewAnalyzer(pkg, info)
 	if !analyzer.Analyze(files) {
-		return false
+		return nil, false
 	}
 
 	CheckPositions(files, "before midway")
@@ -606,5 +641,5 @@ func RewriteWrapper(pkg *types2.Package, info *types2.Info, files []*syntax.File
 
 	CheckPositions(files, "after midway")
 
-	return true
+	return analyzer.originals(), true
 }

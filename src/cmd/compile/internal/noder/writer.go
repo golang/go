@@ -73,6 +73,7 @@ type pkgWriter struct {
 	curpkg                *types2.Package
 	info                  *types2.Info
 	rangeFuncBodyClosures map[*syntax.FuncLit]bool // non-public information, e.g., which functions are closures range function bodies?
+	midwayOriginals       []string                 // package-level declarations to export but not compile; see midway.RewriteWrapper
 
 	// Indices for previously written syntax and types2 things.
 
@@ -2981,6 +2982,7 @@ func (w *writer) pkgInit(noders []*noder) {
 	w.pkgInitOrder()
 
 	w.Sync(pkgbits.SyncDecls)
+	w.Strings(w.p.midwayOriginals)
 	for _, p := range noders {
 		for _, decl := range p.file.DeclList {
 			w.pkgDecl(decl)

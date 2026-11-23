@@ -9,6 +9,9 @@ package simd_test
 import (
 	"internal/testenv"
 	"os"
+	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -135,4 +138,60 @@ func TestB81614(t *testing.T) {
 
 func TestLoadPart(t *testing.T) {
 	common(t, "testdata", "loadpart_test.go", "")
+}
+
+// TestOriginalsNotCompiled checks that the compiler generates nothing for
+// the declarations that the midway rewrite keeps only for type checking and
+// export data: the portable vector types and their methods in this package,
+// and the pre-rewrite versions of declarations that depend on them in other
+// packages. Rewritten code never refers to them, but if they are in an
+// object file, they still end up in a shared library, where the vector
+// types' method tables refer to methods that have no implementation.
+func TestOriginalsNotCompiled(t *testing.T) {
+	switch runtime.GOARCH {
+	case "amd64", "arm64", "wasm":
+	default:
+		t.Skipf("the compiler doesn't rewrite simd code on %s", runtime.GOARCH)
+	}
+	testenv.MustHaveGoBuild(t)
+
+	// symbols builds pkg in dir and returns its symbol table.
+	symbols := func(dir, pkg string) string {
+		t.Helper()
+		archive := filepath.Join(t.TempDir(), "pkg.a")
+		for _, args := range [][]string{
+			{"build", "-C", dir, "-o", archive, pkg},
+			{"tool", "nm", archive},
+		} {
+			cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
+			cmd.Env = append(cmd.Environ(), "GOEXPERIMENT="+testdataGOEXPERIMENT())
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("go %s: %v\n%s", strings.Join(args, " "), err, out)
+			}
+			if args[0] == "tool" {
+				return string(out)
+			}
+		}
+		panic("unreachable")
+	}
+	check := func(syms, want, dontWant string) {
+		t.Helper()
+		if !regexp.MustCompile(want).MatchString(syms) {
+			t.Errorf("no symbol matches %s", want)
+		}
+		for _, sym := range regexp.MustCompile(dontWant).FindAllString(syms, -1) {
+			t.Errorf("unexpected symbol %s", strings.TrimSpace(sym))
+		}
+	}
+
+	// The type descriptor and methods of a portable vector type.
+	check(symbols(".", "simd"),
+		`(?m) T simd\.VectorBits$`,
+		`(?m) (type:\*?simd\.Float32s|simd\.Float32s\.\w+|simd\.\(\*Float32s\)\.\w+)$`)
+
+	// A function and a variable with a portable vector type.
+	check(symbols("testdata", "./pkg"),
+		`(?m) T simd/testdata/pkg\.F@simd128$`,
+		`(?m) simd/testdata/pkg\.[FV]$`)
 }

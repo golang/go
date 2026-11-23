@@ -330,9 +330,10 @@ func readBodies(target *ir.Package, duringInlining bool, profile *pgoir.Profile)
 // writes an export data package stub representing them,
 // and returns the result.
 func writePkgStub(m posMap, noders []*noder) string {
-	pkg, info, otherInfo := checkFiles(m, noders)
+	pkg, info, otherInfo, midwayOriginals := checkFiles(m, noders)
 
 	pw := newPkgWriter(m, pkg, info, otherInfo)
+	pw.midwayOriginals = midwayOriginals
 
 	pw.collectDecls(noders)
 
