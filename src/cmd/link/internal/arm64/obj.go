@@ -47,6 +47,9 @@ func Init() (*sys.Arch, ld.Arch) {
 		Dwarfreglr: dwarfRegLR,
 		TrampLimit: 0x7c00000, // 26-bit signed offset * 4, leave room for PLT etc.
 
+		Plan9Magic:  0x8c47,
+		Plan9_64Bit: true,
+
 		Adddynrel:        adddynrel,
 		Archinit:         archinit,
 		Archreloc:        archreloc,
@@ -85,12 +88,12 @@ func archinit(ctxt *ld.Link) {
 		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
 
 	case objabi.Hplan9: /* plan 9 */
-		ld.HEADR = 32
+		ld.HEADR = 32 + 8
 		if *ld.FlagRound == -1 {
-			*ld.FlagRound = 4096
+			*ld.FlagRound = 0x10000
 		}
 		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = ld.Rnd(4096, *ld.FlagRound) + int64(ld.HEADR)
+			*ld.FlagTextAddr = ld.Rnd(0x10000, *ld.FlagRound) + int64(ld.HEADR)
 		}
 
 	case objabi.Hlinux, /* arm64 elf */

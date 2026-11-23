@@ -1,0 +1,2 @@
+pkg debug/plan9obj, const MagicARM64 = 35911 #76272
+pkg debug/plan9obj, const MagicARM64 ideal-int #76272

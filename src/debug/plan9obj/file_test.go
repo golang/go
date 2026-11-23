@@ -38,6 +38,17 @@ var fileTests = []fileTest{
 			{"pcsz", 0xca0, 0x7947},
 		},
 	},
+	{
+		"testdata/arm64-plan9-exec",
+		FileHeader{MagicARM64, 0x408, 0x1003c, 8, 0x10000, 40},
+		[]*SectionHeader{
+			{"text", 0x4a00, 0x28},
+			{"data", 0xaa0, 0x4a28},
+			{"syms", 0x294a, 0x54c8},
+			{"spsz", 0x0, 0x7e12},
+			{"pcsz", 0xa6c, 0x7e12},
+		},
+	},
 }
 
 func TestOpen(t *testing.T) {
