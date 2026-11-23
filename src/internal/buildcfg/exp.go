@@ -78,30 +78,29 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	// things like .debug_addr (needed for DWARF 5).
 	dwarf5Supported := (goos != "darwin" && goos != "ios" && goos != "aix")
 
-	var runtimeCgoPuregoSupported bool
+	var cgoBindingsSupported bool
 	switch goos {
 	case "aix":
-		runtimeCgoPuregoSupported = goarch == "ppc64"
+		cgoBindingsSupported = goarch == "ppc64"
 	case "linux":
 		switch goarch {
 		case "386", "amd64", "arm", "arm64", "loong64", "mips", "mipsle", "mips64", "mips64le", "ppc64", "ppc64le", "riscv64", "s390x":
-			runtimeCgoPuregoSupported = true
+			cgoBindingsSupported = true
 		}
 	case "android", "netbsd":
-		runtimeCgoPuregoSupported = goarch == "386" || goarch == "amd64" || goarch == "arm" || goarch == "arm64"
+		cgoBindingsSupported = goarch == "386" || goarch == "amd64" || goarch == "arm" || goarch == "arm64"
 	case "darwin", "ios":
-		runtimeCgoPuregoSupported = goarch == "amd64" || goarch == "arm64"
+		cgoBindingsSupported = goarch == "amd64" || goarch == "arm64"
 	case "freebsd", "openbsd":
 		switch goarch {
 		case "386", "amd64", "arm", "arm64", "riscv64":
-			runtimeCgoPuregoSupported = true
+			cgoBindingsSupported = true
 		}
 	case "dragonfly", "solaris", "illumos":
-		runtimeCgoPuregoSupported = goarch == "amd64"
+		cgoBindingsSupported = goarch == "amd64"
 	case "windows":
-		runtimeCgoPuregoSupported = goarch == "386" || goarch == "amd64" || goarch == "arm64"
+		cgoBindingsSupported = goarch == "386" || goarch == "amd64" || goarch == "arm64"
 	}
-	cgoBindingsSupported := runtimeCgoPuregoSupported
 
 	baseline := goexperiment.Flags{
 		RegabiWrappers:        regabiSupported,
@@ -112,7 +111,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		JSONv2:                true,
 		MapSplitGroup:         true,
 		GoListExportNewFormat: true,
-		RuntimeCgoPurego:      runtimeCgoPuregoSupported,
+		RuntimeCgoPurego:      true,
 		SIMDStable:            true,
 	}
 	flags := &ExperimentFlags{
@@ -188,10 +187,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	if flags.RegabiArgs && !flags.RegabiWrappers {
 		return nil, fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers")
 	}
-	// Disable runtimecgopurego and cgobindings on unsupported platforms.
-	if !runtimeCgoPuregoSupported {
-		flags.RuntimeCgoPurego = false
-	}
+	// Disable cgobindings on unsupported platforms.
 	if !cgoBindingsSupported {
 		flags.CgoBindings = false
 	}
