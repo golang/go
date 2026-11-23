@@ -66,10 +66,7 @@ func omitzero(pass *analysis.Pass) (any, error) {
 			// No omitempty in json tag
 			return
 		}
-		omitEmpty, err := astutil.RangeInStringLiteral(field.Tag, match[2], match[3])
-		if err != nil {
-			return
-		}
+		omitEmpty := astutil.RangeInStringLiteral(field.Tag, match[2], match[3])
 		var remove analysis.Range = omitEmpty
 
 		jsonTag := reflect.StructTag(tagconv).Get("json")
@@ -79,10 +76,7 @@ func omitzero(pass *analysis.Pass) (any, error) {
 				remove = field.Tag
 			} else {
 				// Remove the json tag if omitempty is the only field
-				remove, err = astutil.RangeInStringLiteral(field.Tag, match[0], match[1])
-				if err != nil {
-					return
-				}
+				remove = astutil.RangeInStringLiteral(field.Tag, match[0], match[1])
 			}
 		}
 

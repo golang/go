@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Derived from go/internal/gcimporter/ureader.go
+// This file reads the unified export data emitted by cmd/compile until go1.27.
+// (Derived from go/internal/gcimporter/ureader.go.)
 
-package gcimporter
+package gcexportdata
 
 import (
 	"fmt"
@@ -64,7 +65,7 @@ type typeInfo struct {
 	derived bool
 }
 
-func UImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (_ int, pkg *types.Package, err error) {
+func uImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (_ int, pkg *types.Package, err error) {
 	if !debug {
 		defer func() {
 			if x := recover(); x != nil {

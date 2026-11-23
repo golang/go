@@ -1,25 +1,33 @@
-// Copyright 2015 The Go Authors. All rights reserved.
+// Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains the remaining vestiges of
-// $GOROOT/src/go/internal/gcimporter/bimport.go.
-
-package gcimporter
+package gcexportdata
 
 import (
 	"fmt"
 	"go/token"
 	"go/types"
 	"sync"
-	// This package is dependency-restricted; see x/tools/go/gcexportdata.TestDeps.
 )
+
+// The declarations in this file are copied from internal/exportdata.
+
+const (
+	// Enable debug during development: it adds some additional checks, and
+	// prevents errors from being recovered.
+	debug = false
+)
+
+func assert(cond bool) {
+	if !cond {
+		panic("internal error: assertion failed")
+	}
+}
 
 func errorf(format string, args ...any) {
 	panic(fmt.Sprintf(format, args...))
 }
-
-const deltaNewFile = -64 // see cmd/compile/internal/gc/bexport.go
 
 // Synthesize a token.Pos
 type fakeFileSet struct {
@@ -74,17 +82,8 @@ var (
 	fakeLinesOnce sync.Once
 )
 
-func chanDir(d int) types.ChanDir {
-	// tag values must match the constants in cmd/compile/internal/gc/go.go
-	switch d {
-	case 1 /* Crecv */ :
-		return types.RecvOnly
-	case 2 /* Csend */ :
-		return types.SendOnly
-	case 3 /* Cboth */ :
-		return types.SendRecv
-	default:
-		errorf("unexpected channel dir %d", d)
-		return 0
-	}
-}
+type byPath []*types.Package
+
+func (a byPath) Len() int           { return len(a) }
+func (a byPath) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byPath) Less(i, j int) bool { return a[i].Path() < a[j].Path() }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gcimporter
+package exportdata
 
 // This file defines type paths, which shallow export data uses to
 // refer to struct and interface literals declared in other packages.

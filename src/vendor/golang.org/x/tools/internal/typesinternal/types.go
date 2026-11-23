@@ -14,7 +14,7 @@
 //
 // See also:
 //   - [golang.org/x/tools/internal/astutil], for operations on untyped syntax;
-//   - [golang.org/x/tools/internal/analysisinernal], for helpers for analyzers;
+//   - [golang.org/x/tools/internal/analysis/analyzerutil], for helpers for analyzers;
 //   - [golang.org/x/tools/internal/refactor], for operators to compute text edits.
 package typesinternal
 

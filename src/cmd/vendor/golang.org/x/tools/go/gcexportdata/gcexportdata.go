@@ -49,7 +49,7 @@ import (
 	"io"
 	"os/exec"
 
-	"golang.org/x/tools/internal/gcimporter"
+	"golang.org/x/tools/internal/exportdata"
 )
 
 // Find returns the name of an object (.o) or archive (.a) file
@@ -104,7 +104,7 @@ func NewReader(r io.Reader) (io.Reader, error) {
 		return buf, nil
 	}
 
-	size, err := gcimporter.FindExportData(buf)
+	size, err := findExportData(buf)
 	if err != nil {
 		return nil, err
 	}
@@ -180,12 +180,12 @@ func Read(in io.Reader, fset *token.FileSet, imports map[string]*types.Package, 
 			// indexed, produced by cmd/compile till go1.19,
 			// and also by [Write]. Starting with go1.28,
 			// go list -export runs cmd/export, which emits this format.
-			return gcimporter.IImportData(fset, imports, data[1:], path)
+			return exportdata.Decode(fset, path, data, exportdata.PackagesFromMap(imports), exportdata.DecodeOptions{})
 
 		case 'u':
 			// unified, produced by cmd/compile since go1.20.
 			// Produced by go list -export from go1.20 to go1.27.
-			_, pkg, err := gcimporter.UImportData(fset, imports, data[1:], path)
+			_, pkg, err := uImportData(fset, imports, data[1:], path)
 			return pkg, err
 
 		default:
@@ -199,10 +199,17 @@ func Read(in io.Reader, fset *token.FileSet, imports map[string]*types.Package, 
 // Write writes encoded type information for the specified package to out.
 // The FileSet provides file position information for named objects.
 func Write(out io.Writer, fset *token.FileSet, pkg *types.Package) error {
-	if _, err := io.WriteString(out, "i"); err != nil {
+	if fset == nil {
+		// For compatibility, tolerate a nil FileSet,
+		// in which case position information is missing.
+		fset = token.NewFileSet()
+	}
+	data, err := exportdata.Encode(fset, pkg, exportdata.EncodeOptions{})
+	if err != nil {
 		return err
 	}
-	return gcimporter.IExportData(out, fset, pkg)
+	_, err = out.Write(data) // data begins with 'i'
+	return err
 }
 
 // Deprecated: ReadBundle is an unsupported obsolete experimental API. It returns an error.

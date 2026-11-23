@@ -3,8 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Package driverutil defines implementation helper functions for
-// analysis drivers such as unitchecker, {single,multi}checker, and
-// analysistest.
+// analysis drivers such as unitchecker, {single,multi}checker,
+// analysistest, and gopls.
 package driverutil
 
 // This file defines the -fix logic common to unitchecker and

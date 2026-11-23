@@ -1006,11 +1006,34 @@ func (st *state) inlineCall() (*inlineCallResult, error) {
 
 		// Assignment context.
 		//
-		// If there is no binding decl, or if the binding decl declares no names,
-		// an assignment a, b := f() can be reduced to a, b := x, y.
+		// Reduces:
+		// a, b := f() => a, b := x, y (no named bindings)
+		// _, _ = f() => { var (bindings); _, _ = x, y } (blank assignment)
+		canReduceAssign := func(stmt *ast.AssignStmt) bool {
+			if !needBindingDecl {
+				return true // no binding decl needed
+			}
+			if bindingDecl == nil {
+				return false // binding decl needed, but couldn't be built
+			}
+			if len(bindingDecl.names) == 0 {
+				return true // binding decl introduces no names
+			}
+			// Multiple RHS expressions risk shadowing (e.g. _, _ = f(x), len(n))
+			// or reordering evaluation (e.g. _, _ = first(), f(second())).
+			if len(stmt.Rhs) != 1 {
+				return false
+			}
+			// Blank LHS declares no variables (so keeping braces is safe)
+			// and has no LHS expressions to shadow or reorder.
+			return forall(stmt.Lhs, func(_ int, e ast.Expr) bool {
+				id, ok := e.(*ast.Ident)
+				return ok && id.Name == "_"
+			})
+		}
 		if stmt, ok := parent.(*ast.AssignStmt); ok &&
 			curParent.ParentEdgeKind() == edge.BlockStmt_List &&
-			(!needBindingDecl || (bindingDecl != nil && len(bindingDecl.names) == 0)) {
+			canReduceAssign(stmt) {
 
 			// Reduces to: { var (bindings); lhs... := rhs... }
 			if newStmts, ok := st.assignStmts(stmt, results, istate.importName); ok {
@@ -1029,7 +1052,8 @@ func (st *state) inlineCall() (*inlineCallResult, error) {
 				// assignStmts does not introduce new bindings, and replacing an
 				// assignment only works if the replacement occurs in the same scope.
 				// Therefore, we must ensure that braces are elided.
-				res.elideBraces = true
+				// Named bindings may keep braces; post-processing decides.
+				res.elideBraces = bindingDecl == nil || len(bindingDecl.names) == 0
 				res.old = curParent
 				res.new = block
 				return res, nil
@@ -3495,7 +3519,7 @@ func (st *state) assignStmts(callerStmt *ast.AssignStmt, returnOperands []ast.Ex
 	const includeComplitIdents = true
 
 	for i, expr := range callerStmt.Rhs {
-		if expr == caller.call {
+		if ast.Unparen(expr) == caller.call {
 			assert(callIdx == -1, "malformed (duplicative) AST")
 			callIdx = i
 			for j, returnOperand := range returnOperands {

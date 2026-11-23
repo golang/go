@@ -27,7 +27,7 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.53.1-0.20261118210005-f23c95674a26
+# golang.org/x/tools v0.53.1-0.20261125221610-1257c914f92d
 ## explicit; go 1.26.0
 golang.org/x/tools/go/analysis
 golang.org/x/tools/go/analysis/internal/analysisflags
@@ -92,9 +92,9 @@ golang.org/x/tools/internal/astutil/free
 golang.org/x/tools/internal/cursorutil
 golang.org/x/tools/internal/diff
 golang.org/x/tools/internal/diff/lcs
+golang.org/x/tools/internal/exportdata
 golang.org/x/tools/internal/facts
 golang.org/x/tools/internal/fmtstr
-golang.org/x/tools/internal/gcimporter
 golang.org/x/tools/internal/moreiters
 golang.org/x/tools/internal/moremaps
 golang.org/x/tools/internal/packagepath

@@ -43,10 +43,10 @@ Tree inconsistencies are reported by 'go test cmd/internal/moddeps'.
 A typical sequence might be:
 
     cd src  # or src/cmd
-    GOPROXY=direct go get golang.org/x/net@master
-    go mod tidy
-    go mod vendor
-    go test cmd/internal/moddeps
+    GOWORK=off GOPROXY=direct go get golang.org/x/net@master
+    GOWORK=off go mod tidy
+    GOWORK=off go mod vendor
+    GOWORK=off go test cmd/internal/moddeps
 
 Use caution when passing '-u' to 'go get'. The '-u' flag updates
 modules providing all transitively imported packages, not only

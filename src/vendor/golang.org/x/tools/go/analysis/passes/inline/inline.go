@@ -495,7 +495,9 @@ func typenames(t types.Type) []*types.TypeName {
 				visit(v.Type())
 			}
 		case *types.Union:
-			panic("Union in type expression")
+			for term := range t.Terms() {
+				visit(term.Type())
+			}
 		default:
 			panic(fmt.Sprintf("unknown type %T", t))
 		}
