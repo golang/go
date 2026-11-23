@@ -185,9 +185,9 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 	}
 
 	// An infinitely expanding interface (due to a cycle) is detected
-	// elsewhere (Checker.validType), so here we simply assume we only
+	// elsewhere (Checker.isBoundedType), so here we simply assume we only
 	// have valid interfaces. Mark the interface as complete to avoid
-	// infinite recursion if the validType check occurs later for some
+	// infinite recursion if the isBoundedType check occurs later for some
 	// reason.
 	ityp.tset = &_TypeSet{terms: allTermlist} // TODO(gri) is this sufficient?
 

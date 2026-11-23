@@ -427,11 +427,11 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl) {
 	var rhs Type
 	check.later(func() {
 		if t := asNamed(obj.typ); t != nil { // type may be invalid
-			check.validType(t)
+			check.isBoundedType(t)
 		}
 		// If typ is local, an error was already reported where typ is specified/defined.
 		_ = !versionErr && check.isImportedConstraint(rhs) && check.verifyVersionf(tdecl.Type, go1_18, "using type constraint %s", rhs)
-	}).describef(obj, "validType(%s)", obj.Name())
+	}).describef(obj, "isBoundedType(%s)", obj.Name())
 
 	// First type parameter, or nil.
 	var tparam0 *syntax.Field

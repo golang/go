@@ -6,15 +6,15 @@ package types2
 
 import "cmd/compile/internal/syntax"
 
-// validType verifies that the given type does not "expand" indefinitely
-// producing a cycle in the type graph.
+// isBoundedType verifies that the given type does not "expand" indefinitely
+// producing a cycle in the type graph; i.e., the type is bounded in size.
 // (Cycles involving only alias types, as in "type A = [10]A", are detected
 // earlier, via the directCycles and objDecl cycle detection mechanisms.)
-func (check *Checker) validType(typ *Named) {
-	check.validType0(nopos, typ, nil, nil)
+func (check *Checker) isBoundedType(typ *Named) {
+	check.isBoundedType0(nopos, typ, nil, nil)
 }
 
-// validType0 checks if the given type is valid. If typ is a type parameter
+// isBoundedType0 checks if the given type is bounded in size. If typ is a type parameter
 // defined by the enclosing named type in nest, its value is looked up in the
 // enclosing type's type argument list if instantiated (otherwise typ's validity
 // depends on that uninstantiated enclosing type). Any other type parameter must
@@ -28,14 +28,14 @@ func (check *Checker) validType(typ *Named) {
 // path of visited named types; it is only needed for error reporting if a cycle
 // is found.
 //
-// validType0 returns a negative result if the argument type is invalid
+// isBoundedType0 returns a negative result if the argument type is invalid
 // and a cycle error is reported.
 // If 0 <= result < len(nest), nest[result] is the outermost type which
 // binds (instantiates or declares) a type parameter of the argument type;
 // i.e., the validity of the argument type depends on the type arguments
 // provided at that level.
 // If result == len(nest), the type argument is unconditionally valid.
-func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) int {
+func (check *Checker) isBoundedType0(pos syntax.Pos, typ Type, nest, path []*Named) int {
 	typ = Unalias(typ)
 
 	if check.conf.Trace {
@@ -43,7 +43,7 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) 
 			pos = t.obj.pos
 		}
 		check.indent++
-		check.trace(pos, "validType(%s) nest %v, path %v", typ, pathString(makeObjList(nest)), pathString(makeObjList(path)))
+		check.trace(pos, "isBoundedType(%s) nest %v, path %v", typ, pathString(makeObjList(nest)), pathString(makeObjList(path)))
 		defer func() {
 			check.indent--
 		}()
@@ -56,17 +56,17 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) 
 		// We should never see a nil type but be conservative and panic
 		// only in debug mode.
 		if debug {
-			panic("validType0(nil)")
+			panic("isBoundedType0(nil)")
 		}
 
 	case *Array:
 		// An array type is valid if the element type is valid.
-		return check.validType0(pos, t.elem, nest, path)
+		return check.isBoundedType0(pos, t.elem, nest, path)
 
 	case *Struct:
 		// A struct type is valid if all its field types are valid.
 		for _, f := range t.fields {
-			d := check.validType0(pos, f.typ, nest, path)
+			d := check.isBoundedType0(pos, f.typ, nest, path)
 			if d < 0 {
 				return d
 			}
@@ -94,7 +94,7 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) 
 	case *Union:
 		// A union is valid if all its terms are valid.
 		for _, t := range t.terms {
-			d := check.validType0(pos, t.typ, nest, path)
+			d := check.isBoundedType0(pos, t.typ, nest, path)
 			if d < 0 {
 				return d
 			}
@@ -104,7 +104,7 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) 
 	case *Interface:
 		// An interface is valid if all its embedded types are valid.
 		for _, etyp := range t.embeddeds {
-			d := check.validType0(pos, etyp, nest, path)
+			d := check.isBoundedType0(pos, etyp, nest, path)
 			if d < 0 {
 				return d
 			}
@@ -115,7 +115,7 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) 
 		// Exit early if we already know t is valid for any nest.
 		// This is purely an optimization but it prevents excessive computation
 		// times in pathological cases such as testdata/fixedbugs/issue6977.go.
-		if check.valids.lookup(t) != nil {
+		if check.boundedTypes.lookup(t) != nil {
 			break
 		}
 
@@ -183,14 +183,14 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) 
 		// must also be in path (invariant). But not every type in path is in nest, since
 		// nest may be pruned (see below, *TypeParam case).
 		t.Origin().unpack()
-		if d := check.validType0(pos, t.Origin().rhs(), append(nest, t), append(path, t)); d < len(nest) {
+		if d := check.isBoundedType0(pos, t.Origin().rhs(), append(nest, t), append(path, t)); d < len(nest) {
 			// d < 0             : t is invalid
 			// 0 <= d < len(nest): t's validity depends on nest[d], which defines a type parameter used by t
 			return d
 		}
 
 		// d >= len(nest): t's validity does not depend on any type parameters in nest.
-		check.valids.add(t) // t is valid for any nest
+		check.boundedTypes.add(t) // t is valid for any nest
 
 	case *TypeParam:
 		// A type parameter stands for the type (argument) it was instantiated with.
@@ -215,8 +215,8 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) 
 						// targ's validity in the type nest excluding the current
 						// (instantiated) type (see the example at the end of this file).
 						// For error reporting we keep the full path.
-						res := check.validType0(pos, targ, nest[:d], path)
-						// The check.validType0 call with nest[:d] may have
+						res := check.isBoundedType0(pos, targ, nest[:d], path)
+						// The check.isBoundedType0 call with nest[:d] may have
 						// overwritten the entry at the current depth d.
 						// Restore the entry (was issue go.dev/issue/66323).
 						nest[d] = inst
@@ -226,7 +226,7 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) 
 					// There is no type argument for tparam; inst is not (or not fully)
 					// instantiated (perhaps due to an unrelated error).
 					// Example: type T[P any] struct { a P; b ... } // T is not instantiated, there is no targ for P
-					// t (== tparam) is valid and defined at nest[d]; per validType0 contract, the result is d.
+					// t (== tparam) is valid and defined at nest[d]; per isBoundedType0 contract, the result is d.
 					return d
 				}
 			}

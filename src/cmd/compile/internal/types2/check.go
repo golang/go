@@ -122,7 +122,7 @@ type Checker struct {
 	objList []Object               // source-ordered keys of objMap
 	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
 	// TODO(gri) should this be extended to also track known invalid types?
-	valids instanceLookup // valid *Named (incl. instantiated) types per the validType check
+	boundedTypes instanceLookup // bounded *Named (incl. instantiated) types per the isBoundedType check
 
 	// pkgPathMap maps package names to the set of distinct import paths we've
 	// seen for that name, anywhere in the import graph. It is used for
