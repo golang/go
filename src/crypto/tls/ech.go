@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"crypto/ecdh"
 	"crypto/hpke"
-	"crypto/tls/internal/fips140tls"
 	"errors"
 	"fmt"
 	"io"
@@ -684,7 +683,7 @@ func (c *Conn) processECHClientHello(outer *clientHelloMsg, echKeys []EncryptedC
 //
 // This extension is placed in the outer ClientHello derived from hello, as
 // specified in RFC 9849, Section 6.2.
-func newGreaseECHExtension(rand io.Reader, hello *clientHelloMsg) ([]byte, error) {
+func newGreaseECHExtension(rand io.Reader, hello *clientHelloMsg, fips140Restrictions bool) ([]byte, error) {
 	const echGreaseMaxNameLength = 128
 
 	kdfID := hpke.HKDFSHA256().ID()
@@ -693,7 +692,7 @@ func newGreaseECHExtension(rand io.Reader, hello *clientHelloMsg) ([]byte, error
 		hpke.AES256GCM(),
 		hpke.ChaCha20Poly1305(),
 	}
-	if fips140tls.Required() {
+	if fips140Restrictions {
 		aeads = aeads[:2]
 	}
 
@@ -707,7 +706,7 @@ func newGreaseECHExtension(rand io.Reader, hello *clientHelloMsg) ([]byte, error
 	// For ECH GREASE we only need an encoded ephemeral pubkey to encap to.
 	// We generate a throw-away key pair for this purpose.
 	curve := ecdh.X25519()
-	if fips140tls.Required() {
+	if fips140Restrictions {
 		curve = ecdh.P256()
 	}
 	priv, err := curve.GenerateKey(rand)

@@ -5,9 +5,11 @@
 package tls
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/fips140"
+	"crypto/hpke"
 	"crypto/internal/boring"
 	"crypto/internal/cryptotest"
 	"crypto/mldsa"
@@ -20,6 +22,7 @@ import (
 	"math/big"
 	"net"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -734,4 +737,434 @@ func fipsCert(t *testing.T, name string, key any, parent *fipsCertificate, mode 
 	})
 
 	return &fipsCertificate{name, org, parentOrg, der, cert, key, fipsOK}
+}
+
+func TestFIPS140NoRestrictions(t *testing.T) {
+	if fips140.Enforced() {
+		t.Skip("noFIPS140Restrictions is not supported in fips140=only mode")
+	}
+
+	// Generate a 1024-bit RSA cert chain once for the certificate subtests.
+	r1 := fipsCert(t, "R1", fipsRSAKey(t, 2048), nil, fipsCertCA|fipsCertFIPSOK)
+	l1024 := fipsCert(t, "L1024", fipsRSAKey(t, 1024), r1, fipsCertLeaf)
+	r1Pool := x509.NewCertPool()
+	r1Pool.AddCert(r1.cert)
+
+	runCases := func(t *testing.T, wantOptOutSuccess bool) {
+		t.Run("ProtocolVersion", func(t *testing.T) {
+			for _, v := range []uint16{VersionTLS10, VersionTLS11} {
+				t.Run(VersionName(v), func(t *testing.T) {
+					clientConfig := testConfigFIPS140()
+					clientConfig.MinVersion = v
+					clientConfig.MaxVersion = v
+					clientConfig.noFIPS140Restrictions = true
+
+					serverConfig := testConfigFIPS140()
+					serverConfig.MinVersion = v
+					serverConfig.MaxVersion = v
+					serverConfig.noFIPS140Restrictions = true
+
+					_, _, err := testHandshake(t, clientConfig, serverConfig)
+					if wantOptOutSuccess && err != nil {
+						t.Fatalf("got error %v, expected success", err)
+					}
+					if !wantOptOutSuccess && err == nil {
+						t.Fatalf("got success, expected error when FIPS 140 is forced")
+					}
+
+					// When only one side opts out, the other side must still reject.
+					if wantOptOutSuccess {
+						restrictedServer := serverConfig.Clone()
+						restrictedServer.noFIPS140Restrictions = false
+						if _, _, err := testHandshake(t, clientConfig, restrictedServer); err == nil {
+							t.Fatalf("expected error when server does not opt out")
+						}
+					}
+				})
+			}
+		})
+
+		t.Run("CipherSuites", func(t *testing.T) {
+			// TLS 1.2 non-FIPS 140 cipher suites (ChaCha20-Poly1305 and static RSA).
+			for _, suite := range []uint16{
+				TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+				TLS_RSA_WITH_AES_128_GCM_SHA256,
+			} {
+				t.Run(CipherSuiteName(suite), func(t *testing.T) {
+					clientConfig := testConfigFIPS140()
+					clientConfig.MinVersion = VersionTLS12
+					clientConfig.MaxVersion = VersionTLS12
+					clientConfig.CipherSuites = []uint16{suite}
+					clientConfig.noFIPS140Restrictions = true
+
+					serverConfig := testConfigFIPS140()
+					serverConfig.MinVersion = VersionTLS12
+					serverConfig.MaxVersion = VersionTLS12
+					serverConfig.CipherSuites = []uint16{suite}
+					serverConfig.noFIPS140Restrictions = true
+
+					_, _, err := testHandshake(t, clientConfig, serverConfig)
+					if wantOptOutSuccess && err != nil {
+						t.Fatalf("got error %v, expected success", err)
+					}
+					if !wantOptOutSuccess && err == nil {
+						t.Fatalf("got success, expected error when FIPS 140 is forced")
+					}
+				})
+			}
+
+			// TLS 1.3 non-FIPS 140 cipher suite (TLS_CHACHA20_POLY1305_SHA256):
+			// verify client offers it and server accepts it.
+			t.Run("TLS13ChaCha20ClientOffer", func(t *testing.T) {
+				c, s := net.Pipe()
+				defer c.Close()
+				defer s.Close()
+
+				clientConfig := testConfigFIPS140()
+				clientConfig.MinVersion = VersionTLS13
+				clientConfig.MaxVersion = VersionTLS13
+				clientConfig.noFIPS140Restrictions = true
+
+				go Client(c, clientConfig).Handshake()
+				srv := Server(s, testConfigFIPS140())
+				msg, err := srv.readHandshake(nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				hello := msg.(*clientHelloMsg)
+				hasChaCha := slices.Contains(hello.cipherSuites, TLS_CHACHA20_POLY1305_SHA256)
+				if hasChaCha != wantOptOutSuccess {
+					t.Fatalf("ClientHello offered TLS_CHACHA20_POLY1305_SHA256 = %v, want %v", hasChaCha, wantOptOutSuccess)
+				}
+			})
+
+			t.Run("TLS13ChaCha20ServerSelect", func(t *testing.T) {
+				serverConfig := testConfigFIPS140()
+				serverConfig.noFIPS140Restrictions = true
+				clientHello := &clientHelloMsg{
+					vers:                         VersionTLS12,
+					random:                       make([]byte, 32),
+					cipherSuites:                 []uint16{TLS_CHACHA20_POLY1305_SHA256},
+					compressionMethods:           []uint8{compressionNone},
+					supportedCurves:              []CurveID{CurveP256},
+					keyShares:                    []keyShare{generateKeyShare(CurveP256)},
+					supportedPoints:              []uint8{pointFormatUncompressed},
+					supportedVersions:            []uint16{VersionTLS13},
+					supportedSignatureAlgorithms: allowedSignatureAlgorithmsFIPS,
+				}
+				if wantOptOutSuccess {
+					testClientHello(t, serverConfig, clientHello)
+				} else {
+					testClientHelloFailure(t, serverConfig, clientHello, "no cipher suite supported by both client and server")
+				}
+			})
+		})
+
+		t.Run("Curves", func(t *testing.T) {
+			for _, v := range []uint16{VersionTLS12, VersionTLS13} {
+				t.Run(VersionName(v)+"/X25519", func(t *testing.T) {
+					cfg := testConfigFIPS140()
+					cfg.MinVersion = v
+					cfg.MaxVersion = v
+					cfg.CurvePreferences = []CurveID{X25519}
+					cfg.noFIPS140Restrictions = true
+
+					_, _, err := testHandshake(t, cfg, cfg)
+					if wantOptOutSuccess && err != nil {
+						t.Fatalf("got error %v, expected success", err)
+					}
+					if !wantOptOutSuccess && err == nil {
+						t.Fatalf("got success, expected error when FIPS 140 is forced")
+					}
+				})
+			}
+		})
+
+		t.Run("SignatureAlgorithms", func(t *testing.T) {
+			testenv.SetGODEBUG(t, "tlssha1=1")
+			defer func() {
+				testingOnlySupportedSignatureAlgorithms = nil
+			}()
+			testingOnlySupportedSignatureAlgorithms = []SignatureScheme{PKCS1WithSHA1}
+
+			clientConfig := testConfigFIPS140()
+			clientConfig.MaxVersion = VersionTLS12
+			clientConfig.Certificates = []Certificate{testRSAPSSCert}
+			clientConfig.noFIPS140Restrictions = true
+
+			serverConfig := testConfigFIPS140()
+			serverConfig.MaxVersion = VersionTLS12
+			serverConfig.ClientAuth = RequireAnyClientCert
+			serverConfig.noFIPS140Restrictions = true
+
+			clientErr, serverErr := fipsHandshake(t, clientConfig, serverConfig)
+			if wantOptOutSuccess {
+				if clientErr != nil || serverErr != nil {
+					t.Fatalf("expected SHA-1 handshake with client auth to succeed; clientErr=%v serverErr=%v", clientErr, serverErr)
+				}
+			} else {
+				if clientErr == nil && serverErr == nil {
+					t.Fatalf("expected SHA-1 handshake to fail when FIPS 140 is forced")
+				}
+			}
+
+			// Verify ClientHelloInfo.SupportsCertificate and CertificateRequestInfo.SupportsCertificate.
+			chi := &ClientHelloInfo{
+				SupportedVersions: []uint16{VersionTLS12},
+				CipherSuites:      []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+				SupportedCurves:   []CurveID{CurveP256},
+				SupportedPoints:   []uint8{pointFormatUncompressed},
+				SignatureSchemes:  []SignatureScheme{PKCS1WithSHA1},
+				config:            serverConfig,
+			}
+			err := chi.SupportsCertificate(&testRSAPSSCert)
+			if wantOptOutSuccess && err != nil {
+				t.Fatalf("ClientHelloInfo.SupportsCertificate(PKCS1WithSHA1) = %v, want nil", err)
+			}
+			if !wantOptOutSuccess && err == nil {
+				t.Fatalf("ClientHelloInfo.SupportsCertificate(PKCS1WithSHA1) = nil, want error when FIPS 140 is forced")
+			}
+
+			cri := &CertificateRequestInfo{
+				Version:               VersionTLS12,
+				SignatureSchemes:      []SignatureScheme{PKCS1WithSHA1},
+				noFIPS140Restrictions: clientConfig.noFIPS140Restrictions,
+			}
+			err = cri.SupportsCertificate(&testRSAPSSCert)
+			if wantOptOutSuccess && err != nil {
+				t.Fatalf("CertificateRequestInfo.SupportsCertificate(PKCS1WithSHA1) = %v, want nil", err)
+			}
+			if !wantOptOutSuccess && err == nil {
+				t.Fatalf("CertificateRequestInfo.SupportsCertificate(PKCS1WithSHA1) = nil, want error when FIPS 140 is forced")
+			}
+
+			// A zero-value CertificateRequestInfo must fail closed under FIPS 140 restrictions.
+			zeroCRI := &CertificateRequestInfo{
+				Version:          VersionTLS12,
+				SignatureSchemes: []SignatureScheme{PKCS1WithSHA1},
+			}
+			if err := zeroCRI.SupportsCertificate(&testRSAPSSCert); err == nil {
+				t.Fatalf("zero-value CertificateRequestInfo.SupportsCertificate(PKCS1WithSHA1) = nil, want error")
+			}
+		})
+
+		t.Run("Certificates", func(t *testing.T) {
+			for _, v := range []uint16{VersionTLS12, VersionTLS13} {
+				t.Run(VersionName(v), func(t *testing.T) {
+					// Verified chain (fipsAllowedChains) for server cert.
+					clientConfig := testConfigFIPS140()
+					clientConfig.MinVersion = v
+					clientConfig.MaxVersion = v
+					clientConfig.RootCAs = r1Pool
+					clientConfig.ServerName = "example.com"
+					clientConfig.Time = func() time.Time { return time.Unix(0, 0) }
+					clientConfig.noFIPS140Restrictions = true
+
+					serverConfig := testConfigFIPS140()
+					serverConfig.MinVersion = v
+					serverConfig.MaxVersion = v
+					serverConfig.Certificates = []Certificate{{Certificate: [][]byte{l1024.der}, PrivateKey: l1024.key}}
+					serverConfig.Time = func() time.Time { return time.Unix(0, 0) }
+					serverConfig.noFIPS140Restrictions = true
+
+					clientErr, _ := fipsHandshake(t, clientConfig, serverConfig)
+					if wantOptOutSuccess && clientErr != nil {
+						t.Fatalf("server cert (verified): got %v, want nil", clientErr)
+					}
+					if !wantOptOutSuccess && clientErr == nil {
+						t.Fatalf("server cert (verified): got nil, want error when FIPS 140 is forced")
+					}
+
+					// Unverified leaf (InsecureSkipVerify) for server cert.
+					clientConfigSkip := clientConfig.Clone()
+					clientConfigSkip.InsecureSkipVerify = true
+					clientErr, _ = fipsHandshake(t, clientConfigSkip, serverConfig)
+					if wantOptOutSuccess && clientErr != nil {
+						t.Fatalf("server cert (InsecureSkipVerify): got %v, want nil", clientErr)
+					}
+					if !wantOptOutSuccess && clientErr == nil {
+						t.Fatalf("server cert (InsecureSkipVerify): got nil, want error when FIPS 140 is forced")
+					}
+
+					// Verified chain (fipsAllowedChains) for client cert.
+					mClient := testConfigFIPS140()
+					mClient.MinVersion = v
+					mClient.MaxVersion = v
+					mClient.InsecureSkipVerify = true
+					mClient.Certificates = []Certificate{{Certificate: [][]byte{l1024.der}, PrivateKey: l1024.key}}
+					mClient.Time = func() time.Time { return time.Unix(0, 0) }
+					mClient.noFIPS140Restrictions = true
+
+					mServer := testConfigFIPS140()
+					mServer.MinVersion = v
+					mServer.MaxVersion = v
+					mServer.ClientCAs = r1Pool
+					mServer.ClientAuth = RequireAndVerifyClientCert
+					mServer.Time = func() time.Time { return time.Unix(0, 0) }
+					mServer.noFIPS140Restrictions = true
+
+					_, serverErr := fipsHandshake(t, mClient, mServer)
+					if wantOptOutSuccess && serverErr != nil {
+						t.Fatalf("client cert (verified): got %v, want nil", serverErr)
+					}
+					if !wantOptOutSuccess && serverErr == nil {
+						t.Fatalf("client cert (verified): got nil, want error when FIPS 140 is forced")
+					}
+
+					// Unverified leaf (RequireAnyClientCert) for client cert.
+					mServerAny := mServer.Clone()
+					mServerAny.ClientAuth = RequireAnyClientCert
+					_, serverErr = fipsHandshake(t, mClient, mServerAny)
+					if wantOptOutSuccess && serverErr != nil {
+						t.Fatalf("client cert (RequireAnyClientCert): got %v, want nil", serverErr)
+					}
+					if !wantOptOutSuccess && serverErr == nil {
+						t.Fatalf("client cert (RequireAnyClientCert): got nil, want error when FIPS 140 is forced")
+					}
+				})
+			}
+		})
+
+		t.Run("ECHGrease", func(t *testing.T) {
+			hello := &clientHelloMsg{
+				vers:               VersionTLS12,
+				random:             make([]byte, 32),
+				cipherSuites:       []uint16{TLS_AES_128_GCM_SHA256},
+				compressionMethods: []uint8{compressionNone},
+				supportedVersions:  []uint16{VersionTLS13},
+			}
+			// Byte 0 == 2 selects ChaCha20Poly1305 when len(aeads) == 3,
+			// or AES128GCM when len(aeads) == 2 (FIPS 140).
+			// X25519 produces a 32-byte encap key, P-256 produces 65 bytes.
+			cfg := &Config{
+				Rand:                  bytes.NewReader(bytes.Repeat([]byte{2}, 512)),
+				noFIPS140Restrictions: true,
+			}
+			ext, err := newGreaseECHExtension(cfg.rand(), hello, fips140Restrictions(cfg.noFIPS140Restrictions))
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, cs, _, encap, _, err := parseECHExt(ext)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if wantOptOutSuccess {
+				if cs.AEADID != hpke.ChaCha20Poly1305().ID() {
+					t.Errorf("ECH GREASE AEAD = %#x, want ChaCha20Poly1305 (%#x)", cs.AEADID, hpke.ChaCha20Poly1305().ID())
+				}
+				if len(encap) != 32 {
+					t.Errorf("ECH GREASE encap len = %d, want 32 (X25519)", len(encap))
+				}
+			} else {
+				if cs.AEADID == hpke.ChaCha20Poly1305().ID() {
+					t.Errorf("ECH GREASE used ChaCha20Poly1305 when FIPS 140 is forced")
+				}
+				if len(encap) != 65 {
+					t.Errorf("ECH GREASE encap len = %d, want 65 (P-256)", len(encap))
+				}
+			}
+		})
+
+		t.Run("EMSResumption", func(t *testing.T) {
+			// Check server-side TLS 1.2 resumption without EMS.
+			serverConfig := testConfigFIPS140()
+			serverConfig.MinVersion = VersionTLS12
+			serverConfig.MaxVersion = VersionTLS12
+			serverConfig.noFIPS140Restrictions = true
+
+			sess := &SessionState{
+				version:         VersionTLS12,
+				cipherSuite:     TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+				createdAt:       uint64(testTime().Unix()),
+				secret:          make([]byte, 48),
+				extMasterSecret: false,
+			}
+			c, s := localPipe(t)
+			defer c.Close()
+			defer s.Close()
+			srv := Server(s, serverConfig)
+			srv.vers = VersionTLS12
+			srv.ticketKeys = serverConfig.ticketKeys(nil)
+			ticketBytes, err := sess.Bytes()
+			if err != nil {
+				t.Fatal(err)
+			}
+			encryptedTicket, err := serverConfig.encryptTicket(ticketBytes, srv.ticketKeys)
+			if err != nil {
+				t.Fatal(err)
+			}
+			hs := &serverHandshakeState{
+				c: srv,
+				clientHello: &clientHelloMsg{
+					vers:                 VersionTLS12,
+					cipherSuites:         []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+					sessionTicket:        encryptedTicket,
+					ticketSupported:      true,
+					extendedMasterSecret: false,
+				},
+				hello:     new(serverHelloMsg),
+				ecdheOk:   true,
+				rsaSignOk: true,
+			}
+			if err := hs.checkForResumption(); err != nil {
+				t.Fatal(err)
+			}
+			if srv.didResume != wantOptOutSuccess {
+				t.Fatalf("server TLS 1.2 non-EMS didResume = %v, want %v", srv.didResume, wantOptOutSuccess)
+			}
+
+			// Check client-side TLS 1.2 resumption without EMS.
+			clientConfig := testConfigFIPS140()
+			clientConfig.MinVersion = VersionTLS12
+			clientConfig.MaxVersion = VersionTLS12
+			clientConfig.InsecureSkipVerify = true
+			clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
+			clientConfig.noFIPS140Restrictions = true
+			cli := Client(c, clientConfig)
+			cacheKey := cli.clientSessionCacheKey()
+			leaf, err := testRSAPSSCert.leaf()
+			if err != nil {
+				t.Fatal(err)
+			}
+			clientConfig.ClientSessionCache.Put(cacheKey, &ClientSessionState{
+				session: &SessionState{
+					version:          VersionTLS12,
+					isClient:         true,
+					cipherSuite:      TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+					createdAt:        uint64(testTime().Unix()),
+					secret:           make([]byte, 48),
+					extMasterSecret:  false,
+					peerCertificates: []*x509.Certificate{leaf},
+					ticket:           []byte("ticket"),
+				},
+			})
+			hello := &clientHelloMsg{
+				vers:              VersionTLS12,
+				supportedVersions: []uint16{VersionTLS12},
+				cipherSuites:      []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+				ticketSupported:   true,
+			}
+			resumed, _, _, err := cli.loadSession(hello)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if (resumed != nil) != wantOptOutSuccess {
+				t.Fatalf("client TLS 1.2 non-EMS loadSession resumed = %v, want %v", resumed != nil, wantOptOutSuccess)
+			}
+		})
+	}
+
+	if fips140.Enabled() {
+		t.Run("real-fips140=on", func(t *testing.T) {
+			runCases(t, true)
+		})
+	} else {
+		runWithFIPSEnabled(t, func(t *testing.T) {
+			runCases(t, true)
+		})
+		runWithFIPS140Forced(t, func(t *testing.T) {
+			runCases(t, false)
+		})
+		cryptotest.RerunWithFIPS140Enabled(t)
+	}
 }

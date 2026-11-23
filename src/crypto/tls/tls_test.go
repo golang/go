@@ -213,17 +213,35 @@ func newLocalListener(t testing.TB) net.Listener {
 }
 
 func runWithFIPSEnabled(t *testing.T, testFunc func(t *testing.T)) {
-	originalFIPS := fips140tls.Required()
+	originalRequired := fips140tls.Required()
+	originalForced := fips140tls.Forced()
 	defer func() {
-		if originalFIPS {
+		fips140tls.TestingOnlyAbandon()
+		if originalForced {
 			fips140tls.Force()
-		} else {
-			fips140tls.TestingOnlyAbandon()
+		} else if originalRequired {
+			fips140tls.TestingOnlyRequire()
+		}
+	}()
+
+	fips140tls.TestingOnlyRequire()
+	t.Run("fips140tls", testFunc)
+}
+
+func runWithFIPS140Forced(t *testing.T, testFunc func(t *testing.T)) {
+	originalRequired := fips140tls.Required()
+	originalForced := fips140tls.Forced()
+	defer func() {
+		fips140tls.TestingOnlyAbandon()
+		if originalForced {
+			fips140tls.Force()
+		} else if originalRequired {
+			fips140tls.TestingOnlyRequire()
 		}
 	}()
 
 	fips140tls.Force()
-	t.Run("fips140tls", testFunc)
+	t.Run("fips140tls-forced", testFunc)
 }
 
 func runWithFIPSDisabled(t *testing.T, testFunc func(t *testing.T)) {
@@ -234,12 +252,14 @@ func runWithFIPSDisabled(t *testing.T, testFunc func(t *testing.T)) {
 		return
 	}
 
-	originalFIPS := fips140tls.Required()
+	originalRequired := fips140tls.Required()
+	originalForced := fips140tls.Forced()
 	defer func() {
-		if originalFIPS {
+		fips140tls.TestingOnlyAbandon()
+		if originalForced {
 			fips140tls.Force()
-		} else {
-			fips140tls.TestingOnlyAbandon()
+		} else if originalRequired {
+			fips140tls.TestingOnlyRequire()
 		}
 	}()
 
@@ -1012,15 +1032,16 @@ func TestCloneNonFuncFields(t *testing.T) {
 				NotCovered:  UPKIRevocationPolicyReject,
 				MissingSCTs: UPKIRevocationPolicyReject,
 			}))
-		case "mutex", "autoSessionTicketKeys", "sessionTicketKeys":
+		case "mutex", "autoSessionTicketKeys", "sessionTicketKeys", "noFIPS140Restrictions":
 			continue // these are unexported fields that are handled separately
 		default:
 			t.Errorf("all fields must be accounted for, but saw unknown field %q", fn)
 		}
 	}
-	// Set the unexported fields related to session ticket keys, which are copied with Clone().
+	// Set the unexported fields that are copied with Clone().
 	c1.autoSessionTicketKeys = []ticketKey{c1.ticketKeyFromBytes(c1.SessionTicketKey)}
 	c1.sessionTicketKeys = []ticketKey{c1.ticketKeyFromBytes(c1.SessionTicketKey)}
+	c1.noFIPS140Restrictions = true
 
 	c2 := c1.Clone()
 	if !reflect.DeepEqual(&c1, c2) {
@@ -2371,7 +2392,7 @@ func TestAdvertisedSignatureAlgorithms(t *testing.T) {
 	// checkDefault checks what is advertised for a range of TLS versions when
 	// signature_algorithms_cert is not sent.
 	checkDefault := func(t *testing.T, minVers, maxVers uint16) {
-		sigAlgs, sigAlgsCert := advertisedSignatureAlgorithms(minVers, maxVers)
+		sigAlgs, sigAlgsCert := advertisedSignatureAlgorithms(minVers, maxVers, fips140tls.Required())
 		if sigAlgsCert != nil {
 			t.Errorf("signature_algorithms_cert = %v, want it omitted", sigAlgsCert)
 		}
@@ -2380,7 +2401,7 @@ func TestAdvertisedSignatureAlgorithms(t *testing.T) {
 		// to certificates. It lists the algorithms supported in handshake
 		// messages, and PKCS#1 v1.5 even if only TLS 1.3 is enabled, since
 		// crypto/x509 supports it.
-		handshake := supportedSignatureAlgorithms(minVers, maxVers)
+		handshake := supportedSignatureAlgorithms(minVers, maxVers, fips140tls.Required())
 		want := slices.DeleteFunc(defaultSupportedSignatureAlgorithms(), func(s SignatureScheme) bool {
 			return !slices.Contains(handshake, s) && !slices.Contains(pkcs1, s)
 		})
@@ -2408,8 +2429,8 @@ func TestAdvertisedSignatureAlgorithms(t *testing.T) {
 	// checkLegacy checks what is advertised for a range of TLS versions with
 	// GODEBUG=tlssigalgscert=1.
 	checkLegacy := func(t *testing.T, minVers, maxVers uint16) {
-		sigAlgs, sigAlgsCert := advertisedSignatureAlgorithms(minVers, maxVers)
-		if want := supportedSignatureAlgorithms(minVers, maxVers); !slices.Equal(sigAlgs, want) {
+		sigAlgs, sigAlgsCert := advertisedSignatureAlgorithms(minVers, maxVers, fips140tls.Required())
+		if want := supportedSignatureAlgorithms(minVers, maxVers, fips140tls.Required()); !slices.Equal(sigAlgs, want) {
 			t.Errorf("signature_algorithms = %v, want %v", sigAlgs, want)
 		}
 		if !slices.Equal(sigAlgsCert, legacyCert) {
@@ -2429,7 +2450,7 @@ func TestAdvertisedSignatureAlgorithms(t *testing.T) {
 			}
 
 			sigAlgs, sigAlgsCert := clientHello(t)
-			if want, _ := advertisedSignatureAlgorithms(VersionTLS13, VersionTLS13); !slices.Equal(sigAlgs, want) {
+			if want, _ := advertisedSignatureAlgorithms(VersionTLS13, VersionTLS13, fips140tls.Required()); !slices.Equal(sigAlgs, want) {
 				t.Errorf("ClientHello signature_algorithms = %v, want %v", sigAlgs, want)
 			}
 			if sigAlgsCert != nil {
@@ -2471,8 +2492,8 @@ func TestSupportedSignatureAlgorithmsMLDSAGating(t *testing.T) {
 	mldsaSchemes := []SignatureScheme{MLDSA44, MLDSA65, MLDSA87}
 
 	if fips140.Version() == "v1.0.0" {
-		fullRange := supportedSignatureAlgorithms(VersionTLS10, VersionTLS13)
-		fullRangeCert := enabledSignatureAlgorithms(VersionTLS10, VersionTLS13, sigAlgCertificate)
+		fullRange := supportedSignatureAlgorithms(VersionTLS10, VersionTLS13, fips140tls.Required())
+		fullRangeCert := enabledSignatureAlgorithms(VersionTLS10, VersionTLS13, sigAlgCertificate, fips140tls.Required())
 		for _, s := range mldsaSchemes {
 			if slices.Contains(fullRange, s) {
 				t.Errorf("supportedSignatureAlgorithms contains %v under FIPS 140-3 v1.0.0", s)
@@ -2484,8 +2505,8 @@ func TestSupportedSignatureAlgorithmsMLDSAGating(t *testing.T) {
 		return
 	}
 
-	tls12Only := supportedSignatureAlgorithms(VersionTLS12, VersionTLS12)
-	tls12OnlyCert := enabledSignatureAlgorithms(VersionTLS12, VersionTLS12, sigAlgCertificate)
+	tls12Only := supportedSignatureAlgorithms(VersionTLS12, VersionTLS12, fips140tls.Required())
+	tls12OnlyCert := enabledSignatureAlgorithms(VersionTLS12, VersionTLS12, sigAlgCertificate, fips140tls.Required())
 	for _, s := range mldsaSchemes {
 		if slices.Contains(tls12Only, s) {
 			t.Errorf("supportedSignatureAlgorithms(TLS12, TLS12) contains %v; ML-DSA must not be advertised in TLS 1.2", s)
@@ -2494,8 +2515,8 @@ func TestSupportedSignatureAlgorithmsMLDSAGating(t *testing.T) {
 			t.Errorf("TLS 1.2 certificate signature algorithms contain %v; ML-DSA must not be advertised in TLS 1.2", s)
 		}
 	}
-	tls13Only := supportedSignatureAlgorithms(VersionTLS13, VersionTLS13)
-	tls13OnlyCert := enabledSignatureAlgorithms(VersionTLS13, VersionTLS13, sigAlgCertificate)
+	tls13Only := supportedSignatureAlgorithms(VersionTLS13, VersionTLS13, fips140tls.Required())
+	tls13OnlyCert := enabledSignatureAlgorithms(VersionTLS13, VersionTLS13, sigAlgCertificate, fips140tls.Required())
 	for _, s := range mldsaSchemes {
 		if !slices.Contains(tls13Only, s) {
 			t.Errorf("supportedSignatureAlgorithms(TLS13, TLS13) is missing %v", s)

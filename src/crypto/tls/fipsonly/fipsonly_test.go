@@ -15,4 +15,7 @@ func Test(t *testing.T) {
 	if !fips140tls.Required() {
 		t.Fatal("fips140tls.Required() = false, must be true")
 	}
+	if !fips140tls.Forced() {
+		t.Fatal("fips140tls.Forced() = false, must be true")
+	}
 }

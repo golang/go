@@ -12,7 +12,6 @@ import (
 	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/subtle"
-	"crypto/tls/internal/fips140tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -535,7 +534,7 @@ func (hs *serverHandshakeState) checkForResumption() error {
 		// weird downgrade in client capabilities.
 		return errors.New("tls: session supported extended_master_secret but client does not")
 	}
-	if !sessionState.extMasterSecret && fips140tls.Required() {
+	if !sessionState.extMasterSecret && fips140Restrictions(c.config.noFIPS140Restrictions) {
 		if fips140ems.Value() != "0" {
 			// FIPS 140-3 requires the use of Extended Master Secret.
 			return nil
@@ -659,7 +658,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		}
 		if c.vers >= VersionTLS12 {
 			certReq.hasSignatureAlgorithm = true
-			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms(c.vers, c.vers)
+			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms(c.vers, c.vers, fips140Restrictions(c.config.noFIPS140Restrictions))
 		}
 
 		// An empty list of certificateAuthorities signals to
@@ -738,7 +737,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		hs.masterSecret = extMasterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret,
 			hs.finishedHash.Sum())
 	} else {
-		if fips140tls.Required() {
+		if fips140Restrictions(c.config.noFIPS140Restrictions) {
 			if fips140ems.Value() != "0" {
 				c.sendAlert(alertHandshakeFailure)
 				return errors.New("tls: FIPS 140-3 requires the use of Extended Master Secret")
@@ -991,7 +990,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
 		}
 
-		c.verifiedChains, err = fipsAllowedChains(chains)
+		c.verifiedChains, err = fipsAllowedChains(chains, fips140Restrictions(c.config.noFIPS140Restrictions))
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
 			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
@@ -1003,7 +1002,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	c.scts = certificate.SignedCertificateTimestamps
 
 	if len(certs) > 0 {
-		if fips140tls.Required() && !isCertificateAllowedFIPS(certs[0]) {
+		if fips140Restrictions(c.config.noFIPS140Restrictions) && !isCertificateAllowedFIPS(certs[0]) {
 			c.sendAlert(alertBadCertificate)
 			err := errors.New("client's certificate is not allowed in FIPS 140-3 mode")
 			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}

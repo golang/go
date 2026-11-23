@@ -192,7 +192,7 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 
 	var sig []byte
 	if ka.version >= VersionTLS12 {
-		ka.signatureAlgorithm, err = selectSignatureScheme(ka.version, cert, clientHello.supportedSignatureAlgorithms)
+		ka.signatureAlgorithm, err = selectSignatureScheme(ka.version, cert, clientHello.supportedSignatureAlgorithms, fips140Restrictions(config.noFIPS140Restrictions))
 		if err != nil {
 			return nil, err
 		}

@@ -532,6 +532,10 @@ type CertificateRequestInfo struct {
 	// Version is the TLS version that was negotiated for this connection.
 	Version uint16
 
+	// noFIPS140Restrictions mirrors Config.noFIPS140Restrictions for use with
+	// SupportsCertificate.
+	noFIPS140Restrictions bool
+
 	// ctx is the context of the handshake that is in progress.
 	ctx context.Context
 }
@@ -937,6 +941,10 @@ type Config struct {
 	// autoSessionTicketKeys is like sessionTicketKeys but is owned by the
 	// auto-rotation logic. See Config.ticketKeys.
 	autoSessionTicketKeys []ticketKey
+	// noFIPS140Restrictions disables the FIPS 140-3 TLS algorithm and certificate
+	// restrictions applied when GODEBUG=fips140=on is set. It does not override
+	// restrictions forced by importing crypto/tls/fipsonly.
+	noFIPS140Restrictions bool
 }
 
 // EncryptedClientHelloKey holds a private key that is associated
@@ -1066,6 +1074,7 @@ func (c *Config) Clone() *Config {
 		EncryptedClientHelloKeys:            c.EncryptedClientHelloKeys,
 		sessionTicketKeys:                   c.sessionTicketKeys,
 		autoSessionTicketKeys:               c.autoSessionTicketKeys,
+		noFIPS140Restrictions:               c.noFIPS140Restrictions,
 	}
 }
 
@@ -1211,6 +1220,15 @@ func (c *Config) time() time.Time {
 	return t()
 }
 
+// fips140Restrictions reports whether FIPS 140-3 TLS restrictions should be
+// enforced given a per-Config opt-out.
+func fips140Restrictions(noFIPS140Restrictions bool) bool {
+	if fips140tls.Forced() {
+		return true
+	}
+	return fips140tls.Required() && !noFIPS140Restrictions
+}
+
 func (c *Config) cipherSuites(aesGCMPreferred bool) []uint16 {
 	var cipherSuites []uint16
 	if c.CipherSuites == nil {
@@ -1221,7 +1239,7 @@ func (c *Config) cipherSuites(aesGCMPreferred bool) []uint16 {
 			return !slices.Contains(c.CipherSuites, id)
 		})
 	}
-	if fips140tls.Required() {
+	if fips140Restrictions(c.noFIPS140Restrictions) {
 		cipherSuites = slices.DeleteFunc(cipherSuites, func(id uint16) bool {
 			return !slices.Contains(allowedCipherSuitesFIPS, id)
 		})
@@ -1252,7 +1270,7 @@ const roleServer = false
 func (c *Config) supportedVersions(isClient, isQUIC bool) []uint16 {
 	versions := make([]uint16, 0, len(supportedVersions))
 	for _, v := range supportedVersions {
-		if fips140tls.Required() && !slices.Contains(allowedSupportedVersionsFIPS, v) {
+		if fips140Restrictions(c != nil && c.noFIPS140Restrictions) && !slices.Contains(allowedSupportedVersionsFIPS, v) {
 			continue
 		}
 		if (c == nil || c.MinVersion == 0) && v < VersionTLS12 {
@@ -1317,7 +1335,7 @@ func (c *Config) supportsCurve(version uint16, x CurveID) bool {
 			return false
 		}
 	}
-	if fips140tls.Required() && !slices.Contains(allowedCurvePreferencesFIPS, x) {
+	if fips140Restrictions(c != nil && c.noFIPS140Restrictions) && !slices.Contains(allowedCurvePreferencesFIPS, x) {
 		return false
 	}
 	if version < VersionTLS13 && isTLS13OnlyKeyExchange(x) {
@@ -1471,7 +1489,7 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
 	// If the client sent the signature_algorithms extension, ensure it supports
 	// schemes we can use with this certificate and TLS version.
 	if len(chi.SignatureSchemes) > 0 {
-		if _, err := selectSignatureScheme(vers, c, chi.SignatureSchemes); err != nil {
+		if _, err := selectSignatureScheme(vers, c, chi.SignatureSchemes, fips140Restrictions(config.noFIPS140Restrictions)); err != nil {
 			return supportsRSAFallback(err)
 		}
 	}
@@ -1566,7 +1584,7 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
 // the server that sent the CertificateRequest. Otherwise, it returns an error
 // describing the reason for the incompatibility.
 func (cri *CertificateRequestInfo) SupportsCertificate(c *Certificate) error {
-	if _, err := selectSignatureScheme(cri.Version, c, cri.SignatureSchemes); err != nil {
+	if _, err := selectSignatureScheme(cri.Version, c, cri.SignatureSchemes, fips140Restrictions(cri.noFIPS140Restrictions)); err != nil {
 		return err
 	}
 
@@ -1796,20 +1814,20 @@ var testingOnlySupportedSignatureAlgorithms []SignatureScheme
 // supportedSignatureAlgorithms returns the signature algorithms supported in
 // handshake messages for the given range of TLS versions. An algorithm is
 // included if it is enabled at any version in the range.
-func supportedSignatureAlgorithms(minVers, maxVers uint16) []SignatureScheme {
-	return enabledSignatureAlgorithms(minVers, maxVers, sigAlgHandshake)
+func supportedSignatureAlgorithms(minVers, maxVers uint16, fips140Restrictions bool) []SignatureScheme {
+	return enabledSignatureAlgorithms(minVers, maxVers, sigAlgHandshake, fips140Restrictions)
 }
 
 // enabledSignatureAlgorithms returns the signature algorithms enabled for the
 // given use at any TLS version in the range.
-func enabledSignatureAlgorithms(minVers, maxVers uint16, use sigAlgUse) []SignatureScheme {
+func enabledSignatureAlgorithms(minVers, maxVers uint16, use sigAlgUse, fips140Restrictions bool) []SignatureScheme {
 	sigAlgs := defaultSupportedSignatureAlgorithms()
 	if testingOnlySupportedSignatureAlgorithms != nil {
 		sigAlgs = slices.Clone(testingOnlySupportedSignatureAlgorithms)
 	}
 	return slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
 		for v := minVers; v <= maxVers; v++ {
-			if !isDisabledSignatureAlgorithm(v, s, use) {
+			if !isDisabledSignatureAlgorithm(v, s, use, fips140Restrictions) {
 				return false
 			}
 		}
@@ -1833,8 +1851,8 @@ const (
 
 var tlssha1 = godebug.New("tlssha1")
 
-func isDisabledSignatureAlgorithm(version uint16, s SignatureScheme, use sigAlgUse) bool {
-	if fips140tls.Required() && !slices.Contains(allowedSignatureAlgorithmsFIPS, s) {
+func isDisabledSignatureAlgorithm(version uint16, s SignatureScheme, use sigAlgUse, fips140Restrictions bool) bool {
+	if fips140Restrictions && !slices.Contains(allowedSignatureAlgorithmsFIPS, s) {
 		return true
 	}
 
@@ -1900,11 +1918,11 @@ var tlssigalgscert = godebug.New("tlssigalgscert")
 // signature_algorithms and signature_algorithms_cert extensions to send in a
 // ClientHello or CertificateRequest for the given range of TLS versions. If
 // sigAlgsCert is nil, the signature_algorithms_cert extension is not sent.
-func advertisedSignatureAlgorithms(minVers, maxVers uint16) (sigAlgs, sigAlgsCert []SignatureScheme) {
+func advertisedSignatureAlgorithms(minVers, maxVers uint16, fips140Restrictions bool) (sigAlgs, sigAlgsCert []SignatureScheme) {
 	if tlssigalgscert.Value() == "1" {
 		tlssigalgscert.IncNonDefault()
-		return enabledSignatureAlgorithms(minVers, maxVers, sigAlgHandshake),
-			enabledSignatureAlgorithms(minVers, maxVers, sigAlgLegacyCertificate)
+		return enabledSignatureAlgorithms(minVers, maxVers, sigAlgHandshake, fips140Restrictions),
+			enabledSignatureAlgorithms(minVers, maxVers, sigAlgLegacyCertificate, fips140Restrictions)
 	}
 
 	// Some middleboxes reject signature_algorithms_cert if it lists algorithms
@@ -1913,7 +1931,7 @@ func advertisedSignatureAlgorithms(minVers, maxVers uint16) (sigAlgs, sigAlgsCer
 	// signature_algorithms also applies to certificates (RFC 9846, Section
 	// 4.3.3), so it lists the certificate algorithms, which include the
 	// handshake ones. See go.dev/issue/81199.
-	return enabledSignatureAlgorithms(minVers, maxVers, sigAlgCertificate), nil
+	return enabledSignatureAlgorithms(minVers, maxVers, sigAlgCertificate, fips140Restrictions), nil
 }
 
 func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlgorithms []SignatureScheme) bool {
@@ -1936,13 +1954,13 @@ func (e *CertificateVerificationError) Unwrap() error {
 }
 
 // fipsAllowedChains returns chains that are allowed to be used in a TLS connection
-// based on the current fips140tls enforcement setting.
+// based on fips140Restrictions.
 //
-// If fips140tls is not required, the chains are returned as-is with no processing.
+// If fips140Restrictions is false, the chains are returned as-is with no processing.
 // Otherwise, the returned chains are filtered to only those allowed by FIPS 140-3.
 // If this results in no chains it returns an error.
-func fipsAllowedChains(chains [][]*x509.Certificate) ([][]*x509.Certificate, error) {
-	if !fips140tls.Required() {
+func fipsAllowedChains(chains [][]*x509.Certificate, fips140Restrictions bool) ([][]*x509.Certificate, error) {
+	if !fips140Restrictions {
 		return chains, nil
 	}
 

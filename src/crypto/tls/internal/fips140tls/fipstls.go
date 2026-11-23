@@ -10,18 +10,29 @@ import (
 	"sync/atomic"
 )
 
-var required atomic.Bool
+var (
+	required atomic.Bool
+	forced   atomic.Bool
+)
 
 func init() {
 	if fips140.Enabled() {
-		Force()
+		required.Store(true)
 	}
 }
 
-// Force forces crypto/tls to restrict TLS configurations to FIPS-approved settings.
-// By design, this call is impossible to undo (except in tests).
+// Force forces crypto/tls to restrict TLS configurations to FIPS 140-approved settings.
+// By design, this call is impossible to undo (except in tests) and cannot be
+// overridden per-Config.
 func Force() {
 	required.Store(true)
+	forced.Store(true)
+}
+
+// Forced reports whether FIPS 140-approved settings were forced by importing
+// crypto/tls/fipsonly and therefore cannot be overridden per-Config.
+func Forced() bool {
+	return forced.Load()
 }
 
 // Required reports whether FIPS-approved settings are required.
@@ -32,6 +43,11 @@ func Required() bool {
 	return required.Load()
 }
 
+func TestingOnlyRequire() {
+	required.Store(true)
+}
+
 func TestingOnlyAbandon() {
 	required.Store(false)
+	forced.Store(false)
 }

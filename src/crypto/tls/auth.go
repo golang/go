@@ -258,7 +258,7 @@ func signatureSchemesForPublicKey(version uint16, pub crypto.PublicKey) []Signat
 // selectSignatureScheme picks a SignatureScheme from the peer's preference list
 // that works with the selected certificate. It's only called for protocol
 // versions that support signature algorithms, so TLS 1.2 and 1.3.
-func selectSignatureScheme(vers uint16, c *Certificate, peerAlgs []SignatureScheme) (SignatureScheme, error) {
+func selectSignatureScheme(vers uint16, c *Certificate, peerAlgs []SignatureScheme, fips140Restrictions bool) (SignatureScheme, error) {
 	priv, ok := c.PrivateKey.(crypto.Signer)
 	if !ok {
 		return 0, unsupportedCertificateError(c)
@@ -272,7 +272,7 @@ func selectSignatureScheme(vers uint16, c *Certificate, peerAlgs []SignatureSche
 	// Filter out any unsupported signature algorithms, for example due to
 	// FIPS 140-3 policy, tlssha1=0, or protocol version.
 	supportedAlgs = slices.DeleteFunc(supportedAlgs, func(sigAlg SignatureScheme) bool {
-		return isDisabledSignatureAlgorithm(vers, sigAlg, sigAlgHandshake)
+		return isDisabledSignatureAlgorithm(vers, sigAlg, sigAlgHandshake, fips140Restrictions)
 	})
 	if len(supportedAlgs) == 0 {
 		return 0, unsupportedCertificateError(c)

@@ -15,7 +15,6 @@ import (
 	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/subtle"
-	"crypto/tls/internal/fips140tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -121,7 +120,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
 
 	if maxVersion >= VersionTLS12 {
 		hello.supportedSignatureAlgorithms, hello.supportedSignatureAlgorithmsCert =
-			advertisedSignatureAlgorithms(minVersion, maxVersion)
+			advertisedSignatureAlgorithms(minVersion, maxVersion, fips140Restrictions(config.noFIPS140Restrictions))
 	}
 
 	var keyShareKeys *keySharePrivateKeys
@@ -131,7 +130,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
 			hello.cipherSuites = nil
 		}
 
-		if fips140tls.Required() {
+		if fips140Restrictions(config.noFIPS140Restrictions) {
 			hello.cipherSuites = append(hello.cipherSuites, allowedCipherSuitesTLS13FIPS...)
 		} else if hasAESGCMHardwareSupport {
 			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13...)
@@ -209,7 +208,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
 		if tlsechgrease.Value() == "0" {
 			tlsechgrease.IncNonDefault()
 		} else {
-			hello.encryptedClientHello, err = newGreaseECHExtension(config.rand(), hello)
+			hello.encryptedClientHello, err = newGreaseECHExtension(config.rand(), hello, fips140Restrictions(config.noFIPS140Restrictions))
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -468,7 +467,7 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
 		}
 
 		// FIPS 140-3 requires the use of Extended Master Secret.
-		if !session.extMasterSecret && fips140tls.Required() {
+		if !session.extMasterSecret && fips140Restrictions(c.config.noFIPS140Restrictions) {
 			if fips140ems.Value() != "0" {
 				return nil, nil, nil, nil
 			}
@@ -756,7 +755,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 	if ok {
 		certRequested = true
 
-		cri := certificateRequestInfoFromMsg(hs.ctx, c.vers, certReq)
+		cri := certificateRequestInfoFromMsg(hs.ctx, c.vers, certReq, c.config.noFIPS140Restrictions)
 		if chainToSend, err = c.getClientCertificate(cri); err != nil {
 			c.sendAlert(alertInternalError)
 			return err
@@ -805,7 +804,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		hs.masterSecret = extMasterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret,
 			hs.finishedHash.Sum())
 	} else {
-		if fips140tls.Required() {
+		if fips140Restrictions(c.config.noFIPS140Restrictions) {
 			if fips140ems.Value() != "0" {
 				c.sendAlert(alertHandshakeFailure)
 				return errors.New("tls: FIPS 140-3 requires the use of Extended Master Secret")
@@ -830,7 +829,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		}
 
 		if c.vers >= VersionTLS12 {
-			signatureAlgorithm, err := selectSignatureScheme(c.vers, chainToSend, certReq.supportedSignatureAlgorithms)
+			signatureAlgorithm, err := selectSignatureScheme(c.vers, chainToSend, certReq.supportedSignatureAlgorithms, fips140Restrictions(c.config.noFIPS140Restrictions))
 			if err != nil {
 				c.sendAlert(alertHandshakeFailure)
 				return err
@@ -1177,7 +1176,7 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 				return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
 			}
 
-			c.verifiedChains, err = fipsAllowedChains(chains)
+			c.verifiedChains, err = fipsAllowedChains(chains, fips140Restrictions(c.config.noFIPS140Restrictions))
 			if err != nil {
 				c.sendAlert(alertBadCertificate)
 				return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
@@ -1200,14 +1199,14 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
 		}
 
-		c.verifiedChains, err = fipsAllowedChains(chains)
+		c.verifiedChains, err = fipsAllowedChains(chains, fips140Restrictions(c.config.noFIPS140Restrictions))
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
 			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
 		}
 	}
 
-	if fips140tls.Required() && !isCertificateAllowedFIPS(certs[0]) {
+	if fips140Restrictions(c.config.noFIPS140Restrictions) && !isCertificateAllowedFIPS(certs[0]) {
 		c.sendAlert(alertBadCertificate)
 		err := errors.New("server's certificate is not allowed in FIPS 140-3 mode")
 		return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
@@ -1249,11 +1248,12 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 
 // certificateRequestInfoFromMsg generates a CertificateRequestInfo from a TLS
 // <= 1.2 CertificateRequest, making an effort to fill in missing information.
-func certificateRequestInfoFromMsg(ctx context.Context, vers uint16, certReq *certificateRequestMsg) *CertificateRequestInfo {
+func certificateRequestInfoFromMsg(ctx context.Context, vers uint16, certReq *certificateRequestMsg, noFIPS140Restrictions bool) *CertificateRequestInfo {
 	cri := &CertificateRequestInfo{
-		AcceptableCAs: certReq.certificateAuthorities,
-		Version:       vers,
-		ctx:           ctx,
+		AcceptableCAs:         certReq.certificateAuthorities,
+		Version:               vers,
+		noFIPS140Restrictions: noFIPS140Restrictions,
+		ctx:                   ctx,
 	}
 
 	var rsaAvail, ecAvail bool
