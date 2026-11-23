@@ -6510,6 +6510,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 
 				loopHead := s.f.NewBlock(block.BlockPlain)
 				loopBody := s.f.NewBlock(block.BlockPlain)
+				loopGuard := s.f.NewBlock(block.BlockPlain)
 				cacheHit := s.f.NewBlock(block.BlockPlain)
 				cacheMiss := s.f.NewBlock(block.BlockPlain)
 
@@ -6530,6 +6531,13 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 				s.vars[hashVar] = hash
 				// Load mask from cache.
 				mask := s.newValue2(ssaop.OpLoad, typs.Uintptr, cache, s.mem())
+				// A valid cache is at most 50% full, so the probe loop needs at most
+				// mask+1 iterations to find an empty slot. Bound the loop by that limit.
+				// If the limit is exceeded (corrupted or full cache table), fall back
+				// to the runtime slow path instead of looping forever.
+				probeLimit := s.newValue2(add, typs.Uintptr,
+					s.variable(hashVar, typs.Uintptr),
+					s.newValue2(add, typs.Uintptr, mask, s.uintptrConstant(1)))
 				// Jump to loop head.
 				b := s.endBlock()
 				b.AddEdgeTo(loopHead)
@@ -6562,7 +6570,18 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 				b.Kind = block.BlockIf
 				b.SetControl(cmp2)
 				b.AddEdgeTo(cacheMiss)
+				b.AddEdgeTo(loopGuard)
+
+				// Once mask+1 probes have been made without a hit or an empty slot,
+				// treat the cache table as unusable and take the runtime slow path.
+				s.startBlock(loopGuard)
+				cmp3 := s.newValue2(ssaop.OpLess64, typs.Bool,
+					s.variable(hashVar, typs.Uintptr), probeLimit)
+				b = s.endBlock()
+				b.Kind = block.BlockIf
+				b.SetControl(cmp3)
 				b.AddEdgeTo(loopHead)
+				b.AddEdgeTo(cacheMiss)
 
 				// On a hit, load the data fields of the cache entry.
 				//   Itab = e.Itab
