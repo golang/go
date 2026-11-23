@@ -15,6 +15,9 @@ func osInit() {
 		// TODO: check if any other feature is actually supported.
 		X86.HasAVX = true
 		X86.HasAVX2 = true
+		// We don't know whether Rosetta's XSAVEC saves this AVX state
+		// that CPUID doesn't report, so don't use it.
+		X86.HasXSAVEC = false
 	}
 }
 

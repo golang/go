@@ -59,6 +59,7 @@ var X86 struct {
 	HasVAES             bool
 	HasVPCLMULQDQ       bool
 	HasXGETBV1          bool // Supports XGETBV with ECX=1 (XINUSE bitmap)
+	HasXSAVEC           bool // Supports XSAVEC (XSAVE with compaction and init optimization)
 	_                   CacheLinePad
 }
 

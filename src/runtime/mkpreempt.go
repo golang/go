@@ -152,16 +152,39 @@ func (g *gen) label(l string) {
 	fmt.Fprintf(g.w, "%s\n", l)
 }
 
-// writeXRegs writes an architecture xregs file.
-func writeXRegs(arch string, l *layout) {
+// raw writes a multi-line assembly block verbatim, trimming a single leading
+// newline so backtick literals can begin on the next line.
+func (g *gen) raw(f string, args ...any) {
+	s := strings.TrimPrefix(f, "\n")
+	if len(args) > 0 {
+		s = fmt.Sprintf(s, args...)
+	}
+	io.WriteString(g.w, s)
+}
+
+// writeXRegsFile formats and writes preempt_<arch>.go with the given Go body
+// (after the generated header and package declaration).
+func writeXRegsFile(arch, body string) {
 	var code bytes.Buffer
 	g := gen{&code, arch}
 	g.commonHeader()
-	fmt.Fprintf(g.w, `
-package runtime
+	fmt.Fprintf(g.w, "package runtime\n\n%s", body)
 
-type xRegs struct {
-`)
+	path := fmt.Sprintf("preempt_%s.go", arch)
+	b, err := format.Source(code.Bytes())
+	if err != nil {
+		log.Fatalf("formatting %s: %s", path, err)
+	}
+	if err := os.WriteFile(path, b, 0666); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// xRegsStruct returns the declaration of a struct type with the given name and
+// a field for each register in l.
+func xRegsStruct(name string, l *layout) string {
+	var body bytes.Buffer
+	fmt.Fprintf(&body, "type %s struct {\n", name)
 	pos := 0
 	for _, seq := range l.regs {
 		for _, r := range seq.regs {
@@ -175,20 +198,29 @@ type xRegs struct {
 			case r.size == 8 && r.pos%8 == 0:
 				typ = "uint64"
 			}
-			fmt.Fprintf(g.w, "\t%s %s\n", r.name, typ)
+			fmt.Fprintf(&body, "\t%s %s\n", r.name, typ)
 			pos += r.size
 		}
 	}
-	fmt.Fprintf(g.w, "}\n")
+	fmt.Fprintf(&body, "}\n")
+	return body.String()
+}
 
-	path := fmt.Sprintf("preempt_%s.go", arch)
-	b, err := format.Source(code.Bytes())
-	if err != nil {
-		log.Fatalf("formatting %s: %s", path, err)
-	}
-	if err := os.WriteFile(path, b, 0666); err != nil {
-		log.Fatal(err)
-	}
+// writeXRegs writes an architecture xregs file.
+func writeXRegs(arch string, l *layout) {
+	writeXRegsFile(arch, `import "unsafe"
+
+`+xRegsStruct("xRegs", l)+`
+func xRegInitCPU() {}
+
+func (dst *xRegs) copyFrom(src *xRegs) {
+	*dst = *src
+}
+
+func (x *xRegs) scanRanges(yield func(base, size uintptr)) {
+	yield(uintptr(unsafe.Pointer(x)), unsafe.Sizeof(*x))
+}
+`)
 }
 
 type layout struct {
@@ -385,9 +417,9 @@ func gen386(g *gen) {
 }
 
 func genAMD64(g *gen) {
-	const xReg = "AX" // *xRegState
+	const xReg = "AX" // *xRegs, or the XSAVE area in it
 
-	p, label := g.p, g.label
+	p, raw, label := g.p, g.raw, g.label
 
 	// Assign stack offsets.
 	var l = layout{sp: "SP"}
@@ -399,7 +431,7 @@ func genAMD64(g *gen) {
 			l.add("MOVQ", reg, 8)
 		}
 	}
-	// Create layouts for X, Y, and Z registers.
+	// Create layouts for X, Y, and Z registers, for CPUs without XSAVEC.
 	const (
 		numXRegs = 16
 		numZRegs = 32
@@ -428,7 +460,23 @@ func genAMD64(g *gen) {
 		}
 
 	}
-	writeXRegs(g.goarch, &lZRegs)
+	writeXRegsFile(g.goarch, `import "unsafe"
+
+// xRegs is the extended register state that asyncPreempt saves. See
+// preempt_xsave_amd64.go.
+type xRegs struct {
+	// 8-byte align buf, which scanRanges scans word by word if it holds an
+	// xRegsNoXSAVEC. The XSAVE area is 64-byte aligned by hand.
+	_ [0]uint64
+
+	// If useXSAVEC, buf holds a compacted XSAVE area, starting at base().
+	// Otherwise, it holds an xRegsNoXSAVEC.
+	buf [max(xsaveMaxSize+63, unsafe.Sizeof(xRegsNoXSAVEC{}))]byte
+}
+
+// xRegsNoXSAVEC is the extended register state that asyncPreempt saves on
+// CPUs without XSAVEC.
+`+xRegsStruct("xRegsNoXSAVEC", &lZRegs))
 
 	p("PUSHQ BP")
 	p("MOVQ SP, BP")
@@ -455,8 +503,45 @@ func genAMD64(g *gen) {
 	p("MOVQ g(CX), R14")
 	p("MOVQ g_m(R14), %s", xReg)
 	p("MOVQ m_p(%s), %s", xReg, xReg)
-	p("LEAQ (p_xRegs+xRegPerP_scratch)(%s), %s", xReg, xReg)
+	p("CMPB ·useXSAVEC(SB), $1")
+	p("JNE saveNoXSAVEC")
 
+	raw(`
+	// XSAVEC saves the components in xsaveMask that aren't in their initial
+	// state, and records which ones it saved in XSTATE_BV. It needs a 64-byte
+	// aligned area, and the component mask in DX:AX.
+	LEAQ (p_xRegs+xRegPerP_scratch+xRegs_buf+63)(AX), DI
+	ANDQ $~63, DI
+	MOVL ·xsaveMask(SB), AX
+	XORL DX, DX
+	XSAVEC64 (DI)
+	// Return the saved components to their initial state so the runtime and
+	// other goroutines on this M don't run with dirty upper state.
+	MOVL const_xsaveXSTATE_BV(DI), BX
+	TESTL $(const_xcr0_AX_YMM|const_xcr0_AX_ZMM_Hi256), BX
+	JZ skipLo16
+	VZEROUPPER
+skipLo16:
+	TESTL $const_xcr0_AX_Hi16_ZMM, BX
+	JZ skipHi16
+	// Using 128-bit EVEX self-XOR (VPXORQ Xn, Xn, Xn) zeroes all 512 bits of Zn,
+	// is recognized by hardware as a zeroing idiom, avoids touching Z0-Z15,
+	// and avoids requesting a 512-bit execution license.
+`)
+	for i := numXRegs; i < numZRegs; i++ {
+		p("VPXORQ X%d, X%d, X%d", i, i, i)
+	}
+	label("skipHi16:")
+	p("TESTL $const_xcr0_AX_OpMask, BX")
+	p("JZ preempt")
+	p("// VZEROUPPER does not clear opmask state.")
+	for i := range numKRegs {
+		p("KXORQ K%d, K%d, K%d", i, i, i)
+	}
+	p("JMP preempt")
+
+	label("saveNoXSAVEC:")
+	p("LEAQ (p_xRegs+xRegPerP_scratch+xRegs_buf)(%s), %s", xReg, xReg)
 	// Which registers do we need to save?
 	//
 	// Y, Z and K registers are only live in code that uses the fixed-width
@@ -489,7 +574,23 @@ func genAMD64(g *gen) {
 	p("MOVQ g_m(R14), %s", xReg)
 	p("MOVQ m_p(%s), %s", xReg, xReg)
 	p("MOVQ (p_xRegs+xRegPerP_cache)(%s), %s", xReg, xReg)
+	p("CMPB ·useXSAVEC(SB), $1")
+	p("JNE restoreNoXSAVEC")
 
+	raw(`
+	// XRSTOR restores the components in xsaveMask that were in use when we
+	// saved them, and returns the others to their initial state. This also
+	// clears any state that other goroutines left on this M.
+	LEAQ (xRegState_regs+xRegs_buf+63)(AX), DI
+	ANDQ $~63, DI
+	MOVL ·xsaveMask(SB), AX
+	XORL DX, DX
+	XRSTOR64 (DI)
+	JMP restoreGPs
+`)
+
+	label("restoreNoXSAVEC:")
+	p("LEAQ (xRegState_regs+xRegs_buf)(%s), %s", xReg, xReg)
 	p("#ifdef GOEXPERIMENT_simdstable")
 	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1")
 	p("JE restoreAVX512")

@@ -67,6 +67,7 @@ const (
 	cpuid_RDTSCP = 1 << 27
 
 	// eax bits for CPUID 0x0d, 1
+	cpuid_XSAVEC  = 1 << 1
 	cpuid_XGETBV1 = 1 << 2
 )
 
@@ -84,6 +85,7 @@ func doinit() {
 		{Name: "sha", Feature: &X86.HasSHA},
 		{Name: "vpclmulqdq", Feature: &X86.HasVPCLMULQDQ},
 		{Name: "xgetbv1", Feature: &X86.HasXGETBV1},
+		{Name: "xsavec", Feature: &X86.HasXSAVEC},
 	}
 	level := getGOAMD64level()
 	if level < 2 {
@@ -217,6 +219,7 @@ func doinit() {
 		if maxID >= 0x0d {
 			eax0d1, _, _, _ := cpuid(0x0d, 1)
 			X86.HasXGETBV1 = isSet(eax0d1, cpuid_XGETBV1)
+			X86.HasXSAVEC = isSet(eax0d1, cpuid_XSAVEC)
 		}
 	}
 
@@ -335,4 +338,12 @@ func appendBytes(b []byte, args ...uint32) []byte {
 			byte((arg >> 24)))
 	}
 	return b
+}
+
+// XSAVEComponent returns the size of XSAVE state component i, and whether it
+// must be 64-byte aligned in the compacted format used by XSAVEC. It must only
+// be called if X86.HasXSAVEC.
+func XSAVEComponent(i uint32) (size uint32, align64 bool) {
+	size, _, ecx, _ := cpuid(0x0d, i)
+	return size, isSet(ecx, 1<<1)
 }

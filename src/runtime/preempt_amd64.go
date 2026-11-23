@@ -2,7 +2,23 @@
 
 package runtime
 
+import "unsafe"
+
+// xRegs is the extended register state that asyncPreempt saves. See
+// preempt_xsave_amd64.go.
 type xRegs struct {
+	// 8-byte align buf, which scanRanges scans word by word if it holds an
+	// xRegsNoXSAVEC. The XSAVE area is 64-byte aligned by hand.
+	_ [0]uint64
+
+	// If useXSAVEC, buf holds a compacted XSAVE area, starting at base().
+	// Otherwise, it holds an xRegsNoXSAVEC.
+	buf [max(xsaveMaxSize+63, unsafe.Sizeof(xRegsNoXSAVEC{}))]byte
+}
+
+// xRegsNoXSAVEC is the extended register state that asyncPreempt saves on
+// CPUs without XSAVEC.
+type xRegsNoXSAVEC struct {
 	Z0  [64]byte
 	Z1  [64]byte
 	Z2  [64]byte

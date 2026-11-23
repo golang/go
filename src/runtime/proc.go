@@ -808,6 +808,8 @@ func cpuinit(env string) {
 		riscv64HasV = cpu.RISCV64.HasV
 		riscv64HasZbb = cpu.RISCV64.HasZbb
 	}
+
+	xRegInitCPU()
 }
 
 // getGodebugEarly extracts the environment variable GODEBUG from the environment on

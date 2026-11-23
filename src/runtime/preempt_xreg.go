@@ -14,7 +14,8 @@
 // non-GP registers for operations that may involve pointers.
 //
 // For an architecture to support extended register state, it must provide a Go
-// definition of an xRegState type for storing the state, and its asyncPreempt
+// definition of an xRegs type for storing the state, with copyFrom and
+// scanRanges methods, and an xRegInitCPU function, and its asyncPreempt
 // implementation must write this register state to p.xRegs.scratch.
 
 package runtime
@@ -63,7 +64,7 @@ var xRegAlloc struct {
 func xRegInitAlloc() {
 	lockInit(&xRegAlloc.lock, lockRankXRegAlloc)
 	xRegAlloc.alloc.init(unsafe.Sizeof(xRegState{}), nil, nil, &memstats.other_sys)
-	// xRegSave overwrites the whole block before the GC can see it.
+	// xRegSave overwrites all parts of the block that xRegScan will scan.
 	xRegAlloc.alloc.zero = false
 }
 
@@ -93,11 +94,7 @@ func xRegSave(gp *g) {
 	}
 
 	// Copy state saved in the scratchpad to dest.
-	//
-	// If we ever need to save less state (e.g., avoid saving vector registers
-	// that aren't in use), we could have multiple allocation pools for
-	// different size states and copy only the registers we need.
-	dest.regs = pp.xRegs.scratch
+	dest.regs.copyFrom(&pp.xRegs.scratch)
 
 	// Save on the G.
 	gp.xRegs.state = dest
@@ -154,13 +151,13 @@ func xRegScan(gp *g, gcw *gcWork, state *stackScanState) {
 		println("runtime: gp=", gp, ", goid=", gp.goid)
 		throw("gp.xRegs.state == nil on a scanstack attempt during async preemption")
 	}
-	b := uintptr(unsafe.Pointer(&gp.xRegs.state.regs))
-	n := uintptr(unsafe.Sizeof(gp.xRegs.state.regs))
-	if debugScanConservative {
-		print("begin scan xRegs of goroutine ", gp.goid, " at [", hex(b), ",", hex(b+n), ")\n")
-	}
-	scanConservative(b, n, nil, gcw, state)
-	if debugScanConservative {
-		print("end scan xRegs of goroutine ", gp.goid, "\n")
-	}
+	gp.xRegs.state.regs.scanRanges(func(b, n uintptr) {
+		if debugScanConservative {
+			print("begin scan xRegs of goroutine ", gp.goid, " at [", hex(b), ",", hex(b+n), ")\n")
+		}
+		scanConservative(b, n, nil, gcw, state)
+		if debugScanConservative {
+			print("end scan xRegs of goroutine ", gp.goid, "\n")
+		}
+	})
 }

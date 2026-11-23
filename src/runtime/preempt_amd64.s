@@ -35,7 +35,59 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ g(CX), R14
 	MOVQ g_m(R14), AX
 	MOVQ m_p(AX), AX
-	LEAQ (p_xRegs+xRegPerP_scratch)(AX), AX
+	CMPB ·useXSAVEC(SB), $1
+	JNE saveNoXSAVEC
+	// XSAVEC saves the components in xsaveMask that aren't in their initial
+	// state, and records which ones it saved in XSTATE_BV. It needs a 64-byte
+	// aligned area, and the component mask in DX:AX.
+	LEAQ (p_xRegs+xRegPerP_scratch+xRegs_buf+63)(AX), DI
+	ANDQ $~63, DI
+	MOVL ·xsaveMask(SB), AX
+	XORL DX, DX
+	XSAVEC64 (DI)
+	// Return the saved components to their initial state so the runtime and
+	// other goroutines on this M don't run with dirty upper state.
+	MOVL const_xsaveXSTATE_BV(DI), BX
+	TESTL $(const_xcr0_AX_YMM|const_xcr0_AX_ZMM_Hi256), BX
+	JZ skipLo16
+	VZEROUPPER
+skipLo16:
+	TESTL $const_xcr0_AX_Hi16_ZMM, BX
+	JZ skipHi16
+	// Using 128-bit EVEX self-XOR (VPXORQ Xn, Xn, Xn) zeroes all 512 bits of Zn,
+	// is recognized by hardware as a zeroing idiom, avoids touching Z0-Z15,
+	// and avoids requesting a 512-bit execution license.
+	VPXORQ X16, X16, X16
+	VPXORQ X17, X17, X17
+	VPXORQ X18, X18, X18
+	VPXORQ X19, X19, X19
+	VPXORQ X20, X20, X20
+	VPXORQ X21, X21, X21
+	VPXORQ X22, X22, X22
+	VPXORQ X23, X23, X23
+	VPXORQ X24, X24, X24
+	VPXORQ X25, X25, X25
+	VPXORQ X26, X26, X26
+	VPXORQ X27, X27, X27
+	VPXORQ X28, X28, X28
+	VPXORQ X29, X29, X29
+	VPXORQ X30, X30, X30
+	VPXORQ X31, X31, X31
+skipHi16:
+	TESTL $const_xcr0_AX_OpMask, BX
+	JZ preempt
+	// VZEROUPPER does not clear opmask state.
+	KXORQ K0, K0, K0
+	KXORQ K1, K1, K1
+	KXORQ K2, K2, K2
+	KXORQ K3, K3, K3
+	KXORQ K4, K4, K4
+	KXORQ K5, K5, K5
+	KXORQ K6, K6, K6
+	KXORQ K7, K7, K7
+	JMP preempt
+saveNoXSAVEC:
+	LEAQ (p_xRegs+xRegPerP_scratch+xRegs_buf)(AX), AX
 	#ifdef GOEXPERIMENT_simdstable
 	CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1
 	JE saveAVX512
@@ -126,6 +178,19 @@ preempt:
 	MOVQ g_m(R14), AX
 	MOVQ m_p(AX), AX
 	MOVQ (p_xRegs+xRegPerP_cache)(AX), AX
+	CMPB ·useXSAVEC(SB), $1
+	JNE restoreNoXSAVEC
+	// XRSTOR restores the components in xsaveMask that were in use when we
+	// saved them, and returns the others to their initial state. This also
+	// clears any state that other goroutines left on this M.
+	LEAQ (xRegState_regs+xRegs_buf+63)(AX), DI
+	ANDQ $~63, DI
+	MOVL ·xsaveMask(SB), AX
+	XORL DX, DX
+	XRSTOR64 (DI)
+	JMP restoreGPs
+restoreNoXSAVEC:
+	LEAQ (xRegState_regs+xRegs_buf)(AX), AX
 	#ifdef GOEXPERIMENT_simdstable
 	CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1
 	JE restoreAVX512
