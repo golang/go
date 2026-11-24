@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -65,7 +66,8 @@ type Cache interface {
 	// not delete an OutputID from disk that was recently Get or Put from
 	// another process. As a rule of thumb, don't trim things used in the last
 	// day (with GOEXPERIMENT=trimbuildcache, DiskCache may trim young generation
-	// files unused for at least 60 minutes, see youngGenDeleteAge below).
+	// files unused for at least 60 minutes, and refreshes files it accessed every
+	// 20 minutes so concurrent commands do not trim them, see youngGenDeleteAge below).
 	Close() error
 
 	// OutputFile returns the path on disk where OutputID is stored.
@@ -89,6 +91,8 @@ type DiskCache struct {
 	sizeSample     int64        // sampling stride (defaultSizeSample outside tests)
 	sizeMinTarget  int64        // min size trim target (defaultMinTarget outside tests)
 	sampleAcc      atomic.Int64 // random offset in [0, sizeSample) plus bytes added
+	used           sync.Map     // map[usedKey]struct{} of entries accessed by this process
+	refreshOnce    sync.Once    // starts the background keepalive goroutine on first access
 }
 
 // Open opens and returns the cache in the given directory.
@@ -273,6 +277,8 @@ func (c *DiskCache) get(id ActionID) (Entry, error) {
 	}
 
 	c.markUsed(c.fileName(id, "a"))
+	c.noteUsed(id, 'a')
+	c.noteUsed(buf, 'd')
 
 	return Entry{buf, size, time.Unix(0, tm)}, nil
 }
@@ -336,6 +342,7 @@ func GetMmap(c Cache, id ActionID) ([]byte, Entry, bool, error) {
 func (c *DiskCache) OutputFile(out OutputID) string {
 	file := c.fileName(out, "d")
 	isDir := c.markUsed(file)
+	c.noteUsed(out, 'd')
 	if isDir { // => cached executable
 		entries, err := os.ReadDir(file)
 		if err != nil {
@@ -384,7 +391,9 @@ func (c *DiskCache) OutputFile(out OutputID) string {
 //
 // Size triggered trims run at most once per minTrimSpacing (2 hours) when a command adds
 // sampled bytes and the estimated size in size.txt reaches targetSize(base). Close measures
-// youngGenDeleteAge from openTime so a long go command never deletes its own output.
+// youngGenDeleteAge from openTime so a long go command never deletes its own output, and a
+// long running DiskCache refreshes accessed files every refreshInterval (20 minutes) without
+// tenuring young files so concurrent go commands do not trim them either.
 // Daily trims (trimInterval, 24 hours) still only delete files unused for 5 days + 1 hour
 // and never delete young generation files early.
 // For more rationale, see https://go.dev/cl/XXXXX.
@@ -397,6 +406,7 @@ const (
 	minTrimSpacing    = 2 * time.Hour    // min time from any trim to a size triggered trim
 	usedAfter30m      = 30 * time.Minute // reuse at this age promotes to tenured30m
 	youngGenDeleteAge = 90 * time.Minute // size trim delete age for young generation files
+	refreshInterval   = 20 * time.Minute // how often a long running process refreshes accessed files
 )
 
 // Size constants for estimating cache size in size.txt (GOEXPERIMENT=trimbuildcache).
@@ -675,6 +685,56 @@ func (c *DiskCache) markUsed(file string) (isDir bool) {
 		os.Chtimes(file, now, now)
 	}
 	return info.IsDir()
+}
+
+// usedKey identifies a cache file ("<id>-a" or "<id>-d") accessed by this process.
+type usedKey struct {
+	id   [HashSize]byte
+	kind byte
+}
+
+// noteUsed records a cache file accessed by this DiskCache and starts the
+// background keepalive goroutine on first access.
+func (c *DiskCache) noteUsed(id [HashSize]byte, kind byte) {
+	if !c.trimBuildCache {
+		return
+	}
+	c.used.Store(usedKey{id: id, kind: kind}, struct{}{})
+	c.refreshOnce.Do(func() {
+		go func() {
+			for !isInterrupted() {
+				time.Sleep(refreshInterval)
+				c.refreshUsed()
+			}
+		}()
+	})
+}
+
+// refreshUsed refreshes every cache file accessed through this DiskCache so
+// concurrent go commands do not trim them while this process is still running.
+// Young generation files keep their :00 mark instead of being promoted to
+// tenured30m, so a long command does not tenure its own single use outputs.
+func (c *DiskCache) refreshUsed() {
+	c.used.Range(func(k, _ any) bool {
+		if isInterrupted() {
+			return false
+		}
+		u := k.(usedKey)
+		file := c.fileName(u.id, string(u.kind))
+		info, err := os.Stat(file)
+		if err != nil {
+			return true
+		}
+		if mt := info.ModTime(); isYoungGen(mt) {
+			if now := c.now(); now.Sub(mt) >= mtimeInterval {
+				now = now.Truncate(time.Minute)
+				os.Chtimes(file, now, now)
+			}
+			return true
+		}
+		c.markUsed(file)
+		return true
+	})
 }
 
 func (c *DiskCache) Close() error {
@@ -1033,6 +1093,8 @@ func (c *DiskCache) putIndexEntry(id ActionID, out OutputID, size int64, allowVe
 	if prev == nil {
 		c.addBytes(entrySize)
 	}
+	c.noteUsed(id, 'a')
+	c.noteUsed(out, 'd')
 
 	return nil
 }

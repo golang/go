@@ -1123,3 +1123,110 @@ func TestCacheTrimBuildCacheDisabled(t *testing.T) {
 	c.wantEntries()
 	wantNoFiles(t, dir, "size.txt", "cache.log")
 }
+
+func TestCacheRefreshUsed(t *testing.T) {
+	skipIfLockUnsupported(t)
+	t.Parallel()
+
+	dir := t.TempDir()
+	other := newTestCache(t, dir, 100, 0)
+	long := newTestCache(t, dir, 100, 0)
+	other.sizeMinTarget, long.sizeMinTarget = 100, 100
+
+	// Another command populates entries 1 (regular), 2 (executable), 3 (unused), and 5 (tenured).
+	other.put(1, 400)
+	other.putExe(2, 500)
+	other.put(3, 400)
+	other.put(5, 400)
+	f12 := []string{
+		other.fileName(dummyID(1), "a"), other.fileName(other.outs[1], "d"),
+		other.fileName(dummyID(2), "a"), other.fileName(other.outs[2], "d"),
+	}
+	f5 := []string{other.fileName(dummyID(5), "a"), other.fileName(other.outs[5], "d")}
+
+	// Worst case young hit at 29m59s (not promoted on access), including a Get-only
+	// executable entry whose -d directory must be protected without OutputFile.
+	long.clock = long.start.Add(29*time.Minute + 59*time.Second)
+	long.use(1)
+	if _, err := long.Get(dummyID(2)); err != nil {
+		t.Fatal(err)
+	}
+	long.wantMtime(long.start, f12...)
+
+	// Entry 5 is tenured by reuse at 30m and then accessed by the long command at 35m.
+	other.clock = other.start.Add(30 * time.Minute)
+	other.use(5)
+	long.clock = long.start.Add(35 * time.Minute)
+	long.use(5)
+	long.wantMtime(long.start.Add(29*time.Minute+30*time.Second), f5...)
+
+	// Fresh Put 1m before tick 1 stays young and is refreshed once mtime reaches 60m (before 80m).
+	long.clock = long.start.Add(48*time.Minute + 59*time.Second)
+	long.put(4, 400)
+	f4 := []string{long.fileName(dummyID(4), "a"), long.fileName(long.outs[4], "d")}
+
+	// Tick 1 (49m59s): young entries under 60m are left alone so reuse in [30m, 60m) still tenures.
+	long.clock = long.start.Add(49*time.Minute + 59*time.Second)
+	long.refreshUsed()
+	long.wantMtime(long.start, f12...)
+	long.wantMtime(long.start.Add(48*time.Minute), f4...)
+
+	// Tick 2 (69m59s): f12 refreshes to :00 (stays young). Tick 3 (89m59s): tenured f5 refreshes to :30.
+	long.clock = long.start.Add(69*time.Minute + 59*time.Second)
+	long.refreshUsed()
+	long.wantMtime(long.start.Add(69*time.Minute), f12...)
+	long.wantMtime(long.start.Add(48*time.Minute), f4...)
+
+	long.clock = long.start.Add(89*time.Minute + 59*time.Second)
+	long.refreshUsed()
+	long.wantMtime(long.start.Add(88*time.Minute+30*time.Second), f5...)
+	long.wantMtime(long.start.Add(48*time.Minute), f4...)
+
+	// Tick 4 (109m59s): fresh entry 4 reaches 60m and refreshes to :00 (stays young).
+	long.clock = long.start.Add(109*time.Minute + 59*time.Second)
+	long.refreshUsed()
+	long.wantMtime(long.start.Add(109*time.Minute), f4...)
+
+	// A concurrent size triggered trim past 90m removes unused entry 3 while keeping
+	// all entries accessed by the long running command.
+	other.clock = other.start.Add(2 * time.Hour)
+	writeFile(t, dir, "trim.txt", fmt.Sprint(other.clock.Add(-2*time.Hour).Unix()))
+	writeFile(t, dir, "size.txt", "base 0\nestimated 10000\n")
+	other.sampleAcc.Store(100)
+	other.must(other.Trim())
+	other.wantEntries(1, 2, 5)
+	long.wantEntries(4)
+
+	// Ongoing refreshes keep accessed entries alive across a 6 day daily trim (5d+1h).
+	for day := 1; day <= 6; day++ {
+		long.clock = long.start.Add(time.Duration(day) * 24 * time.Hour)
+		long.refreshUsed()
+	}
+	other.clock = other.start.Add(6 * 24 * time.Hour)
+	other.sampleAcc.Store(0)
+	other.must(other.Trim())
+	other.wantEntries(1, 2, 5)
+	long.wantEntries(4)
+
+	// Once the long command stops refreshing, young entries 1, 2, and 4 were never tenured
+	// and are reclaimed by a later size triggered trim, while tenured entry 5 survives.
+	other.clock = other.start.Add(6*24*time.Hour + 2*time.Hour)
+	writeFile(t, dir, "size.txt", "base 0\nestimated 10000\n")
+	other.sampleAcc.Store(100)
+	other.must(other.Trim())
+	other.wantEntries(5)
+	long.wantEntries()
+
+	// With trimBuildCache disabled, accessed entries are not tracked or refreshed.
+	off := newTestCache(t, t.TempDir(), 100, 0)
+	off.trimBuildCache = false
+	off.put(1, 500)
+	off.use(1)
+	off.used.Range(func(k, _ any) bool {
+		t.Errorf("disabled cache recorded used entry %v", k)
+		return false
+	})
+	off.clock = off.start.Add(70 * time.Minute)
+	off.refreshUsed()
+	off.wantMtime(off.start, off.fileName(dummyID(1), "a"), off.fileName(off.outs[1], "d"))
+}
