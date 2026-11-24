@@ -8,6 +8,9 @@
 (EQZ (XOR x y) yes no) => (BEQ x y yes no)
 (NEZ (XOR x y) yes no) => (BNE x y yes no)
 
+((EQ|NE)Z (SLLVconst [c] bstr:(BSTRPICKV [aux] <typ.UInt64> x)) yes no) &&
+	(aux>>6)-(aux&0x3f) < 64-c => ((EQ|NE)Z bstr yes no)
+
 // use zero register
 (MOVVconst [0]) => (ZERO)
 

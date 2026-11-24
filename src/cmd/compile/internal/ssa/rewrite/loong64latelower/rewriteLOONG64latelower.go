@@ -703,6 +703,7 @@ func rewriteValue_OpLOONG64SLLVconst(v *ssa.Value) bool {
 	return false
 }
 func RewriteBlock(b *ssa.Block) bool {
+	typ := &b.Func.Config.Types
 	switch b.Kind {
 	case block.BlockLOONG64EQZ:
 		// match: (EQZ (XOR x y) yes no)
@@ -719,6 +720,23 @@ func RewriteBlock(b *ssa.Block) bool {
 				return true
 			}
 		}
+		// match: (EQZ (SLLVconst [c] bstr:(BSTRPICKV [aux] <typ.UInt64> x)) yes no)
+		// cond: (aux>>6)-(aux&0x3f) < 64-c
+		// result: (EQZ bstr yes no)
+		for b.Controls[0].Op == ssaop.OpLOONG64SLLVconst {
+			v_0 := b.Controls[0]
+			c := ssa.AuxIntToInt64(v_0.AuxInt)
+			bstr := v_0.Args[0]
+			if bstr.Op != ssaop.OpLOONG64BSTRPICKV || bstr.Type != typ.UInt64 {
+				break
+			}
+			aux := ssa.AuxIntToInt64(bstr.AuxInt)
+			if !((aux>>6)-(aux&0x3f) < 64-c) {
+				break
+			}
+			b.ResetWithControl(block.BlockLOONG64EQZ, bstr)
+			return true
+		}
 	case block.BlockLOONG64NEZ:
 		// match: (NEZ (XOR x y) yes no)
 		// result: (BNE x y yes no)
@@ -733,6 +751,23 @@ func RewriteBlock(b *ssa.Block) bool {
 				b.ResetWithControl2(block.BlockLOONG64BNE, x, y)
 				return true
 			}
+		}
+		// match: (NEZ (SLLVconst [c] bstr:(BSTRPICKV [aux] <typ.UInt64> x)) yes no)
+		// cond: (aux>>6)-(aux&0x3f) < 64-c
+		// result: (NEZ bstr yes no)
+		for b.Controls[0].Op == ssaop.OpLOONG64SLLVconst {
+			v_0 := b.Controls[0]
+			c := ssa.AuxIntToInt64(v_0.AuxInt)
+			bstr := v_0.Args[0]
+			if bstr.Op != ssaop.OpLOONG64BSTRPICKV || bstr.Type != typ.UInt64 {
+				break
+			}
+			aux := ssa.AuxIntToInt64(bstr.AuxInt)
+			if !((aux>>6)-(aux&0x3f) < 64-c) {
+				break
+			}
+			b.ResetWithControl(block.BlockLOONG64NEZ, bstr)
+			return true
 		}
 	}
 	return false

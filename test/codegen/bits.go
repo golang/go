@@ -24,7 +24,7 @@ func bitsCheckConstLeftShiftU64(a uint64) (n int) {
 	}
 	// amd64:"BTQ [$]60,"
 	// arm64:"TBNZ [$]60,"
-	// loong64:"BSTRPICKV" "SLLV" "BNE" -"MOVV [$]" -"AND"
+	// loong64:"BSTRPICKV" "BNE" -"SLLV" -"MOVV [$]" -"AND"
 	// riscv64/rva20u64:"SRLI [$]60," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	// riscv64/rva22u64:"SRLI [$]60," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	// riscv64/rva23u64:"BEXTI [$]60," "BNEZ" -"MOV [$]" -"SRLI" -"ANDI"
@@ -131,7 +131,7 @@ func bitsCheckMaskU64(a uint64) (n int) {
 	}
 	// amd64:"BTQ [$]59,"
 	// arm64:"TBNZ [$]59,"
-	// loong64:"BSTRPICKV" "SLLV" "BNE" -"MOVV [$]" -"AND"
+	// loong64:"BSTRPICKV" "BNE" -"SLLV" -"MOVV [$]" -"AND"
 	// riscv64/rva20u64:"SRLI [$]59," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	// riscv64/rva22u64:"SRLI [$]59," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	// riscv64/rva23u64:"BEXTI [$]59," "BNEZ" -"MOV [$]" -"SRLI" -"ANDI"
@@ -387,7 +387,7 @@ func bitsCheckMaskU32(a uint32) (n int) {
 	}
 	// amd64:"BTL [$]27,"
 	// arm64:"TBNZ [$]27,"
-	// loong64:"BSTRPICKV" "SLLV" "BNE"
+	// loong64:"BSTRPICKV" "BNE" -"SLLV"
 	// riscv64/rva20u64:"SRLI [$]27," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	// riscv64/rva22u64:"SRLI [$]27," "ANDI [$]1," "BNEZ" -"MOV [$]"
 	// riscv64/rva23u64:"BEXTI [$]27," "BNEZ" -"MOV [$]" -"SRLI" -"ANDI"
