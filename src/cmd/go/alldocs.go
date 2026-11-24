@@ -2524,9 +2524,7 @@
 //		The default is 'ar'.
 //	CC
 //		The command to use to compile C code.
-//		The default is configured when the Go toolchain is built
-//		and may depend on GOOS and GOARCH. See 'go env CC' for
-//		the current setting.
+//		See 'go env CC' for the current setting.
 //	CGO_CFLAGS
 //		Flags that cgo will pass to the compiler when compiling
 //		C code.
@@ -2554,9 +2552,7 @@
 //		but for the linker.
 //	CXX
 //		The command to use to compile C++ code.
-//		The default is configured when the Go toolchain is built
-//		and may depend on GOOS and GOARCH. See 'go env CXX' for
-//		the current setting.
+//		See 'go env CXX' for the current setting.
 //	FC
 //		The command to use to compile Fortran code.
 //	PKG_CONFIG
