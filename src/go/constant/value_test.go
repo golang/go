@@ -458,6 +458,34 @@ func TestStringLen(t *testing.T) {
 	}
 }
 
+// StringLen must not walk the operands of a concatenation:
+// shared operands make the number of paths exponential in the depth.
+func TestStringLenShared(t *testing.T) {
+	x := MakeString("x")
+	for range 60 {
+		x = BinaryOp(x, token.ADD, x)
+	}
+	if got, want := StringLen(x), int64(1)<<60; got != want {
+		t.Errorf("StringLen: got %d; want %d", got, want)
+	}
+}
+
+func BenchmarkStringLen(b *testing.B) {
+	for _, size := range []int{1000, 10000} {
+		b.Run(fmt.Sprint(size), func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				x := MakeString("ab")
+				y := x
+				for range size - 1 {
+					y = BinaryOp(y, token.ADD, x)
+					StringLen(y)
+				}
+			}
+		})
+	}
+}
+
 // ----------------------------------------------------------------------------
 // Support functions
 

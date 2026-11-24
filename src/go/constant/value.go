@@ -92,6 +92,7 @@ type (
 		mu   sync.Mutex
 		s    string
 		l, r *stringVal
+		n    int64 // length of the string value; immutable
 	}
 	int64Val   int64                    // Int values representable as an int64
 	intVal     struct{ val *big.Int }   // Int values not representable as an int64
@@ -388,7 +389,7 @@ func MakeString(s string) Value {
 	if s == "" {
 		return &emptyString // common case
 	}
-	return &stringVal{s: s}
+	return &stringVal{s: s, n: int64(len(s))}
 }
 
 var emptyString stringVal
@@ -613,22 +614,12 @@ func Val(x Value) any {
 func StringLen(x Value) int64 {
 	switch x := x.(type) {
 	case *stringVal:
-		return x.len()
+		return x.n
 	case unknownVal:
 		return 0
 	default:
 		panic(fmt.Sprintf("%v not a String", x))
 	}
-}
-
-// len computes and returns the length of x without constructing the entire string.
-func (x *stringVal) len() int64 {
-	x.mu.Lock()
-	defer x.mu.Unlock()
-	if x.l != nil {
-		return x.l.len() + x.r.len()
-	}
-	return int64(len(x.s))
 }
 
 // Make returns the [Value] for x.
@@ -647,7 +638,7 @@ func Make(x any) Value {
 	case bool:
 		return boolVal(x)
 	case string:
-		return &stringVal{s: x}
+		return &stringVal{s: x, n: int64(len(x))}
 	case int64:
 		return int64Val(x)
 	case *big.Int:
@@ -1288,7 +1279,8 @@ func BinaryOp(x_ Value, op token.Token, y_ Value) Value {
 
 	case *stringVal:
 		if op == token.ADD {
-			return &stringVal{l: x, r: y.(*stringVal)}
+			y := y.(*stringVal)
+			return &stringVal{l: x, r: y, n: x.n + y.n}
 		}
 	}
 
