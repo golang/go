@@ -1204,6 +1204,43 @@ func TestPESEHInteriorSymbol(t *testing.T) {
 	}
 }
 
+func TestPECOMDATNoDuplicates(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	obj, err := os.ReadFile(filepath.Join("testdata", "pe-comdat", "leaf_windows_arm64.syso"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, n := range []int{1, 2} {
+		t.Run(fmt.Sprintf("%dObjects", n), func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(trivialSrc), 0666); err != nil {
+				t.Fatal(err)
+			}
+			for i := range n {
+				name := fmt.Sprintf("leaf%d_windows_arm64.syso", i)
+				if err := os.WriteFile(filepath.Join(dir, name), obj, 0666); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			cmd := goCmd(t, "build", "-ldflags=-linkmode=internal", "-o", "test.exe", ".")
+			cmd.Dir = dir
+			cmd.Env = append(cmd.Env, "CGO_ENABLED=0", "GOOS=windows", "GOARCH=arm64", "GOARM64=v8.0", "GO111MODULE=off", "GOWORK=off")
+			out, err := cmd.CombinedOutput()
+			if n == 1 {
+				if err != nil {
+					t.Fatalf("linking a unique COMDAT definition: %v\n%s", err, out)
+				}
+			} else if err == nil || !bytes.Contains(out, []byte("duplicate COMDAT symbol definition: coff_leaf")) {
+				t.Fatalf("linking duplicate COMDAT definitions: want duplicate symbol error, got %v\n%s", err, out)
+			}
+		})
+	}
+}
+
 func TestPELoaderTLS(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	if runtime.GOOS != "windows" {
