@@ -402,7 +402,8 @@ func needRaceCleanup(sym *ssa.AuxCall, v *ssa.Value) bool {
 				return false
 			case ssaop.OpPanicBounds, ssaop.OpPanicExtend:
 				// Note: these are panic generators that are ok (like the static calls above).
-			case ssaop.OpClosureCall, ssaop.OpInterCall, ssaop.OpClosureLECall, ssaop.OpInterLECall:
+			case ssaop.OpClosureCall, ssaop.OpInterCall, ssaop.OpClosureLECall, ssaop.OpInterLECall,
+				ssaop.OpStaticClosureCall, ssaop.OpStaticClosureLECall:
 				// We must keep the race functions if there are any other call types.
 				return false
 			}

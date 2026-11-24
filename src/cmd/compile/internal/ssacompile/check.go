@@ -182,7 +182,8 @@ func checkFunc(f *ssa.Func) {
 				fallthrough
 			case ssaop.AuxTypeCall:
 				if ac, ok := v.Aux.(*ssa.AuxCall); ok {
-					if v.Op == ssaop.OpStaticCall && ac.Fn == nil {
+					if (v.Op == ssaop.OpStaticCall || v.Op == ssaop.OpStaticClosureCall ||
+						v.Op == ssaop.OpStaticClosureLECall) && ac.Fn == nil {
 						f.Fatalf("value %v has *AuxCall with nil Fn", v)
 					}
 				} else {

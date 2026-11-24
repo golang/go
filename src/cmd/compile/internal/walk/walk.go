@@ -7,6 +7,7 @@ package walk
 import (
 	"fmt"
 	"internal/abi"
+	"internal/buildcfg"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -496,6 +497,18 @@ func (w *walkState) analyzePreWalk(fn *ir.Func) {
 	ir.Visit(fn, func(n ir.Node) {
 		numNodes++
 		switch n.Op() {
+		case ir.OCALLFUNC:
+			call := n.(*ir.CallExpr)
+			// Calling a known local closure still requires the context
+			// from the actual function value. The inliner has finished.
+			if (buildcfg.GOARCH == "amd64" || buildcfg.GOARCH == "arm64") &&
+				!call.GoDefer && call.Fun.Op() == ir.ONAME {
+				if clo, ok := ro.StaticValue(call.Fun).(*ir.ClosureExpr); ok &&
+					clo.Func.ClosureParent == fn && clo.Func.IsClosure() &&
+					types.Identical(call.Fun.Type(), clo.Type()) {
+					call.ClosureTarget = clo.Func.Nname
+				}
+			}
 		case ir.OCONVIFACE:
 			x := n.(*ir.ConvExpr).X
 			v := ro.StaticValue(x)
