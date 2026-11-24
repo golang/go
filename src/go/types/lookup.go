@@ -107,7 +107,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, fo
 	// not have found it for T (see also go.dev/issue/8590).
 	if t := asNamed(T); t != nil {
 		if p, _ := t.Underlying().(*Pointer); p != nil {
-			obj, index, indirect = lookupFieldOrMethodImpl(p, false, pkg, name, foldCase)
+			obj, index, indirect = lookupFieldOrMethodImpl(p, false, pkg, name, foldCase, nil)
 			if _, ok := obj.(*Func); ok {
 				return nil, nil, false
 			}
@@ -115,7 +115,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, fo
 		}
 	}
 
-	obj, index, indirect = lookupFieldOrMethodImpl(T, addressable, pkg, name, foldCase)
+	obj, index, indirect = lookupFieldOrMethodImpl(T, addressable, pkg, name, foldCase, nil)
 
 	// If we didn't find anything and if we have a type parameter with a common underlying
 	// type, see if there is a matching field (but not a method, those need to be declared
@@ -124,7 +124,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, fo
 	const enableTParamFieldLookup = false // see go.dev/issue/51576
 	if enableTParamFieldLookup && obj == nil && isTypeParam(T) {
 		if t := CommonUnderlying(T); t != nil {
-			obj, index, indirect = lookupFieldOrMethodImpl(t, addressable, pkg, name, foldCase)
+			obj, index, indirect = lookupFieldOrMethodImpl(t, addressable, pkg, name, foldCase, nil)
 			if _, ok := obj.(*Var); !ok {
 				obj, index, indirect = nil, nil, false // accept fields (variables) only
 			}
@@ -147,7 +147,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, fo
 // and missingMethod (the latter doesn't care about struct fields).
 //
 // The resulting object may not be fully type-checked.
-func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string, foldCase bool) (obj Object, index []int, indirect bool) {
+func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string, foldCase bool, indices methodIndices) (obj Object, index []int, indirect bool) {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
 
 	if name == "_" {
@@ -198,7 +198,7 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
 				seen.add(named)
 
 				// look for a matching attached method
-				if i, m := named.lookupMethod(pkg, name, foldCase); m != nil {
+				if i, m := named.lookupMethod(pkg, name, foldCase, indices); m != nil {
 					// potential match
 					// caution: method may not have a proper signature yet
 					index = concat(e.index, i)
@@ -422,8 +422,15 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 			}
 		}
 	} else {
+		// Large interfaces can trigger many lookups on the same named
+		// types, including through embedded fields. Reuse the indexes
+		// for this comparison only.
+		var indices methodIndices
+		if len(methods) >= minIndexedMethods {
+			indices = make(methodIndices)
+		}
 		for _, m = range methods {
-			obj, index, indirect := lookupFieldOrMethodImpl(V, false, m.pkg, m.name, false)
+			obj, index, indirect := lookupFieldOrMethodImpl(V, false, m.pkg, m.name, false, indices)
 
 			// check if m is ambiguous, on *V, or on V with case-folding
 			if obj == nil {
@@ -434,7 +441,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 					state = ptrRecv
 				default:
 					state = notFound
-					obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */)
+					obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */, nil)
 					f, _ = obj.(*Func)
 					if f != nil {
 						state = wrongName
