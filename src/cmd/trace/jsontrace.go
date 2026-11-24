@@ -6,9 +6,11 @@ package main
 
 import (
 	"cmp"
+	"fmt"
 	"log"
 	"math"
 	"net/http"
+	"regexp"
 	"slices"
 	"strconv"
 	"time"
@@ -25,7 +27,12 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
 		case "thread":
 			opts.mode = traceviewer.ModeThreadOriented
 		}
-		if goids := r.FormValue("goid"); goids != "" {
+		if pattern := r.FormValue("region"); r.Form.Has("region") {
+			if status, err := opts.setRegions(parsed, pattern); err != nil {
+				http.Error(w, err.Error(), status)
+				return
+			}
+		} else if goids := r.FormValue("goid"); goids != "" {
 			// Render trace focused on a particular goroutine.
 
 			id, err := strconv.ParseUint(goids, 10, 64)
@@ -131,6 +138,7 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
 			}
 		}
 
+		w.Header().Set("Content-Type", "application/json")
 		c := traceviewer.ViewerDataTraceConsumer(w, start, end)
 		if err := generateTrace(parsed, opts, c); err != nil {
 			log.Printf("failed to generate trace: %v", err)
@@ -161,6 +169,42 @@ type genOpts struct {
 	focusGoroutine trace.GoID
 	goroutines     map[trace.GoID]struct{} // Goroutines to be displayed for goroutine-oriented or task-oriented view. goroutines[0] is the main goroutine.
 	tasks          []*trace.UserTaskSummary
+	regions        []*trace.UserRegionSummary
+}
+
+// setRegions selects the goroutines and time range spanned by matching user regions.
+func (opts *genOpts) setRegions(parsed *parsedTrace, pattern string) (int, error) {
+	if pattern == "" {
+		return http.StatusBadRequest, fmt.Errorf("empty region name pattern")
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return http.StatusBadRequest, fmt.Errorf("invalid region name pattern: %w", err)
+	}
+
+	opts.mode = traceviewer.ModeGoroutineOriented
+	opts.focusGoroutine = trace.NoGoroutine
+	opts.goroutines = make(map[trace.GoID]struct{})
+	start, end := parsed.endTime(), parsed.startTime()
+	for id, g := range parsed.summary.Goroutines {
+		for _, region := range g.Regions {
+			// Empty names include synthetic regions for inherited tasks.
+			if region.Name == "" || !re.MatchString(region.Name) {
+				continue
+			}
+			opts.regions = append(opts.regions, region)
+			opts.goroutines[id] = struct{}{}
+			span := regionInterval(parsed, region)
+			start = min(start, span.start)
+			end = max(end, span.end)
+		}
+	}
+	if len(opts.regions) == 0 {
+		return http.StatusNotFound, fmt.Errorf("no regions match %q", pattern)
+	}
+	opts.startTime = start.Sub(parsed.startTime())
+	opts.endTime = end.Sub(parsed.startTime())
+	return http.StatusOK, nil
 }
 
 // setTask sets a task to focus on.

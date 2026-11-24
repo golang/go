@@ -362,7 +362,7 @@ func (e *Emitter) TaskSlice(s SliceEvent) {
 }
 
 func (e *Emitter) slice(s SliceEvent, sectionID uint64, cname string) {
-	if !e.tsWithinRange(s.Ts) && !e.tsWithinRange(s.Ts+s.Dur) {
+	if !e.overlapsRange(s) {
 		return
 	}
 	e.OptionalEvent(&format.Event{
@@ -390,7 +390,7 @@ type SliceEvent struct {
 }
 
 func (e *Emitter) AsyncSlice(s AsyncSliceEvent) {
-	if !e.tsWithinRange(s.Ts) && !e.tsWithinRange(s.Ts+s.Dur) {
+	if !e.overlapsRange(s.SliceEvent) {
 		return
 	}
 	if e.filter != nil && !e.filter(s.Resource) {
@@ -612,6 +612,10 @@ func (e *Emitter) Err() error {
 
 func (e *Emitter) tsWithinRange(ts time.Duration) bool {
 	return e.rangeStart <= ts && ts <= e.rangeEnd
+}
+
+func (e *Emitter) overlapsRange(s SliceEvent) bool {
+	return s.Ts <= e.rangeEnd && e.rangeStart <= s.Ts+s.Dur
 }
 
 // OptionalEvent emits ev if it's within the time range of the consumer, i.e.
