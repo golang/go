@@ -1230,3 +1230,36 @@ func TestCacheRefreshUsed(t *testing.T) {
 	off.refreshUsed()
 	off.wantMtime(off.start, off.fileName(dummyID(1), "a"), off.fileName(off.outs[1], "d"))
 }
+
+func TestCacheTrimParallel(t *testing.T) {
+	skipIfLockUnsupported(t)
+	t.Parallel()
+
+	dir := t.TempDir()
+	c := newTestCache(t, dir, 1<<40, 0)
+	put := func(n int) {
+		if n%4 == 0 {
+			c.putExe(n, 200)
+		} else {
+			c.put(n, 200)
+		}
+	}
+
+	// Put one expired and one fresh entry in each of the 256 subdirectories.
+	for i := range 256 {
+		put(i)
+	}
+	c.clock = c.start.Add(6 * 24 * time.Hour)
+	fresh := make([]int, 256)
+	for i := range 256 {
+		fresh[i] = 256 + i
+		put(256 + i)
+	}
+
+	c.must(c.Trim())
+	c.wantEntries(fresh...)
+	wantFile(t, dir, "size.txt", "base 51200\nestimated 51200\n")
+	if log, err := os.ReadFile(filepath.Join(dir, "cache.log")); err != nil || !strings.Contains(string(log), " removed 512 of 1024 files,") {
+		t.Errorf("cache.log = %q, %v; want removed 512 of 1024 files", log, err)
+	}
+}

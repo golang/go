@@ -17,6 +17,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,6 +28,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/mmap"
+	"cmd/internal/par"
 )
 
 // An ActionID is a cache action key, the hash of a complete description of a
@@ -821,7 +823,7 @@ func (c *DiskCache) trim(youngGenAsOf time.Time) error {
 		return err
 	}
 
-	// Trim each of the 256 subdirectories without holding the lock.
+	// Trim the 256 subdirectories in parallel without holding the lock.
 	// We subtract an additional mtimeInterval
 	// to account for the imprecision of our "last used" mtimes.
 	cutoff := now.Add(-trimLimit - mtimeInterval)
@@ -836,13 +838,28 @@ func (c *DiskCache) trim(youngGenAsOf time.Time) error {
 		// and it counts in the baseline while too young to delete as of now.
 		return sizeTrim && youngGenAsOf.Sub(mt) >= youngGenDeleteAge, now.Sub(mt) < youngGenDeleteAge
 	}
-	var stats trimStats
+	limit := 8 // lower cap outside Linux for small fd limits
+	if runtime.GOOS == "linux" {
+		limit = 32
+	}
+	q := par.NewQueue(min(runtime.GOMAXPROCS(0), limit))
+	var perDir [256]trimStats
 	for i := range 256 {
-		if isInterrupted() {
-			return nil
-		}
-		subdir := filepath.Join(c.dir, fmt.Sprintf("%02x", i))
-		c.trimSubdir(subdir, classify, &stats)
+		q.Add(func() {
+			if isInterrupted() {
+				return
+			}
+			subdir := filepath.Join(c.dir, fmt.Sprintf("%02x", i))
+			c.trimSubdir(subdir, classify, &perDir[i])
+		})
+	}
+	<-q.Idle()
+	if isInterrupted() {
+		return nil // we don't want incomplete results
+	}
+	var stats trimStats
+	for _, s := range perDir {
+		stats.add(s)
 	}
 	end := c.now()
 	elapsed := end.Sub(start)
@@ -943,6 +960,14 @@ type trimStats struct {
 	keptFiles, keptBytes       int64
 	removedFiles, removedBytes int64
 	baseBytes                  int64 // kept bytes counted toward the baseline
+}
+
+func (s *trimStats) add(o trimStats) {
+	s.keptFiles += o.keptFiles
+	s.keptBytes += o.keptBytes
+	s.removedFiles += o.removedFiles
+	s.removedBytes += o.removedBytes
+	s.baseBytes += o.baseBytes
 }
 
 // trimSubdir trims a single cache subdirectory, accumulating counts into stats if non-nil.
