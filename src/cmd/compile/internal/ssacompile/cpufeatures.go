@@ -99,19 +99,14 @@ func ifEffect(b *ssa.Block) (features ssa.CPUfeatures, taken int) {
 	case "HasAVX512VPOPCNTDQ":
 		features = ssa.CPUavx512 | ssa.CPUvpopcntdq | ssa.CPUavx2 | ssa.CPUavx
 
-	case "HasBMI1":
-		features = ssa.CPUvbmi
-	case "HasBMI2":
-		features = ssa.CPUvbmi2
-
 	case "HasSVE2":
 		features = ssa.CPUsve2
 
 		// Features that are not currently interesting to the compiler.
 	// HasSVE is not among them: rules only ever upgrade an SVE lowering to an
 	// SVE2 encoding, so baseline SVE is never a rule condition.
-	case "HasAES", "HasADX", "HasERMS", "HasFSRM", "HasFMA", "HasGFNI", "HasOSXSAVE",
-		"HasPCLMULQDQ", "HasPOPCNT", "HasRDTSCP", "HasSHA",
+	case "HasAES", "HasADX", "HasBMI1", "HasBMI2", "HasERMS", "HasFSRM", "HasFMA",
+		"HasGFNI", "HasOSXSAVE", "HasPCLMULQDQ", "HasPOPCNT", "HasRDTSCP", "HasSHA",
 		"HasSSE3", "HasSSSE3", "HasSSE41", "HasSSE42":
 
 	}
