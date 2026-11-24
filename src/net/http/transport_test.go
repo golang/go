@@ -1479,6 +1479,95 @@ func TestTransportProxy(t *testing.T) {
 	}
 }
 
+// TestTransportHTTPSProxyHTTP2PoolPoisoning validates the fix for #83349.
+// It used to be possible for us to negotiate HTTP/2 with an https:// proxy,
+// and then add that proxy into the connection pool under the address of the
+// target host (the one we're proxying *to*).
+func TestTransportHTTPSProxyHTTP2PoolPoisoning(t *testing.T) {
+	CondSkipHTTP2(t)
+	synctest.Test(t, func(t *testing.T) {
+		// We don't use the usual test infrastructure here, because we need a bit more
+		// control over the server's connections than usual.
+		protocols := new(Protocols)
+		protocols.SetHTTP1(true)
+		protocols.SetHTTP2(true)
+
+		cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		serverTLSConf := &tls.Config{
+			Certificates: []tls.Certificate{cert},
+		}
+
+		// Proxy server, willing to accept HTTP/1 and HTTP/2.
+		var gotConnect atomic.Bool
+		li := nettest.NewListener()
+		defer li.Close()
+		proxy := &Server{
+			Handler: HandlerFunc(func(w ResponseWriter, r *Request) {
+				if r.ProtoMajor != 1 {
+					t.Errorf("proxy received ProtoMajor=%v; want 1", r.ProtoMajor)
+				}
+				if r.Method == "CONNECT" {
+					gotConnect.Store(true)
+					w.WriteHeader(StatusForbidden)
+					return
+				}
+				if r.URL.Path == "/https" {
+					t.Errorf("proxy received HTTPS request")
+				}
+			}),
+			TLSConfig: serverTLSConf,
+			Protocols: protocols,
+		}
+		go proxy.ServeTLS(li, "", "")
+		defer proxy.Close()
+
+		// Transport, configured to use the proxy and willing to use HTTP/1 and HTTP/2.
+		proxyURL := url.MustParse("https://proxy.example.tld")
+		tr := &Transport{
+			DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+				return li.NewConn(), nil
+			},
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+			Protocols: protocols,
+			Proxy:     ProxyURL(proxyURL),
+		}
+		defer tr.CloseIdleConnections()
+
+		// Make a non-TLS HTTP request through the HTTPS proxy.
+		// The client must not negotiate HTTP/2 with the proxy,
+		// and definitely must not put the proxy in the connection pool
+		// for this destination (see issue #83349).
+		//
+		// (Note that while this request is a weird HTTP-to-port-443
+		// that no client would intentionally send, a malicious proxy
+		// could trigger this by redirecting a more innocent request to
+		// this destination.)
+		req1, _ := NewRequest("GET", "http://target.tld:443/http", nil)
+		resp1, err := tr.RoundTrip(req1)
+		if err != nil {
+			t.Fatalf("%v: %v", req1.URL, err)
+		}
+		resp1.Body.Close()
+
+		// Make a TLS request, which fails when our proxy refuses to create
+		// a CONNECT tunnel.
+		req2, _ := NewRequest("GET", "https://target.tld:443/https", nil)
+		resp2, err := tr.RoundTrip(req2)
+		if err == nil {
+			resp2.Body.Close()
+			t.Fatalf("%v: unexpected success (want proxy error)", req2.URL)
+		}
+		if !gotConnect.Load() {
+			t.Errorf("expected proxy to receive CONNECT; did not")
+		}
+	})
+}
+
 // Issue 74633: verify that a client will not indefinitely read a response from
 // a proxy server that writes an infinite byte of stream, rather than
 // responding with 200 OK.

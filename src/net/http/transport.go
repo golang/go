@@ -1166,13 +1166,13 @@ func (t *Transport) tlsConfigForDial(host string) (*tls.Config, error) {
 // Add TLS to a persistent connection, i.e. negotiate a TLS session. If pconn is already a TLS
 // tunnel, this function establishes a nested TLS session inside the encrypted channel.
 // The remote endpoint's name may be overridden by TLSClientConfig.ServerName.
-func (pconn *persistConn) addTLS(ctx context.Context, addr string, trace *httptrace.ClientTrace) error {
+func (pconn *persistConn) addTLS(ctx context.Context, addr string, onlyH1 bool, trace *httptrace.ClientTrace) error {
 	cfg, err := pconn.t.tlsConfigForDial(addr)
 	if err != nil {
 		pconn.conn.Close()
 		return err
 	}
-	if pconn.cacheKey.onlyH1 {
+	if pconn.cacheKey.onlyH1 || onlyH1 {
 		cfg.NextProtos = nil
 	}
 	plainConn := pconn.conn
@@ -1313,7 +1313,8 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 		}
 		pconn.conn = conn
 		if cm.scheme() == "https" {
-			if err = pconn.addTLS(ctx, cm.addr(), trace); err != nil {
+			onlyH1 := cm.proxyURL != nil // don't negotiate HTTP/2 with a proxy
+			if err = pconn.addTLS(ctx, cm.addr(), onlyH1, trace); err != nil {
 				return nil, wrapErr(err)
 			}
 		}
@@ -1430,78 +1431,82 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 	}
 
 	if cm.proxyURL != nil && cm.targetScheme == "https" {
-		if err := pconn.addTLS(ctx, cm.targetAddr, trace); err != nil {
+		const onlyH1 = false // HTTP/2 tunneled through a proxy is fine
+		if err := pconn.addTLS(ctx, cm.targetAddr, onlyH1, trace); err != nil {
 			return nil, err
 		}
 	}
 
-	// Possible unencrypted HTTP/2 with prior knowledge.
-	unencryptedHTTP2 := pconn.tlsState == nil &&
-		t.Protocols != nil &&
-		t.Protocols.UnencryptedHTTP2() &&
-		!t.Protocols.HTTP1()
+	// Never try to use HTTP/2 on a proxy connection.
+	if !pconn.isProxy {
+		// Possible unencrypted HTTP/2 with prior knowledge.
+		unencryptedHTTP2 := pconn.tlsState == nil &&
+			t.Protocols != nil &&
+			t.Protocols.UnencryptedHTTP2() &&
+			!t.Protocols.HTTP1()
 
-	http2 := unencryptedHTTP2 ||
-		(pconn.tlsState != nil && pconn.tlsState.NegotiatedProtocol == "h2")
+		http2 := unencryptedHTTP2 ||
+			(pconn.tlsState != nil && pconn.tlsState.NegotiatedProtocol == "h2")
 
-	if http2 && t.h2Transport != nil {
-		// HTTP/2, backed by internal/http2.
-		cc, err := t.http2NewClientConn(pconn.conn, isClientConn, internalStateHook)
-		if err == nil {
-			return cc, nil
+		if http2 && t.h2Transport != nil {
+			// HTTP/2, backed by internal/http2.
+			cc, err := t.http2NewClientConn(pconn.conn, isClientConn, internalStateHook)
+			if err == nil {
+				return cc, nil
+			}
+			if err != errors.ErrUnsupported {
+				return nil, err
+			}
 		}
-		if err != errors.ErrUnsupported {
-			return nil, err
-		}
-	}
 
-	if isClientConn && (unencryptedHTTP2 || (pconn.tlsState != nil && pconn.tlsState.NegotiatedProtocol == "h2")) {
-		// NewClientConn, using an HTTP/2 implementation installed via the legacy
-		// RegisterProtocol path. This shouldn't really be used by anything any more.
-		altProto, _ := t.altProto.Load().(map[string]RoundTripper)
-		h2, ok := altProto["https"].(newClientConner)
-		if !ok {
-			return nil, errors.New("http: HTTP/2 implementation does not support NewClientConn (update golang.org/x/net?)")
+		if isClientConn && (unencryptedHTTP2 || (pconn.tlsState != nil && pconn.tlsState.NegotiatedProtocol == "h2")) {
+			// NewClientConn, using an HTTP/2 implementation installed via the legacy
+			// RegisterProtocol path. This shouldn't really be used by anything any more.
+			altProto, _ := t.altProto.Load().(map[string]RoundTripper)
+			h2, ok := altProto["https"].(newClientConner)
+			if !ok {
+				return nil, errors.New("http: HTTP/2 implementation does not support NewClientConn (update golang.org/x/net?)")
+			}
+			var stateHook func()
+			if internalStateHook != nil {
+				stateHook = func() { internalStateHook() }
+			}
+			rt, err := h2.NewClientConn(pconn.conn, stateHook)
+			if err != nil {
+				pconn.conn.Close()
+				return nil, err
+			}
+			cc, ok := rt.(externalClientConn)
+			if !ok {
+				return nil, errors.New("http: NewClientConn returned something that is not a ClientConn")
+			}
+			return externalHTTP2Conn{cc}, nil
 		}
-		var stateHook func()
-		if internalStateHook != nil {
-			stateHook = func() { internalStateHook() }
-		}
-		rt, err := h2.NewClientConn(pconn.conn, stateHook)
-		if err != nil {
-			pconn.conn.Close()
-			return nil, err
-		}
-		cc, ok := rt.(externalClientConn)
-		if !ok {
-			return nil, errors.New("http: NewClientConn returned something that is not a ClientConn")
-		}
-		return externalHTTP2Conn{cc}, nil
-	}
 
-	wrapTLSNextProtoRoundTripper := func(rt RoundTripper) (genericClientConn, error) {
-		if e, ok := rt.(erringRoundTripper); ok {
-			// pconn.conn was closed by next (http2configureTransports.upgradeFn).
-			return nil, e.RoundTripErr()
+		wrapTLSNextProtoRoundTripper := func(rt RoundTripper) (genericClientConn, error) {
+			if e, ok := rt.(erringRoundTripper); ok {
+				// pconn.conn was closed by next (http2configureTransports.upgradeFn).
+				return nil, e.RoundTripErr()
+			}
+			return &altClientConn{rt: rt}, nil
 		}
-		return &altClientConn{rt: rt}, nil
-	}
-	if unencryptedHTTP2 {
-		// Unencrypted HTTP/2 using the legacy TLSNextProto.
-		next, ok := t.TLSNextProto[nextProtoUnencryptedHTTP2]
-		if !ok {
-			return nil, errors.New("http: Transport does not support unencrypted HTTP/2")
-		}
-		alt := next(cm.targetAddr, unencryptedTLSConn(pconn.conn))
-		return wrapTLSNextProtoRoundTripper(alt)
-	}
-
-	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
-		// Encrypted HTTP/2 using the legacy TLSNextProto.
-		tlsConn, tlsConnOK := pconn.conn.(*tls.Conn)
-		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; tlsConnOK && ok {
-			alt := next(cm.targetAddr, tlsConn)
+		if unencryptedHTTP2 {
+			// Unencrypted HTTP/2 using the legacy TLSNextProto.
+			next, ok := t.TLSNextProto[nextProtoUnencryptedHTTP2]
+			if !ok {
+				return nil, errors.New("http: Transport does not support unencrypted HTTP/2")
+			}
+			alt := next(cm.targetAddr, unencryptedTLSConn(pconn.conn))
 			return wrapTLSNextProtoRoundTripper(alt)
+		}
+
+		if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
+			// Encrypted HTTP/2 using the legacy TLSNextProto.
+			tlsConn, tlsConnOK := pconn.conn.(*tls.Conn)
+			if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; tlsConnOK && ok {
+				alt := next(cm.targetAddr, tlsConn)
+				return wrapTLSNextProtoRoundTripper(alt)
+			}
 		}
 	}
 
