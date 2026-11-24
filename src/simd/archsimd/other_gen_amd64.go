@@ -307,6 +307,8 @@ func (x Int64x2) ToMask() (z Mask64x2) {
 // ToMask returns a mask indicating which elements of x are non-zero.
 //
 //	z[i] = x[i] != 0
+//
+// Emulated, CPU Feature: AVX2
 func (x Int8x32) ToMask() (z Mask8x32) {
 	return x.NotEqual(Int8x32{})
 }
@@ -314,6 +316,8 @@ func (x Int8x32) ToMask() (z Mask8x32) {
 // ToMask returns a mask indicating which elements of x are non-zero.
 //
 //	z[i] = x[i] != 0
+//
+// Emulated, CPU Feature: AVX2
 func (x Int16x16) ToMask() (z Mask16x16) {
 	return x.NotEqual(Int16x16{})
 }
@@ -321,6 +325,8 @@ func (x Int16x16) ToMask() (z Mask16x16) {
 // ToMask returns a mask indicating which elements of x are non-zero.
 //
 //	z[i] = x[i] != 0
+//
+// Emulated, CPU Feature: AVX2
 func (x Int32x8) ToMask() (z Mask32x8) {
 	return x.NotEqual(Int32x8{})
 }
@@ -328,6 +334,8 @@ func (x Int32x8) ToMask() (z Mask32x8) {
 // ToMask returns a mask indicating which elements of x are non-zero.
 //
 //	z[i] = x[i] != 0
+//
+// Emulated, CPU Feature: AVX2
 func (x Int64x4) ToMask() (z Mask64x4) {
 	return x.NotEqual(Int64x4{})
 }
@@ -1234,7 +1242,7 @@ func (x Uint64x2) RotateAllRight(shift uint64) (z Uint64x2) {
 //
 //	z[i] = rotateLeft(x[i], shift)
 //
-// Emulated
+// Emulated, CPU Feature: AVX2
 func (x Uint16x16) RotateAllLeft(shift uint64) (z Uint16x16) {
 	shift = shift & (16 - 1)
 	nshift := 16 - shift
@@ -1245,7 +1253,7 @@ func (x Uint16x16) RotateAllLeft(shift uint64) (z Uint16x16) {
 //
 //	z[i] = rotateRight(x[i], shift)
 //
-// Emulated
+// Emulated, CPU Feature: AVX2
 func (x Uint16x16) RotateAllRight(shift uint64) (z Uint16x16) {
 	shift = shift & (16 - 1)
 	nshift := 16 - shift
@@ -1256,7 +1264,7 @@ func (x Uint16x16) RotateAllRight(shift uint64) (z Uint16x16) {
 //
 //	z[i] = rotateLeft(x[i], shift)
 //
-// Emulated
+// Emulated, CPU Feature: AVX2
 func (x Uint32x8) RotateAllLeft(shift uint64) (z Uint32x8) {
 	shift = shift & (32 - 1)
 	nshift := 32 - shift
@@ -1267,7 +1275,7 @@ func (x Uint32x8) RotateAllLeft(shift uint64) (z Uint32x8) {
 //
 //	z[i] = rotateRight(x[i], shift)
 //
-// Emulated
+// Emulated, CPU Feature: AVX2
 func (x Uint32x8) RotateAllRight(shift uint64) (z Uint32x8) {
 	shift = shift & (32 - 1)
 	nshift := 32 - shift
@@ -1278,7 +1286,7 @@ func (x Uint32x8) RotateAllRight(shift uint64) (z Uint32x8) {
 //
 //	z[i] = rotateLeft(x[i], shift)
 //
-// Emulated
+// Emulated, CPU Feature: AVX2
 func (x Uint64x4) RotateAllLeft(shift uint64) (z Uint64x4) {
 	shift = shift & (64 - 1)
 	nshift := 64 - shift
@@ -1289,7 +1297,7 @@ func (x Uint64x4) RotateAllLeft(shift uint64) (z Uint64x4) {
 //
 //	z[i] = rotateRight(x[i], shift)
 //
-// Emulated
+// Emulated, CPU Feature: AVX2
 func (x Uint64x4) RotateAllRight(shift uint64) (z Uint64x4) {
 	shift = shift & (64 - 1)
 	nshift := 64 - shift

@@ -1565,7 +1565,7 @@ func (x Uint8x16) LookupOrZero(indices Uint8x16) (z Uint8x16) {
 //	    z[i] = 0
 //	}
 //
-// Emulated
+// Emulated, CPU Feature: AVX2
 func (x Uint8x32) LookupOrZero(indices Uint8x32) (z Uint8x32) {
 	return x.BitsToInt8().LookupOrZero(indices).ToBits()
 }

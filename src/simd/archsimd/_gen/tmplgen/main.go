@@ -1076,7 +1076,7 @@ func (x {{.VType}}) NotEqual(y {{.VType}}) Mask{{.WxC}} {
 var uintRotateAllTemplate = sgutil.TemplateNamed("uintRotateAll", `
 // RotateAllLeft rotates all elements left by the specified amount
 //
-// Emulated
+// Emulated{{if eq .Vwidth 256}}, CPU Feature: AVX2{{end}}
 func (x {{.VType}}) RotateAllLeft(shift uint64) {{.VType}} {
 	shift = shift & ({{.EWidth}}-1)
 	nshift := {{.EWidth}} - shift
@@ -1085,7 +1085,7 @@ func (x {{.VType}}) RotateAllLeft(shift uint64) {{.VType}} {
 
 // RotateAllRight rotates all elements right by the specified amount
 //
-// Emulated
+// Emulated{{if eq .Vwidth 256}}, CPU Feature: AVX2{{end}}
 func (x {{.VType}}) RotateAllRight(shift uint64) {{.VType}} {
 	shift = shift & ({{.EWidth}}-1)
 	nshift := {{.EWidth}} - shift
@@ -1457,6 +1457,10 @@ func (x {{.VType}}) ReduceMin() {{.Etype}} {
 
 var maskCvtTemplate = shapedTemplateOf(intShapes, "Mask conversions", `
 // ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+{{- if eq .Vwidth 256}}
+//
+// Emulated, CPU Feature: AVX2
+{{- end}}
 func (x {{.Base}}{{.WxC}}) ToMask() (z Mask{{.WxC}}) {
 	return x.NotEqual({{.Base}}{{.WxC}}{})
 }

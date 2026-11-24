@@ -59,6 +59,12 @@
 // It is recommended to check for CPU features before using the corresponding
 // vector operations.
 //
+// The documentation of each vector type lists the CPU feature required to use
+// values of that type, such as loading, storing, and reinterpreting them. A
+// method that requires additional CPU features lists them in its own
+// documentation; a method that lists none requires only the features of the
+// types it operates on.
+//
 // # Notes
 //
 //   - This package is not portable, as the available types and operations depend

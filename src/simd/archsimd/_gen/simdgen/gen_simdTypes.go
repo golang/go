@@ -334,14 +334,10 @@ func (x simdType) CPUFeature() string {
 		case 128:
 			return "AVX"
 		case 256:
-			switch x.Shape.Elem.Base {
-			case "float", "mask":
-				return "AVX"
-			case "int", "uint":
-				return "AVX2"
-			default:
-				panic(fmt.Errorf("unexpected element base %q", x.Shape.Elem.Base))
-			}
+			// Loading, storing, and reinterpreting 256-bit vectors requires
+			// only AVX, even for integer elements. Most integer operations
+			// require AVX2, which they document individually.
+			return "AVX"
 		case 512:
 			return "AVX512"
 		default:
