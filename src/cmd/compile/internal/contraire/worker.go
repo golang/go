@@ -99,7 +99,7 @@ func runWorker(trials int, cfgPath, outPath, lockPath string, std bool) error {
 		case success:
 			successes++
 		case panik:
-			minPanic = min(minPanic, next)
+			minPanic = minProg(minPanic, next)
 		}
 		trialsDone++
 

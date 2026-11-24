@@ -29,12 +29,12 @@ func (a *output) merge(b *output) {
 	a.ParseErrors += b.ParseErrors
 	a.TypeErrors += b.TypeErrors
 	a.Successes += b.Successes
-	a.Panic = min(a.Panic, b.Panic)
-	a.Crash = min(a.Crash, b.Crash)
-	a.Hang = min(a.Hang, b.Hang)
+	a.Panic = minProg(a.Panic, b.Panic)
+	a.Crash = minProg(a.Crash, b.Crash)
+	a.Hang = minProg(a.Hang, b.Hang)
 }
 
-func min(a *scoredProg, b *scoredProg) *scoredProg {
+func minProg(a *scoredProg, b *scoredProg) *scoredProg {
 	switch {
 	case a == nil:
 		return b
