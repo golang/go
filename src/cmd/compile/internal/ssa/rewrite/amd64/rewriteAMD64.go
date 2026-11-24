@@ -102909,13 +102909,30 @@ func rewriteValue_OpEqualVec256(v *ssa.Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (EqualVec256 x y)
+	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx2)
 	// result: (SETEQ (VPTEST t:(VPXOR256 x y) t))
+	for {
+		x := v_0
+		y := v_1
+		if !(v.Block.CPUfeatures.HasFeature(ssa.CPUavx2)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPTEST, types.TypeFlags)
+		t := b.NewValue0(v.Pos, ssaop.OpAMD64VPXOR256, typ.Vec256)
+		t.AddArg2(x, y)
+		v0.AddArg2(t, t)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (EqualVec256 x y)
+	// result: (SETEQ (VPTEST t:(VXORPS256 x y) t))
 	for {
 		x := v_0
 		y := v_1
 		v.Reset(ssaop.OpAMD64SETEQ)
 		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPTEST, types.TypeFlags)
-		t := b.NewValue0(v.Pos, ssaop.OpAMD64VPXOR256, typ.Vec256)
+		t := b.NewValue0(v.Pos, ssaop.OpAMD64VXORPS256, typ.Vec256)
 		t.AddArg2(x, y)
 		v0.AddArg2(t, t)
 		v.AddArg(v0)

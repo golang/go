@@ -1768,9 +1768,12 @@
 // == on SIMD vectors and masks. Integer vectors and masks are equal if they
 // are bitwise equal. Float vectors are equal if no element compares
 // not-equal-or-unordered (predicate 4, NEQ_UQ), so NaN elements are unequal
-// and +0 equals -0. The 512-bit forms compare into a K mask.
+// and +0 equals -0. The 512-bit forms compare into a K mask. VPXOR on 256-bit
+// vectors requires AVX2, but 256-bit integer vectors and masks require only AVX,
+// so use VXORPS unless AVX2 is known to be available.
 (EqualVec128 x y) => (SETEQ (VPTEST t:(VPXOR128 x y) t))
-(EqualVec256 x y) => (SETEQ (VPTEST t:(VPXOR256 x y) t))
+(EqualVec256 x y) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx2) => (SETEQ (VPTEST t:(VPXOR256 x y) t))
+(EqualVec256 x y) => (SETEQ (VPTEST t:(VXORPS256 x y) t))
 (EqualVec512 x y) => (SETEQ (TESTB t:(KMOVBi <typ.UInt8> (VPCMPQ512 [4] x y)) t))
 (EqualVecFloat32x4 x y) => (SETEQ (VPTEST t:(VCMPPS128 [4] x y) t))
 (EqualVecFloat32x8 x y) => (SETEQ (VPTEST t:(VCMPPS256 [4] x y) t))

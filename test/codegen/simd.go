@@ -462,11 +462,25 @@ func broadcast128MulToShift(x archsimd.Int32x4) archsimd.Int32x4 {
 	return x.Mul(archsimd.BroadcastInt32x4(8))
 }
 
-// == and != on 256- and 512-bit vectors and masks.
+// == and != on 256- and 512-bit vectors and masks. VPXOR on 256-bit vectors
+// requires AVX2, so without it, == uses the AVX1 floating-point XOR instead.
 
 func eqInt16x16(x, y archsimd.Int16x16) bool {
-	// amd64:`VPXOR` `VPTEST` `SETEQ` -`CALL`
+	// amd64:`VXORPS Y` `VPTEST` `SETEQ` -`VPXOR` -`CALL`
 	return x == y
+}
+
+func eqInt16x16AVX2(x, y archsimd.Int16x16) bool {
+	if archsimd.X86.AVX2() {
+		// amd64:`VPXOR Y` `VPTEST` `SETEQ` -`VXORPS` -`CALL`
+		return x == y
+	}
+	return false
+}
+
+func eqMask32x8(a, b, c, d archsimd.Float32x8) bool {
+	// amd64:`VXORPS Y` `VPTEST` `SETEQ` -`VPXOR` -`CALL`
+	return a.Less(b) == c.Equal(d)
 }
 
 func eqFloat32x8(x, y archsimd.Float32x8) bool {
