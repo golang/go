@@ -49,3 +49,14 @@ func f /* =@f */[T1 /* =@T1 */ interface{~[]T2 /* @T2 */}, T2 /* =@T2 */ any](
 
 // From go.dev/issue/39634
 func(*ph1[e, e])h(d)
+
+// The type parameter scope of a spec in a grouped declaration ends with that
+// spec: later specs are declared in the package scope, and do not see it.
+type (
+	G1 /* =@G1 */ [P1 /* =@P1 */ any] []P1 // @P1
+	G2 /* =@G2 */ []P1
+	G3 /* =@G3 */ [P2 /* =@P2 */ any] G2 /* @G2 */
+)
+
+var _ G2 /* @G2 */
+var _ G3 /* @G3 */ [int]

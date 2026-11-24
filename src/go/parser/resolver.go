@@ -533,10 +533,12 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
 				r.declare(spec, nil, r.topScope, ast.Typ, spec.Name)
 				if spec.TypeParams != nil {
 					r.openScope(spec.Pos())
-					defer r.closeScope()
 					r.walkTParams(spec.TypeParams)
 				}
 				ast.Walk(r, spec.Type)
+				if spec.TypeParams != nil {
+					r.closeScope()
+				}
 			}
 		}
 
