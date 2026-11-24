@@ -413,12 +413,6 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpARM64VBIT16B(v)
 	case ssaop.OpARM64VDUPBbcast:
 		return rewriteValue_OpARM64VDUPBbcast(v)
-	case ssaop.OpARM64VDUPDbcast:
-		return rewriteValue_OpARM64VDUPDbcast(v)
-	case ssaop.OpARM64VDUPHbcast:
-		return rewriteValue_OpARM64VDUPHbcast(v)
-	case ssaop.OpARM64VDUPSbcast:
-		return rewriteValue_OpARM64VDUPSbcast(v)
 	case ssaop.OpARM64VEOR16B:
 		return rewriteValue_OpARM64VEOR16B(v)
 	case ssaop.OpARM64VFCVTL4S:
@@ -19155,23 +19149,6 @@ func rewriteValue_OpARM64VBIT16B(v *ssa.Value) bool {
 }
 func rewriteValue_OpARM64VDUPBbcast(v *ssa.Value) bool {
 	v_0 := v.Args[0]
-	// match: (VDUPBbcast [i] (VMOVBins [j] _ x))
-	// cond: i == j
-	// result: (VDUPB x)
-	for {
-		i := ssa.AuxIntToUint8(v.AuxInt)
-		if v_0.Op != ssaop.OpARM64VMOVBins {
-			break
-		}
-		j := ssa.AuxIntToUint8(v_0.AuxInt)
-		x := v_0.Args[1]
-		if !(i == j) {
-			break
-		}
-		v.Reset(ssaop.OpARM64VDUPB)
-		v.AddArg(x)
-		return true
-	}
 	// match: (VDUPBbcast [i] (VMOVBins [j] _ (MOVDconst [c])))
 	// cond: i == j && c>=-128 && c<=255
 	// result: (VMOVI16B [uint8(c)])
@@ -19192,105 +19169,6 @@ func rewriteValue_OpARM64VDUPBbcast(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpARM64VMOVI16B)
 		v.AuxInt = ssa.Uint8ToAuxInt(uint8(c))
-		return true
-	}
-	return false
-}
-func rewriteValue_OpARM64VDUPDbcast(v *ssa.Value) bool {
-	v_0 := v.Args[0]
-	// match: (VDUPDbcast [i] (VMOVDins0 [j] _ x))
-	// cond: i == j
-	// result: (VDUPDbcast [0] x)
-	for {
-		i := ssa.AuxIntToUint8(v.AuxInt)
-		if v_0.Op != ssaop.OpARM64VMOVDins0 {
-			break
-		}
-		j := ssa.AuxIntToUint8(v_0.AuxInt)
-		x := v_0.Args[1]
-		if !(i == j) {
-			break
-		}
-		v.Reset(ssaop.OpARM64VDUPDbcast)
-		v.AuxInt = ssa.Uint8ToAuxInt(0)
-		v.AddArg(x)
-		return true
-	}
-	// match: (VDUPDbcast [i] (VMOVDins [j] _ x))
-	// cond: i == j
-	// result: (VDUPD x)
-	for {
-		i := ssa.AuxIntToUint8(v.AuxInt)
-		if v_0.Op != ssaop.OpARM64VMOVDins {
-			break
-		}
-		j := ssa.AuxIntToUint8(v_0.AuxInt)
-		x := v_0.Args[1]
-		if !(i == j) {
-			break
-		}
-		v.Reset(ssaop.OpARM64VDUPD)
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValue_OpARM64VDUPHbcast(v *ssa.Value) bool {
-	v_0 := v.Args[0]
-	// match: (VDUPHbcast [i] (VMOVHins [j] _ x))
-	// cond: i == j
-	// result: (VDUPH x)
-	for {
-		i := ssa.AuxIntToUint8(v.AuxInt)
-		if v_0.Op != ssaop.OpARM64VMOVHins {
-			break
-		}
-		j := ssa.AuxIntToUint8(v_0.AuxInt)
-		x := v_0.Args[1]
-		if !(i == j) {
-			break
-		}
-		v.Reset(ssaop.OpARM64VDUPH)
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValue_OpARM64VDUPSbcast(v *ssa.Value) bool {
-	v_0 := v.Args[0]
-	// match: (VDUPSbcast [i] (VMOVSins0 [j] _ x))
-	// cond: i == j
-	// result: (VDUPSbcast [0] x)
-	for {
-		i := ssa.AuxIntToUint8(v.AuxInt)
-		if v_0.Op != ssaop.OpARM64VMOVSins0 {
-			break
-		}
-		j := ssa.AuxIntToUint8(v_0.AuxInt)
-		x := v_0.Args[1]
-		if !(i == j) {
-			break
-		}
-		v.Reset(ssaop.OpARM64VDUPSbcast)
-		v.AuxInt = ssa.Uint8ToAuxInt(0)
-		v.AddArg(x)
-		return true
-	}
-	// match: (VDUPSbcast [i] (VMOVSins [j] _ x))
-	// cond: i == j
-	// result: (VDUPS x)
-	for {
-		i := ssa.AuxIntToUint8(v.AuxInt)
-		if v_0.Op != ssaop.OpARM64VMOVSins {
-			break
-		}
-		j := ssa.AuxIntToUint8(v_0.AuxInt)
-		x := v_0.Args[1]
-		if !(i == j) {
-			break
-		}
-		v.Reset(ssaop.OpARM64VDUPS)
-		v.AddArg(x)
 		return true
 	}
 	return false

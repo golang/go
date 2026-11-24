@@ -1884,8 +1884,6 @@
 (ZeroSIMD <t>) && t.Size() == 16 => (VMOVI16B [0] <t>)
 
 // Neon peephole
-(VDUP(S|D)bcast [i] (VMOV(S|D)ins0 [j] _ x)) && i == j => (VDUP(S|D)bcast [0] x)
-(VDUP(B|H|S|D)bcast [i] (VMOV(B|H|S|D)ins [j] _ x)) && i == j => (VDUP(B|H|S|D) x)
 (VEOR16B x x) => (VMOVI16B [0])
 (VNOT16B (VCMEQ16B (VAND16B x y) (VMOVI16B [0]))) => (VCMTST16B x y)
 (VNOT16B (VCMEQ8H (VAND16B x y) (VMOVI16B [0]))) => (VCMTST8H x y)
