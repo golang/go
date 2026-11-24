@@ -103,6 +103,9 @@ func TestTranspose4(t *testing.T) {
 }
 
 func TestTranspose8(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+	}
 	m := make([]int32, 8)
 
 	a := []int32{}
@@ -203,6 +206,9 @@ func BenchmarkTiled4Transpose(b *testing.B) {
 }
 
 func BenchmarkTiled8Transpose(b *testing.B) {
+	if !archsimd.X86.AVX2() {
+		b.Skip("Benchmark requires X86.AVX2, not available on this hardware")
+	}
 	d := dupe(bigMatrix())
 	for b.Loop() {
 		transposeTiled8(d)
@@ -316,6 +322,9 @@ func TestTransposeTiled4(t *testing.T) {
 }
 
 func TestTransposeTiled8(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+	}
 	d := dupe(thirtyMatrix())
 	transposeTiled8(d)
 	if !isTransposed(d) {

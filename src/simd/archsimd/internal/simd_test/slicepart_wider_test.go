@@ -12,6 +12,9 @@ import (
 )
 
 func TestPartInt8x32(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+	}
 	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 	b := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
@@ -42,6 +45,9 @@ func xTestPartUint8x16(t *testing.T) {
 }
 
 func TestPartUint8x32(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+	}
 	a := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 	b := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
@@ -72,6 +78,9 @@ func xTestPartInt16x8(t *testing.T) {
 }
 
 func TestPartInt16x16(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+	}
 	a := []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	b := []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	for i := 16; i >= 0; i-- {
@@ -114,6 +123,9 @@ func xTestSlicesPartStoreInt16x8(t *testing.T) {
 }
 
 func TestSlicesPartStoreInt16x16(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+	}
 	a := []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	b := []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	for i := 16; i >= 0; i-- {
@@ -142,6 +154,9 @@ func xTestSlicesPartStoreUint8x16(t *testing.T) {
 }
 
 func TestSlicesPartStoreUint16x16(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+	}
 	a := []uint16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	b := []uint16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	for i := 16; i >= 0; i-- {
@@ -156,6 +171,9 @@ func TestSlicesPartStoreUint16x16(t *testing.T) {
 }
 
 func TestSlicesPartStoreUint8x32(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+	}
 	a := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 	b := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
@@ -301,11 +319,14 @@ func TestPartInt64(t *testing.T) {
 }
 
 func TestStorePartReturnValuesWider(t *testing.T) {
-	// AVX2 / 256-bit types
-	testStorePartReturnValue[int8, archsimd.Int8x32](t)
-	testStorePartReturnValue[uint8, archsimd.Uint8x32](t)
-	testStorePartReturnValue[int16, archsimd.Int16x16](t)
-	testStorePartReturnValue[uint16, archsimd.Uint16x16](t)
+	// 256-bit types. StorePart for 8- and 16-bit elements uses AVX2
+	// instructions; the others need only AVX.
+	if archsimd.X86.AVX2() {
+		testStorePartReturnValue[int8, archsimd.Int8x32](t)
+		testStorePartReturnValue[uint8, archsimd.Uint8x32](t)
+		testStorePartReturnValue[int16, archsimd.Int16x16](t)
+		testStorePartReturnValue[uint16, archsimd.Uint16x16](t)
+	}
 	testStorePartReturnValue[int32, archsimd.Int32x8](t)
 	testStorePartReturnValue[uint32, archsimd.Uint32x8](t)
 	testStorePartReturnValue[int64, archsimd.Int64x4](t)

@@ -70,10 +70,7 @@ amd64 host then runs on the host's CPU, not the emulated one. To test a
 IN_QEMU=1 GOEXPERIMENT=simd go test -exec 'qemu-x86_64 -cpu Haswell' simd simd/archsimd/internal/simd_test
 
 # amd64 AVX without AVX2, the minimum for hardware SIMD in the simd package.
-# Only simd: many archsimd tests of 256-bit types don't check for AVX2
-# (go.dev/issue/82893). +fma because simd's MulAdd currently uses FMA, which
-# Sandy Bridge lacks (go.dev/issue/82892).
-IN_QEMU=1 GOEXPERIMENT=simd go test -exec 'qemu-x86_64 -cpu SandyBridge,+fma' simd
+IN_QEMU=1 GOEXPERIMENT=simd go test -exec 'qemu-x86_64 -cpu SandyBridge' simd simd/archsimd/internal/simd_test
 
 # amd64 without carryless multiply. Haswell above has it only for 128-bit
 # vectors, so 256-bit CarrylessMul uses two 128-bit instructions. Removing

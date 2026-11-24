@@ -14,14 +14,17 @@ import (
 )
 
 func TestAbsAMD64(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+	}
 	testFloat32x8Unary(t, archsimd.Float32x8.Abs, map1[float32](abs))
 	testFloat64x4Unary(t, archsimd.Float64x4.Abs, map1[float64](abs))
 }
 
 func TestNegAMD64(t *testing.T) {
-	testFloat32x8Unary(t, archsimd.Float32x8.Neg, map1[float32](neg))
-	testFloat64x4Unary(t, archsimd.Float64x4.Neg, map1[float64](neg))
 	if archsimd.X86.AVX2() {
+		testFloat32x8Unary(t, archsimd.Float32x8.Neg, map1[float32](neg))
+		testFloat64x4Unary(t, archsimd.Float64x4.Neg, map1[float64](neg))
 		testInt8x32Unary(t, archsimd.Int8x32.Neg, map1[int8](neg))
 		testInt16x16Unary(t, archsimd.Int16x16.Neg, map1[int16](neg))
 		testInt32x8Unary(t, archsimd.Int32x8.Neg, map1[int32](neg))

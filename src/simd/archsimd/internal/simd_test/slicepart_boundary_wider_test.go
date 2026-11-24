@@ -14,15 +14,19 @@ import (
 // See slicepart_boundary_128_test.go for testLoadPartPageBoundary.
 
 func TestLoadPartPageBoundary256(t *testing.T) {
-	if !archsimd.X86.AVX2() {
-		t.Skip("Test requires X86.AVX2, not available on this hardware")
+	if !archsimd.X86.AVX() {
+		t.Skip("Test requires X86.AVX, not available on this hardware")
 	}
-	testLoadPartPageBoundary(t, archsimd.LoadInt8x32Part)
-	testLoadPartPageBoundary(t, archsimd.LoadInt16x16Part)
+	// Part loads of 8- and 16-bit elements use AVX2 instructions; the
+	// others need only AVX.
+	if archsimd.X86.AVX2() {
+		testLoadPartPageBoundary(t, archsimd.LoadInt8x32Part)
+		testLoadPartPageBoundary(t, archsimd.LoadInt16x16Part)
+		testLoadPartPageBoundary(t, archsimd.LoadUint8x32Part)
+		testLoadPartPageBoundary(t, archsimd.LoadUint16x16Part)
+	}
 	testLoadPartPageBoundary(t, archsimd.LoadInt32x8Part)
 	testLoadPartPageBoundary(t, archsimd.LoadInt64x4Part)
-	testLoadPartPageBoundary(t, archsimd.LoadUint8x32Part)
-	testLoadPartPageBoundary(t, archsimd.LoadUint16x16Part)
 	testLoadPartPageBoundary(t, archsimd.LoadUint32x8Part)
 	testLoadPartPageBoundary(t, archsimd.LoadUint64x4Part)
 	testLoadPartPageBoundary(t, archsimd.LoadFloat32x8Part)
