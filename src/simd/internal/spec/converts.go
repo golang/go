@@ -47,8 +47,30 @@ func ConvertFloatToFloat[xE Floats, W Width, zE Floats](x Vec[xE, W]) (z Vec[zE,
 //	z[i] = {{.zE}}(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of {{.zE}} is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// {{if eq .zB "int"}}math.Min{{title .zE}}{{else}}math.Max{{title .zE}}{{end}} (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+// {{if eq .zB "int"}}
+//
+//	trunc(x)          ARM64/WASM  AMD64
+//	----------------  ----------  --------
+//	NaN               0           Min{{title .zE}}
+//	< Min{{title .zE}}, -Inf  Min{{title .zE}}    Min{{title .zE}}
+//	> Max{{title .zE}}, +Inf  Max{{title .zE}}    Min{{title .zE}}
+//
+// {{else}}
+//
+//	trunc(x)           ARM64/WASM  AMD64
+//	-----------------  ----------  ---------
+//	NaN                0           Max{{title .zE}}
+//	< 0, -Inf          0           Max{{title .zE}}
+//	> Max{{title .zE}}, +Inf  Max{{title .zE}}   Max{{title .zE}}
+//
+// {{end}}
 //
 // {{if lt .zN .xN}}
 // The results are stored in the low {{lanes .x "x"}} elements of z.

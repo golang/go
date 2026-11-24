@@ -2091,8 +2091,18 @@ func (x Uint64x8) ConvertToFloat64() (z Float64x8)
 //	z[i] = int32(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of int32 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MinInt32 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)          ARM64/WASM  AMD64
+//	----------------  ----------  --------
+//	NaN               0           MinInt32
+//	< MinInt32, -Inf  MinInt32    MinInt32
+//	> MaxInt32, +Inf  MaxInt32    MinInt32
 //
 // Asm: VCVTTPS2DQ, CPU Feature: AVX
 func (x Float32x4) ConvertToInt32() (z Int32x4)
@@ -2102,8 +2112,18 @@ func (x Float32x4) ConvertToInt32() (z Int32x4)
 //	z[i] = int32(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of int32 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MinInt32 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)          ARM64/WASM  AMD64
+//	----------------  ----------  --------
+//	NaN               0           MinInt32
+//	< MinInt32, -Inf  MinInt32    MinInt32
+//	> MaxInt32, +Inf  MaxInt32    MinInt32
 //
 // Asm: VCVTTPS2DQ, CPU Feature: AVX
 func (x Float32x8) ConvertToInt32() (z Int32x8)
@@ -2113,8 +2133,18 @@ func (x Float32x8) ConvertToInt32() (z Int32x8)
 //	z[i] = int32(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of int32 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MinInt32 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)          ARM64/WASM  AMD64
+//	----------------  ----------  --------
+//	NaN               0           MinInt32
+//	< MinInt32, -Inf  MinInt32    MinInt32
+//	> MaxInt32, +Inf  MaxInt32    MinInt32
 //
 // Asm: VCVTTPS2DQ, CPU Feature: AVX512
 func (x Float32x16) ConvertToInt32() (z Int32x16)
@@ -2124,8 +2154,18 @@ func (x Float32x16) ConvertToInt32() (z Int32x16)
 //	z[i] = int32(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of int32 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MinInt32 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)          ARM64/WASM  AMD64
+//	----------------  ----------  --------
+//	NaN               0           MinInt32
+//	< MinInt32, -Inf  MinInt32    MinInt32
+//	> MaxInt32, +Inf  MaxInt32    MinInt32
 //
 // The results are stored in the low 2 elements of z.
 // The remaining elements of z are zero.
@@ -2138,8 +2178,18 @@ func (x Float64x2) ConvertToInt32() (z Int32x4)
 //	z[i] = int32(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of int32 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MinInt32 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)          ARM64/WASM  AMD64
+//	----------------  ----------  --------
+//	NaN               0           MinInt32
+//	< MinInt32, -Inf  MinInt32    MinInt32
+//	> MaxInt32, +Inf  MaxInt32    MinInt32
 //
 // The results are stored in the low 4 elements of z.
 // The remaining elements of z are zero.
@@ -2152,8 +2202,18 @@ func (x Float64x4) ConvertToInt32() (z Int32x8)
 //	z[i] = int32(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of int32 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MinInt32 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)          ARM64/WASM  AMD64
+//	----------------  ----------  --------
+//	NaN               0           MinInt32
+//	< MinInt32, -Inf  MinInt32    MinInt32
+//	> MaxInt32, +Inf  MaxInt32    MinInt32
 //
 // The results are stored in the low 8 elements of z.
 // The remaining elements of z are zero.
@@ -2168,8 +2228,18 @@ func (x Float64x8) ConvertToInt32() (z Int32x16)
 //	z[i] = int64(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of int64 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MinInt64 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)          ARM64/WASM  AMD64
+//	----------------  ----------  --------
+//	NaN               0           MinInt64
+//	< MinInt64, -Inf  MinInt64    MinInt64
+//	> MaxInt64, +Inf  MaxInt64    MinInt64
 //
 // Only the low 2 elements of x are converted.
 // The remaining elements of x are ignored.
@@ -2182,8 +2252,18 @@ func (x Float32x4) ConvertToInt64() (z Int64x2)
 //	z[i] = int64(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of int64 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MinInt64 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)          ARM64/WASM  AMD64
+//	----------------  ----------  --------
+//	NaN               0           MinInt64
+//	< MinInt64, -Inf  MinInt64    MinInt64
+//	> MaxInt64, +Inf  MaxInt64    MinInt64
 //
 // Only the low 4 elements of x are converted.
 // The remaining elements of x are ignored.
@@ -2196,8 +2276,18 @@ func (x Float32x8) ConvertToInt64() (z Int64x4)
 //	z[i] = int64(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of int64 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MinInt64 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)          ARM64/WASM  AMD64
+//	----------------  ----------  --------
+//	NaN               0           MinInt64
+//	< MinInt64, -Inf  MinInt64    MinInt64
+//	> MaxInt64, +Inf  MaxInt64    MinInt64
 //
 // Only the low 8 elements of x are converted.
 // The remaining elements of x are ignored.
@@ -2210,8 +2300,18 @@ func (x Float32x16) ConvertToInt64() (z Int64x8)
 //	z[i] = int64(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of int64 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MinInt64 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)          ARM64/WASM  AMD64
+//	----------------  ----------  --------
+//	NaN               0           MinInt64
+//	< MinInt64, -Inf  MinInt64    MinInt64
+//	> MaxInt64, +Inf  MaxInt64    MinInt64
 //
 // Asm: VCVTTPD2QQ, CPU Feature: AVX512
 func (x Float64x2) ConvertToInt64() (z Int64x2)
@@ -2221,8 +2321,18 @@ func (x Float64x2) ConvertToInt64() (z Int64x2)
 //	z[i] = int64(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of int64 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MinInt64 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)          ARM64/WASM  AMD64
+//	----------------  ----------  --------
+//	NaN               0           MinInt64
+//	< MinInt64, -Inf  MinInt64    MinInt64
+//	> MaxInt64, +Inf  MaxInt64    MinInt64
 //
 // Asm: VCVTTPD2QQ, CPU Feature: AVX512
 func (x Float64x4) ConvertToInt64() (z Int64x4)
@@ -2232,8 +2342,18 @@ func (x Float64x4) ConvertToInt64() (z Int64x4)
 //	z[i] = int64(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of int64 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MinInt64 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)          ARM64/WASM  AMD64
+//	----------------  ----------  --------
+//	NaN               0           MinInt64
+//	< MinInt64, -Inf  MinInt64    MinInt64
+//	> MaxInt64, +Inf  MaxInt64    MinInt64
 //
 // Asm: VCVTTPD2QQ, CPU Feature: AVX512
 func (x Float64x8) ConvertToInt64() (z Int64x8)
@@ -2245,8 +2365,18 @@ func (x Float64x8) ConvertToInt64() (z Int64x8)
 //	z[i] = uint32(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of uint32 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MaxUint32 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)           ARM64/WASM  AMD64
+//	-----------------  ----------  ---------
+//	NaN                0           MaxUint32
+//	< 0, -Inf          0           MaxUint32
+//	> MaxUint32, +Inf  MaxUint32   MaxUint32
 //
 // Asm: VCVTTPS2UDQ, CPU Feature: AVX512
 func (x Float32x4) ConvertToUint32() (z Uint32x4)
@@ -2256,8 +2386,18 @@ func (x Float32x4) ConvertToUint32() (z Uint32x4)
 //	z[i] = uint32(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of uint32 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MaxUint32 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)           ARM64/WASM  AMD64
+//	-----------------  ----------  ---------
+//	NaN                0           MaxUint32
+//	< 0, -Inf          0           MaxUint32
+//	> MaxUint32, +Inf  MaxUint32   MaxUint32
 //
 // Asm: VCVTTPS2UDQ, CPU Feature: AVX512
 func (x Float32x8) ConvertToUint32() (z Uint32x8)
@@ -2267,8 +2407,18 @@ func (x Float32x8) ConvertToUint32() (z Uint32x8)
 //	z[i] = uint32(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of uint32 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MaxUint32 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)           ARM64/WASM  AMD64
+//	-----------------  ----------  ---------
+//	NaN                0           MaxUint32
+//	< 0, -Inf          0           MaxUint32
+//	> MaxUint32, +Inf  MaxUint32   MaxUint32
 //
 // Asm: VCVTTPS2UDQ, CPU Feature: AVX512
 func (x Float32x16) ConvertToUint32() (z Uint32x16)
@@ -2278,8 +2428,18 @@ func (x Float32x16) ConvertToUint32() (z Uint32x16)
 //	z[i] = uint32(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of uint32 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MaxUint32 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)           ARM64/WASM  AMD64
+//	-----------------  ----------  ---------
+//	NaN                0           MaxUint32
+//	< 0, -Inf          0           MaxUint32
+//	> MaxUint32, +Inf  MaxUint32   MaxUint32
 //
 // The results are stored in the low 2 elements of z.
 // The remaining elements of z are zero.
@@ -2292,8 +2452,18 @@ func (x Float64x2) ConvertToUint32() (z Uint32x4)
 //	z[i] = uint32(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of uint32 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MaxUint32 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)           ARM64/WASM  AMD64
+//	-----------------  ----------  ---------
+//	NaN                0           MaxUint32
+//	< 0, -Inf          0           MaxUint32
+//	> MaxUint32, +Inf  MaxUint32   MaxUint32
 //
 // The results are stored in the low 4 elements of z.
 // The remaining elements of z are zero.
@@ -2306,8 +2476,18 @@ func (x Float64x4) ConvertToUint32() (z Uint32x8)
 //	z[i] = uint32(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of uint32 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MaxUint32 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)           ARM64/WASM  AMD64
+//	-----------------  ----------  ---------
+//	NaN                0           MaxUint32
+//	< 0, -Inf          0           MaxUint32
+//	> MaxUint32, +Inf  MaxUint32   MaxUint32
 //
 // The results are stored in the low 8 elements of z.
 // The remaining elements of z are zero.
@@ -2322,8 +2502,18 @@ func (x Float64x8) ConvertToUint32() (z Uint32x16)
 //	z[i] = uint64(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of uint64 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MaxUint64 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)           ARM64/WASM  AMD64
+//	-----------------  ----------  ---------
+//	NaN                0           MaxUint64
+//	< 0, -Inf          0           MaxUint64
+//	> MaxUint64, +Inf  MaxUint64   MaxUint64
 //
 // Only the low 2 elements of x are converted.
 // The remaining elements of x are ignored.
@@ -2336,8 +2526,18 @@ func (x Float32x4) ConvertToUint64() (z Uint64x2)
 //	z[i] = uint64(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of uint64 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MaxUint64 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)           ARM64/WASM  AMD64
+//	-----------------  ----------  ---------
+//	NaN                0           MaxUint64
+//	< 0, -Inf          0           MaxUint64
+//	> MaxUint64, +Inf  MaxUint64   MaxUint64
 //
 // Only the low 4 elements of x are converted.
 // The remaining elements of x are ignored.
@@ -2350,8 +2550,18 @@ func (x Float32x8) ConvertToUint64() (z Uint64x4)
 //	z[i] = uint64(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of uint64 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MaxUint64 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)           ARM64/WASM  AMD64
+//	-----------------  ----------  ---------
+//	NaN                0           MaxUint64
+//	< 0, -Inf          0           MaxUint64
+//	> MaxUint64, +Inf  MaxUint64   MaxUint64
 //
 // Only the low 8 elements of x are converted.
 // The remaining elements of x are ignored.
@@ -2364,8 +2574,18 @@ func (x Float32x16) ConvertToUint64() (z Uint64x8)
 //	z[i] = uint64(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of uint64 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MaxUint64 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)           ARM64/WASM  AMD64
+//	-----------------  ----------  ---------
+//	NaN                0           MaxUint64
+//	< 0, -Inf          0           MaxUint64
+//	> MaxUint64, +Inf  MaxUint64   MaxUint64
 //
 // Asm: VCVTTPD2UQQ, CPU Feature: AVX512
 func (x Float64x2) ConvertToUint64() (z Uint64x2)
@@ -2375,8 +2595,18 @@ func (x Float64x2) ConvertToUint64() (z Uint64x2)
 //	z[i] = uint64(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of uint64 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MaxUint64 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)           ARM64/WASM  AMD64
+//	-----------------  ----------  ---------
+//	NaN                0           MaxUint64
+//	< 0, -Inf          0           MaxUint64
+//	> MaxUint64, +Inf  MaxUint64   MaxUint64
 //
 // Asm: VCVTTPD2UQQ, CPU Feature: AVX512
 func (x Float64x4) ConvertToUint64() (z Uint64x4)
@@ -2386,8 +2616,18 @@ func (x Float64x4) ConvertToUint64() (z Uint64x4)
 //	z[i] = uint64(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
-// If the converted result would be outside the representable range, the result
-// is architecture-dependent.
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of uint64 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MaxUint64 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)           ARM64/WASM  AMD64
+//	-----------------  ----------  ---------
+//	NaN                0           MaxUint64
+//	< 0, -Inf          0           MaxUint64
+//	> MaxUint64, +Inf  MaxUint64   MaxUint64
 //
 // Asm: VCVTTPD2UQQ, CPU Feature: AVX512
 func (x Float64x8) ConvertToUint64() (z Uint64x8)
