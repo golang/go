@@ -30,7 +30,7 @@ from mercurial import registrar, ui, hg, node
 from mercurial.i18n import _
 cmdtable = {}
 command = registrar.command(cmdtable)
-@command(b'goreposum', [], _('url'), norepo=True)
+@command(b'goreposum', [], _(b'url'), norepo=True)
 def goreposum(ui, url):
   """
   goreposum computes a checksum of all the named state in the remote repo.
@@ -55,7 +55,7 @@ def goreposum(ui, url):
       h.update(b'\n')
   print('r1:'+base64.standard_b64encode(h.digest()).decode('utf-8'))
 
-@command(b'golookup', [], _('url rev'), norepo=True)
+@command(b'golookup', [], _(b'url rev'), norepo=True)
 def golookup(ui, url, rev):
   """
   golookup looks up a single identifier in the repo,
