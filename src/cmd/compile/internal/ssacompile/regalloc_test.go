@@ -6,6 +6,7 @@ package ssacompile
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 
 	"cmd/compile/internal/ssa"
@@ -14,6 +15,53 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj/x86"
 )
+
+func TestDesiredMerge(t *testing.T) {
+	index := ssa.NewSparseMap(128)
+	var linear, indexed desiredState
+	for id := ssa.ID(0); id < 64; id++ {
+		linear.add(id, ssaop.Register(id%64))
+		linear.add(id, ssaop.Register(id%64+1))
+		linear.add(id, 64)
+		linear.add(id, 65)
+	}
+	indexed.copy(&linear)
+
+	// An empty source can still contribute avoid bits.
+	empty := desiredState{avoid: ssa.RegMaskAt(68)}
+	if !indexed.merge(&empty, index) || indexed.merge(&empty, index) {
+		t.Fatal("merging empty source should change avoid only once")
+	}
+	linear.avoid = linear.avoid.Union(empty.avoid)
+
+	for _, start := range []ssa.ID{32, 16, 0} {
+		var incoming desiredState
+		for id := start; id < start+64; id++ {
+			prefs := [4]ssaop.Register{65, ssaop.Register(id%64 + 1), 66, 67}
+			for _, r := range prefs[:id%4+1] {
+				incoming.add(id, r)
+			}
+		}
+		// computeDesired may remove avoid bits for registers that still
+		// occur in surviving entries before a merge.
+		incoming.avoid = incoming.avoid.Minus(ssa.RegMaskAt(67))
+		oldAvoid := linear.avoid
+		linear.avoid = linear.avoid.Union(incoming.avoid)
+		for _, e := range incoming.entries {
+			linear.addList(e.ID, e.regs)
+		}
+		if got, want := indexed.merge(&incoming, index), linear.avoid != oldAvoid; got != want {
+			t.Fatalf("merge starting at %d changed = %t, want %t", start, got, want)
+		}
+		if indexed.avoid != linear.avoid || !slices.Equal(indexed.entries, linear.entries) {
+			t.Fatalf("merge starting at %d differs from linear merge", start)
+		}
+
+		// Exercise reuse of the scratch index after a destination entry moves.
+		indexed.remove(start + 1)
+		linear.remove(start + 1)
+	}
+}
 
 func TestLiveControlOps(t *testing.T) {
 	c := testConfig(t)
