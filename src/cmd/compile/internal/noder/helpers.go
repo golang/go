@@ -114,8 +114,9 @@ func isTypeParam(t types2.Type) bool {
 }
 
 // isNotInHeap reports whether typ is or contains an element of type
-// internal/runtime/sys.NotInHeap.
-func isNotInHeap(typ types2.Type) bool {
+// internal/runtime/sys.NotInHeap. The results for struct types are
+// recorded in memo, so that types shared by many fields are visited once.
+func isNotInHeap(typ types2.Type, memo map[*types2.Struct]bool) bool {
 	typ = types2.Unalias(typ)
 	if named, ok := typ.(*types2.Named); ok {
 		if obj := named.Obj(); obj.Name() == "nih" && obj.Pkg().Path() == "internal/runtime/sys" {
@@ -126,14 +127,19 @@ func isNotInHeap(typ types2.Type) bool {
 
 	switch typ := typ.(type) {
 	case *types2.Array:
-		return isNotInHeap(typ.Elem())
+		return isNotInHeap(typ.Elem(), memo)
 	case *types2.Struct:
-		for i := 0; i < typ.NumFields(); i++ {
-			if isNotInHeap(typ.Field(i).Type()) {
-				return true
+		res, ok := memo[typ]
+		if !ok {
+			for i := 0; i < typ.NumFields(); i++ {
+				if isNotInHeap(typ.Field(i).Type(), memo) {
+					res = true
+					break
+				}
 			}
+			memo[typ] = res
 		}
-		return false
+		return res
 	default:
 		return false
 	}
