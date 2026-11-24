@@ -1,0 +1,118 @@
+# b should compile only Box[int] instantiations still referenced after inlining.
+# Negative checks match defined symbols (with an address), not U references.
+
+go build -o b.a ./b
+go tool nm b.a
+stdout ' T example/a\.Box\[go\.shape\.int\]\.Called$'
+stdout ' T example/a\.Box\[go\.shape\.int\]\.Value$'
+stdout ' T example/a\.Box\[go\.shape\.int\]\.Expr$'
+stdout ' T example/a\.id\[go\.shape\.int\]$'              # called by Called
+stdout ' T example/a\.get\[go\.shape\.int\]\.1$'          # get's closure in Called.func1
+stdout ' T example/a\.Box\[go\.shape\.string\]\.Unused$'  # not in package a
+stdout ' T example/a\.Box\[go\.shape\.int8\]\.Value$'     # via b.Emb wrapper
+! stdout ' T .*Box\[go\.shape\.int\]\.Inlined$'
+! stdout '[0-9a-f] [^U] .*Box\[go\.shape\.int\]\.Unused'  # unused (and its closure)
+! stdout '[0-9a-f] [^U] .*apply\[go\.shape\.int\]'        # inlined into Unused
+
+# -d=genericsdedup=0 compiles them all.
+go build -gcflags=-d=genericsdedup=0 -o b0.a ./b
+go tool nm b0.a
+stdout ' T example/a\.Box\[go\.shape\.int\]\.Inlined$'
+stdout ' T example/a\.Box\[go\.shape\.int\]\.Unused$'
+stdout ' T example/a\.Box\[go\.shape\.int\]\.Unused\.func1$'
+stdout ' T example/a\.apply\[go\.shape\.int\]\.1$'
+
+# Disabled for custom maxshapelen and runtime (-+).
+go build -gcflags=-d=maxshapelen=499 -o b1.a ./b
+go tool nm b1.a
+stdout ' T example/a\.Box\[go\.shape\.int\]\.Unused$'
+go build -gcflags=-+ -o b2.a ./b
+go tool nm b2.a
+stdout ' T example/a\.Box\[go\.shape\.int\]\.Unused$'
+
+# Build (with DWARF) and run. main calls Unused via interface using a's copy.
+go build -o prog.exe .
+exec ./prog.exe
+stderr '^1 2 3 4 5 ab 6$'
+
+-- go.mod --
+module example
+
+go 1.27
+-- a/a.go --
+package a
+
+type Box[T any] struct{ V T }
+
+// Exposes Box[int] so package a compiles its methods.
+func New(v int) Box[int] { return Box[int]{v} }
+
+// Exposes Box[int8] for b.Emb.
+func New8(v int8) Box[int8] { return Box[int8]{v} }
+
+// Deferred closure stays out of line, so inlining get copies its closure.
+//go:noinline
+func (b Box[T]) Called() (v T) {
+	defer func() { v = id(get(get(b.V))) }()
+	return
+}
+
+//go:noinline
+func (b Box[T]) Value() T { return b.V }
+
+//go:noinline
+func (b Box[T]) Expr() T { return b.V }
+
+func (b Box[T]) Inlined() T { return b.V }
+
+//go:noinline
+func (b Box[T]) Unused() (v T) {
+	defer func() { v = apply(b.V) }()
+	return
+}
+
+//go:noinline
+func id[T any](v T) T { return v }
+
+// Direct closure call, so inlining copies the closure.
+func get[T any](v T) (r T) {
+	func() { r = v }()
+	return
+}
+
+func apply[T any](v T) (r T) {
+	func() { r = v }()
+	return
+}
+-- b/b.go --
+package b
+
+import "example/a"
+
+func Called() int  { return a.New(1).Called() }
+func Inlined() int { return a.New(2).Inlined() }
+
+var Value = a.New(3).Value
+
+var expr = a.Box[int].Expr
+
+func Expr() int { return expr(a.New(4)) }
+
+func Any() any { return a.New(5) }
+
+func String() string { return a.Box[string]{V: "ab"}.Unused() }
+
+// Promoted wrapper calls Box[int8]'s methods.
+type Emb struct{ a.Box[int8] }
+
+func Embedded() any { return Emb{a.New8(6)} }
+-- main.go --
+package main
+
+import "example/b"
+
+func main() {
+	u := b.Any().(interface{ Unused() int })
+	e := b.Embedded().(interface{ Value() int8 })
+	println(b.Called(), b.Inlined(), b.Value(), b.Expr(), u.Unused(), b.String(), e.Value())
+}

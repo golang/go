@@ -1210,15 +1210,23 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller, closur
 			return
 		}
 
-		ir.InitLSym(fn, true)
+		if callerfn.CompiledByImport() {
+			deferInlSym(callerfn, fn, true)
+		} else {
+			ir.InitLSym(fn, true)
+		}
 	}
 
 	closureInitLSym(n, fn)
 
 	if base.Flag.GenDwarfInl > 0 {
 		if !sym.WasInlined() {
-			base.Ctxt.DwFixups.SetPrecursorFunc(sym, fn)
-			sym.Set(obj.AttrWasInlined, true)
+			if callerfn.CompiledByImport() {
+				deferInlSym(callerfn, fn, false)
+			} else {
+				base.Ctxt.DwFixups.SetPrecursorFunc(sym, fn)
+				sym.Set(obj.AttrWasInlined, true)
+			}
 		}
 	}
 
@@ -1249,6 +1257,43 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller, closur
 	}
 
 	return res
+}
+
+// deferredInlSym records a closure LSym or DWARF precursor effect deferred until
+// noder.DropUnusedImportedInsts decides whether the caller is kept.
+type deferredInlSym struct {
+	callee      *ir.Func
+	initClosure bool // ir.InitLSym for a direct closure call, else DWARF precursor
+}
+
+var deferredInlSyms map[*ir.Func][]deferredInlSym // keyed by outermost caller
+
+// deferInlSym records an inlining side effect so dropped candidates leave no orphan symbols.
+func deferInlSym(callerfn, callee *ir.Func, initClosure bool) {
+	if deferredInlSyms == nil {
+		deferredInlSyms = make(map[*ir.Func][]deferredInlSym)
+	}
+	outer := callerfn.Outermost()
+	deferredInlSyms[outer] = append(deferredInlSyms[outer], deferredInlSym{callee, initClosure})
+}
+
+// FlushDeferredSymEffects replays deferred inlining side effects for kept callers in slice
+// order so symbol creation stays deterministic (see noder.DropUnusedImportedInsts).
+func FlushDeferredSymEffects(kept []*ir.Func) {
+	if deferredInlSyms == nil {
+		return
+	}
+	for _, fn := range kept {
+		for _, s := range deferredInlSyms[fn] {
+			if s.initClosure {
+				ir.InitLSym(s.callee, true)
+			} else if sym := s.callee.Linksym(); !sym.WasInlined() {
+				base.Ctxt.DwFixups.SetPrecursorFunc(sym, s.callee)
+				sym.Set(obj.AttrWasInlined, true)
+			}
+		}
+	}
+	deferredInlSyms = nil
 }
 
 // CalleeEffects appends any side effects from evaluating callee to init.

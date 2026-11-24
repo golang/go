@@ -217,6 +217,7 @@ func unified(m posMap, noders []*noder) {
 	r.pkgInit(types.LocalPkg, target)
 
 	readBodies(target, false, nil)
+	findImportedInsts()
 
 	// Check that nothing snuck past typechecking.
 	for _, fn := range target.Funcs {
@@ -324,6 +325,160 @@ func readBodies(target *ir.Package, duringInlining bool, profile *pgoir.Profile)
 			fn.Body = nil // free memory
 		}
 	}
+}
+
+// allowGenericsDedup reports whether unused imported generic instantiations may be dropped.
+func allowGenericsDedup() bool {
+	if base.Debug.GenericsDedup == 0 {
+		return false
+	}
+	// Skip when -linkshared (#58966) or a custom maxshapelen can break linking.
+	if base.Ctxt.Flag_linkshared ||
+		base.Debug.MaxShapeLen != base.DefaultMaxShapeLen {
+		return false
+	}
+	// Skip special package boundaries.
+	if base.Ctxt.IsFIPS() ||
+		base.Flag.CompilingRuntime ||
+		types.IsNoInstrumentPkg(types.LocalPkg) {
+		return false
+	}
+	return true
+}
+
+// findImportedInsts marks generic instantiations already compiled by an imported package
+// (from haveWrapperTypes and their transitive callees) as candidates for pruning.
+func findImportedInsts() {
+	if !allowGenericsDedup() || len(haveWrapperTypes) == 0 {
+		return
+	}
+
+	seen := make(map[*types.Type]bool)
+	var work []*ir.Func
+
+	markFunc := func(fn *ir.Func) {
+		if pri, ok := bodyReader[fn]; ok && pri.dict.hasTypeParams() && !fn.CompiledByImport() {
+			fn.SetCompiledByImport(true)
+			work = append(work, fn)
+		}
+	}
+
+	var markType func(t *types.Type)
+	markType = func(t *types.Type) {
+		if t == nil || seen[t] {
+			return
+		}
+		seen[t] = true
+
+		switch t.Kind() {
+		case types.TPTR, types.TSLICE, types.TARRAY, types.TCHAN:
+			markType(t.Elem())
+		case types.TMAP:
+			markType(t.Key())
+			markType(t.Elem())
+		case types.TSTRUCT:
+			for _, f := range t.Fields() {
+				markType(f.Type)
+			}
+		case types.TFUNC:
+			for _, f := range t.RecvParamsResults() {
+				markType(f.Type)
+			}
+		case types.TINTER:
+			return // no bodies
+		}
+
+		if t.IsFullyInstantiated() {
+			for _, m := range t.Methods() {
+				markFunc(m.Nname.(*ir.Name).Func)
+			}
+		}
+	}
+
+	for _, t := range haveWrapperTypes {
+		markType(t)
+	}
+	for len(work) > 0 {
+		fn := work[len(work)-1]
+		work = work[:len(work)-1]
+
+		markType(fn.Type())
+		ir.VisitFuncAndClosures(fn, func(n ir.Node) {
+			markType(n.Type())
+			if callee := referencedFunc(n); callee != nil {
+				markFunc(callee)
+			}
+		})
+	}
+}
+
+// referencedFunc returns the function directly referenced by n, matching the call graph
+// edges followed by ir.VisitFuncsBottomUp (closures are handled by the caller).
+func referencedFunc(n ir.Node) *ir.Func {
+	switch n.Op() {
+	case ir.ONAME:
+		if n := n.(*ir.Name); n.Class == ir.PFUNC {
+			return n.Func
+		}
+	case ir.ODOTMETH, ir.OMETHVALUE, ir.OMETHEXPR:
+		if m := ir.MethodExprName(n); m != nil {
+			return m.Func
+		}
+	}
+	return nil
+}
+
+// DropUnusedImportedInsts removes generic instantiations that an imported package already
+// compiled and that nothing in this package still references after inlining and MakeWrappers.
+// Keeping referenced instantiations ensures callers are only analyzed against bodies compiled
+// in this package. Dropped ones still resolve at link time to an imported package's copy.
+func DropUnusedImportedInsts(target *ir.Package) {
+	if !slices.ContainsFunc(target.Funcs, (*ir.Func).CompiledByImport) {
+		return
+	}
+
+	keep := make(map[*ir.Func]bool)
+	scanned := make(map[*ir.Func]bool)
+	for changed := true; changed; {
+		changed = false
+		for _, fn := range target.Funcs {
+			if scanned[fn] || fn.CompiledByImport() && !keep[fn.Outermost()] {
+				continue
+			}
+			scanned[fn] = true
+			ir.Visit(fn, func(n ir.Node) {
+				callee := referencedFunc(n)
+				if callee == nil || !callee.CompiledByImport() {
+					return
+				}
+				if callee = callee.Outermost(); !keep[callee] {
+					keep[callee] = true
+					changed = true
+				}
+			})
+		}
+	}
+
+	// Keep fn.Inl for DWARF in case a retained caller inlined fn.
+	target.Funcs = slices.DeleteFunc(target.Funcs, func(fn *ir.Func) bool {
+		if !fn.CompiledByImport() || keep[fn.Outermost()] {
+			return false
+		}
+		fn.Body = nil
+		fn.Dcl = nil
+		fn.ClosureVars = nil
+		return true
+	})
+
+	// Flush deferred symbol effects in target.Funcs order (not map order) for determinism.
+	var kept []*ir.Func
+	for _, fn := range target.Funcs {
+		if keep[fn] {
+			fn.SetCompiledByImport(false)
+			kept = append(kept, fn)
+		}
+	}
+	inline.FlushDeferredSymEffects(kept)
 }
 
 // writePkgStub type checks the given parsed source files,

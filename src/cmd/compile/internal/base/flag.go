@@ -181,10 +181,11 @@ func ParseFlags() {
 
 	Debug.ConcurrentOk = true
 	Debug.CompressInstructions = 1
-	Debug.MaxShapeLen = 500
+	Debug.MaxShapeLen = DefaultMaxShapeLen
 	Debug.AlignHot = 1
 	Debug.InlFuncsWithClosures = 1
 	Debug.InlStaticInit = 1
+	Debug.GenericsDedup = 1
 	Debug.FreeAppend = 1
 	Debug.PGOInline = 1
 	Debug.PGODevirtualize = 2

@@ -6,6 +6,9 @@
 
 package base
 
+// DefaultMaxShapeLen is the default threshold for -d=maxshapelen.
+const DefaultMaxShapeLen = 500
+
 // Debug holds the parsed debugging configuration values.
 var Debug DebugFlags
 
@@ -45,6 +48,7 @@ type DebugFlags struct {
 	GCCheck               int    `help:"check heap/gc use by compiler" concurrent:"ok"`
 	GCProg                int    `help:"print dump of GC programs"`
 	GCStart               int    `help:"specify \"starting\" compiler's heap size in MiB" concurrent:"ok"`
+	GenericsDedup         int    `help:"skip compiling unused duplicate generic instantiations" concurrent:"ok"`
 	Gossahash             string `help:"hash value for use in debugging the compiler"`
 	Html                  string `help:"dump named function to ssa.html" concurrent:"ok"`
 	InlFuncsWithClosures  int    `help:"allow functions with closures to be inlined" concurrent:"ok"`

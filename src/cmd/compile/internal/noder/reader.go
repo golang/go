@@ -3950,6 +3950,7 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
 		base.FatalfAt(call.Pos(), "cannot inline call to %v: missing inline body", fn)
 	}
 
+	// Run expandInline even for CompiledByImport so export data does not change.
 	if !fn.Inl.HaveDcl {
 		expandInline(fn, pri)
 	}

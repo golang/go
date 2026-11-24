@@ -269,6 +269,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	noder.MakeWrappers(typecheck.Target) // must happen after inlining
 
+	// Must happen after inlining and MakeWrappers, see noder.DropUnusedImportedInsts.
+	noder.DropUnusedImportedInsts(typecheck.Target)
+
 	// Get variable capture right in for loops.
 	var transformed []loopvar.VarAndLoop
 	for _, fn := range typecheck.Target.Funcs {
