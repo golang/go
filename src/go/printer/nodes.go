@@ -813,8 +813,42 @@ func isBinary(expr ast.Expr) bool {
 	return ok
 }
 
+// exprPos returns expr.Pos().
+//
+// The position of an expression such as a.b(c).d[e] is that of its leftmost
+// operand, found by walking down its left spine, and expr1 visits each
+// expression of the spine in turn, outermost first. To walk the spine once
+// instead of once per expression, exprPos remembers the operand that expr1
+// will visit next and its position, which is the same as that of expr.
+func (p *printer) exprPos(expr ast.Expr) token.Pos {
+	if expr != p.spineNext {
+		p.spinePos = expr.Pos()
+	}
+	p.spineNext = nil
+	switch x := expr.(type) {
+	case *ast.BinaryExpr:
+		p.spineNext = x.X
+	case *ast.CallExpr:
+		p.spineNext = x.Fun
+		if sel, ok := x.Fun.(*ast.SelectorExpr); ok {
+			p.spineNext = sel.X // printed by selectorExpr, which does not call expr1 for x.Fun
+		}
+	case *ast.IndexExpr:
+		p.spineNext = x.X
+	case *ast.IndexListExpr:
+		p.spineNext = x.X
+	case *ast.SelectorExpr:
+		p.spineNext = x.X
+	case *ast.SliceExpr:
+		p.spineNext = x.X
+	case *ast.TypeAssertExpr:
+		p.spineNext = x.X
+	}
+	return p.spinePos
+}
+
 func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
-	p.setPos(expr.Pos())
+	p.setPos(p.exprPos(expr))
 
 	switch x := expr.(type) {
 	case *ast.BadExpr:
