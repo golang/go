@@ -84,6 +84,9 @@ var (
 // Each .go file test case in GOROOT/test is registered as a subtest with
 // a full name like "Test/fixedbugs/bug000.go" ('/'-separated relative path).
 func Test(t *testing.T) {
+	if testing.Short() && strings.Contains(testenv.Builder(), "plan9") && *target == "" {
+		t.Skipf("skipping test in -short mode on plan9 builder without -target flag; see go.dev/issue/83245")
+	}
 	if *target != "" {
 		// When -target is set, propagate it to GOOS/GOARCH in our environment
 		// so that all commands run with the target GOOS/GOARCH.
