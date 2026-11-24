@@ -43,3 +43,10 @@
 (CMPQconstloadidx8 {sym} [vo] ptr idx mem) && vo.Val() != 0 => (CMPQconst (MOVQloadidx8 {sym} [vo.Off()] ptr idx mem) [vo.Val()])
 (CMPLconstloadidx4 {sym} [vo] ptr idx mem) && vo.Val() != 0 => (CMPLconst (MOVLloadidx4 {sym} [vo.Off()] ptr idx mem) [vo.Val()])
 (CMPWconstloadidx2 {sym} [vo] ptr idx mem) && vo.Val() != 0 => (CMPWconst (MOVWloadidx2 {sym} [vo.Off()] ptr idx mem) [vo.Val16()])
+
+// Load/op combos of the carry chain ops. These are tuple-valued, so flagalloc
+// splits them when it needs to recompute their flags result elsewhere.
+(ADDQcarryload {sym} [off] x ptr mem) => (ADDQcarry x (MOVQload <x.Type> {sym} [off] ptr mem))
+(ADCQload {sym} [off] x ptr carry mem) => (ADCQ x (MOVQload <x.Type> {sym} [off] ptr mem) carry)
+(SUBQborrowload {sym} [off] x ptr mem) => (SUBQborrow x (MOVQload <x.Type> {sym} [off] ptr mem))
+(SBBQload {sym} [off] x ptr borrow mem) => (SBBQ x (MOVQload <x.Type> {sym} [off] ptr mem) borrow)
