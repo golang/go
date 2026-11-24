@@ -807,6 +807,195 @@ func BenchmarkMulNeg2(b *testing.B) {
 	}
 }
 
+// Benchmarks for materializing floating-point constants. On riscv64 with
+// GORISCV64=rva23u64 (Zfa), constants in the FLIS/FLID tables load with one
+// instruction instead of an AUIPC+load pair; the "Pool" variants are controls
+// that should measure the same on every toolchain.
+//
+// Constants are added to independent accumulators: a single serial accumulator
+// hides the load behind the FADD chain, and repeated constants are CSEd.
+
+var sinkFloat32 float32
+
+//go:noinline
+func sumFloat32ConstImmediate(x float32) float32 {
+	s0, s1, s2, s3, s4, s5, s6, s7 := x, x, x, x, x, x, x, x
+	s0 += -1.0
+	s1 += 1.1754943508222875e-38
+	s2 += 1.52587890625e-05
+	s3 += 3.0517578125e-05
+	s4 += 0.00390625
+	s5 += 0.0078125
+	s6 += 0.0625
+	s7 += 0.125
+	s0 += 0.25
+	s1 += 0.3125
+	s2 += 0.375
+	s3 += 0.4375
+	s4 += 0.5
+	s5 += 0.625
+	s6 += 0.75
+	s7 += 0.875
+	s0 += 1.0
+	s1 += 1.25
+	s2 += 1.5
+	s3 += 1.75
+	s4 += 2.0
+	s5 += 2.5
+	s6 += 3.0
+	s7 += 4.0
+	s0 += 8.0
+	s1 += 16.0
+	s2 += 128.0
+	s3 += 256.0
+	s4 += 32768.0
+	s5 += 65536.0
+	return s0 + s1 + s2 + s3 + s4 + s5 + s6 + s7
+}
+
+// 0.11 to 0.46 are not in the Zfa immediate table, so both toolchains load
+// them from the constant pool.
+//
+//go:noinline
+func sumFloat32ConstPool(x float32) float32 {
+	s0, s1, s2, s3, s4, s5, s6, s7 := x, x, x, x, x, x, x, x
+	s0 += 0.11
+	s1 += 0.12
+	s2 += 0.13
+	s3 += 0.14
+	s4 += 0.15
+	s5 += 0.16
+	s6 += 0.17
+	s7 += 0.18
+	s0 += 0.19
+	s1 += 0.21
+	s2 += 0.22
+	s3 += 0.23
+	s4 += 0.24
+	s5 += 0.26
+	s6 += 0.27
+	s7 += 0.28
+	s0 += 0.29
+	s1 += 0.31
+	s2 += 0.32
+	s3 += 0.33
+	s4 += 0.34
+	s5 += 0.36
+	s6 += 0.37
+	s7 += 0.38
+	s0 += 0.39
+	s1 += 0.41
+	s2 += 0.42
+	s3 += 0.43
+	s4 += 0.44
+	s5 += 0.46
+	return s0 + s1 + s2 + s3 + s4 + s5 + s6 + s7
+}
+
+//go:noinline
+func sumFloat64ConstImmediate(x float64) float64 {
+	s0, s1, s2, s3, s4, s5, s6, s7 := x, x, x, x, x, x, x, x
+	s0 += -1.0
+	s1 += 2.2250738585072014e-308
+	s2 += 1.52587890625e-05
+	s3 += 3.0517578125e-05
+	s4 += 0.00390625
+	s5 += 0.0078125
+	s6 += 0.0625
+	s7 += 0.125
+	s0 += 0.25
+	s1 += 0.3125
+	s2 += 0.375
+	s3 += 0.4375
+	s4 += 0.5
+	s5 += 0.625
+	s6 += 0.75
+	s7 += 0.875
+	s0 += 1.0
+	s1 += 1.25
+	s2 += 1.5
+	s3 += 1.75
+	s4 += 2.0
+	s5 += 2.5
+	s6 += 3.0
+	s7 += 4.0
+	s0 += 8.0
+	s1 += 16.0
+	s2 += 128.0
+	s3 += 256.0
+	s4 += 32768.0
+	s5 += 65536.0
+	return s0 + s1 + s2 + s3 + s4 + s5 + s6 + s7
+}
+
+//go:noinline
+func sumFloat64ConstPool(x float64) float64 {
+	s0, s1, s2, s3, s4, s5, s6, s7 := x, x, x, x, x, x, x, x
+	s0 += 0.11
+	s1 += 0.12
+	s2 += 0.13
+	s3 += 0.14
+	s4 += 0.15
+	s5 += 0.16
+	s6 += 0.17
+	s7 += 0.18
+	s0 += 0.19
+	s1 += 0.21
+	s2 += 0.22
+	s3 += 0.23
+	s4 += 0.24
+	s5 += 0.26
+	s6 += 0.27
+	s7 += 0.28
+	s0 += 0.29
+	s1 += 0.31
+	s2 += 0.32
+	s3 += 0.33
+	s4 += 0.34
+	s5 += 0.36
+	s6 += 0.37
+	s7 += 0.38
+	s0 += 0.39
+	s1 += 0.41
+	s2 += 0.42
+	s3 += 0.43
+	s4 += 0.44
+	s5 += 0.46
+	return s0 + s1 + s2 + s3 + s4 + s5 + s6 + s7
+}
+
+func BenchmarkFloat32ConstImmediate(b *testing.B) {
+	var s float32
+	for i := 0; i < b.N; i++ {
+		s = sumFloat32ConstImmediate(s)
+	}
+	sinkFloat32 = s
+}
+
+func BenchmarkFloat32ConstPool(b *testing.B) {
+	var s float32
+	for i := 0; i < b.N; i++ {
+		s = sumFloat32ConstPool(s)
+	}
+	sinkFloat32 = s
+}
+
+func BenchmarkFloat64ConstImmediate(b *testing.B) {
+	var s float64
+	for i := 0; i < b.N; i++ {
+		s = sumFloat64ConstImmediate(s)
+	}
+	sinkFloat = s
+}
+
+func BenchmarkFloat64ConstPool(b *testing.B) {
+	var s float64
+	for i := 0; i < b.N; i++ {
+		s = sumFloat64ConstPool(s)
+	}
+	sinkFloat = s
+}
+
 // The "a < b ? a : b" branch idiom lowers to a single min/max instruction
 // (MINSD/MAXSD on amd64, FCSEL on arm64). Unlike the min/max builtins it keeps
 // the branch's own NaN and signed-zero behavior. Test the optimized assign
