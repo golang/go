@@ -19,7 +19,10 @@ var _cgoSigaction = cgoSigaction
 // It calls the runtime directly rather than through asmcgocall or
 // asmcgocallNoG so that the nosplit chain from cgoSigaction stays
 // within the nosplit stack limit even when compiled with -N -l.
+// It is marked go:noinline so aggressive inlining (-l=4) does not
+// allocate a separate cgoCallFrame per call site in cgoSigaction.
 //
+//go:noinline
 //go:nosplit
 //go:norace
 //go:nocheckptr

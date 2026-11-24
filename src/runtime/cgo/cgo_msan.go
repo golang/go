@@ -26,6 +26,7 @@ func msanUnpoison(addr unsafe.Pointer, size uintptr)
 // msanUnpoisonMode unpoisons [addr, addr+size). When noG is true it calls
 // __msan_write_go on the current stack without touching g or g0.
 //
+//go:noinline
 //go:nosplit
 //go:norace
 //go:nocheckptr

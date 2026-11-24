@@ -53,7 +53,9 @@ func runtime_cgocall(fn, arg unsafe.Pointer) int32
 // a composite literal. When compiled with -N, a composite literal is built
 // in a separate stack temporary and then copied, which would make the
 // frames of the nosplit helpers large enough to push nosplit chains such
-// as x_cgo_init's over the nosplit stack limit.
+// as x_cgo_init's over the nosplit stack limit. The nosplit helpers are also
+// marked go:noinline so aggressive inlining (such as -l=4) does not allocate
+// a separate cgoCallFrame per call site in nosplit callers.
 type cgoCallFrame struct {
 	fn                     uintptr
 	a0, a1, a2, a3, a4, a5 uintptr
@@ -64,6 +66,7 @@ type cgoCallFrame struct {
 // arguments on the system stack via runtime.asmcgocall without entering
 // the scheduler.
 //
+//go:noinline
 //go:nosplit
 //go:norace
 //go:nocheckptr
@@ -80,6 +83,7 @@ func asmcgocall(fn, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 // libInit, or x_cgo_init) or on a C/signal stack where switching to g0 is
 // unsafe.
 //
+//go:noinline
 //go:nosplit
 //go:norace
 //go:nocheckptr
@@ -102,6 +106,7 @@ func asmcgocallMode(noG bool, fn, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 // cgocall calls a C function pointer fn with up to 6 integer/pointer
 // arguments via runtime.cgocall, entering and exiting the scheduler.
 //
+//go:noinline
 //go:nosplit
 //go:norace
 //go:nocheckptr

@@ -63,6 +63,7 @@ func tsanCallNoGSlow(fn uintptr) {
 	runtime_asmcgocall_no_g(*(*unsafe.Pointer)(unsafe.Pointer(&fn)), unsafe.Pointer(cgoSyncPtr))
 }
 
+//go:noinline
 //go:nosplit
 //go:norace
 //go:nocheckptr
