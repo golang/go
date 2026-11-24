@@ -1016,34 +1016,34 @@ func TestCacheTrimSize(t *testing.T) {
 		t.Errorf("cache.log = %q, %v; want size trigger", log, err)
 	}
 
-	// Crossing targetSize(1300) = 1950 right away waits for the 2h spacing.
+	// Crossing targetSize(1300) = 1950 right away waits for the 1h spacing.
 	c.put(5, 900)
 	c.must(c.Trim())
 	c.wantEntries(1, 3, 4, 5)
 	wantFile(t, dir, "size.txt", "base 1300\nestimated 2200\n")
 
-	// Less than 2h spacing blocks a size trim, and an unsampled Trim at 4h is ignored.
-	c.clock = c.start.Add(4*time.Hour - time.Second)
+	// Less than 1h spacing blocks a size trim, and an unsampled Trim at 3h is ignored.
+	c.clock = c.start.Add(3*time.Hour - time.Second)
 	c.put(6, 1200)
 	c.must(c.Trim())
-	c.clock = c.start.Add(4 * time.Hour)
+	c.clock = c.start.Add(3 * time.Hour)
 	c.must(c.Trim())
 	c.wantEntries(1, 3, 4, 5, 6)
 
-	// A sampled put at 4h (estimate 3600 >= 1950) reclaims 3, 4, and 5.
+	// A sampled put at 3h (estimate 3600 >= 1950) reclaims 3 but keeps 1h old 4 and 5.
 	c.put(7, 200)
 	c.must(c.Trim())
-	c.wantEntries(1, 6, 7)
-	wantFile(t, dir, "size.txt", "base 1700\nestimated 1700\n")
+	c.wantEntries(1, 4, 5, 6, 7)
+	wantFile(t, dir, "size.txt", "base 3300\nestimated 3300\n")
 
-	// Next day (28h): daily trim lowers base to tenured deps (300) without removing 6 or 7.
-	// Two hours later, a small sampled put crosses targetSize(300) = 1000 and reclaims 6 and 7.
+	// Next day (28h): daily trim lowers base to tenured deps (300) without removing 4 to 7.
+	// An hour later, a small sampled put crosses targetSize(300) = 1000 and reclaims 4 to 7.
 	c.clock = c.start.Add(28 * time.Hour)
 	c.must(c.Trim())
-	c.wantEntries(1, 6, 7)
-	wantFile(t, dir, "size.txt", "base 300\nestimated 1700\n")
+	c.wantEntries(1, 4, 5, 6, 7)
+	wantFile(t, dir, "size.txt", "base 300\nestimated 3300\n")
 
-	c.clock = c.start.Add(30 * time.Hour)
+	c.clock = c.start.Add(29 * time.Hour)
 	c.put(8, 200)
 	c.must(c.Trim())
 	c.wantEntries(1, 8)

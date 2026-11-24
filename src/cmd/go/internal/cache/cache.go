@@ -391,7 +391,7 @@ func (c *DiskCache) OutputFile(out OutputID) string {
 // Any mtime not on a whole minute (including files written by older Go) is treated as tenured30m,
 // and rewriting an already cached entry counts as a use rather than resetting its mark.
 //
-// Size triggered trims run at most once per minTrimSpacing (2 hours) when a command adds
+// Size triggered trims run at most once per minTrimSpacing (1 hour) when a command adds
 // sampled bytes and the estimated size in size.txt reaches targetSize(base). Close measures
 // youngGenDeleteAge from openTime so a long go command never deletes its own output, and a
 // long running DiskCache refreshes accessed files every refreshInterval (20 minutes) without
@@ -405,7 +405,7 @@ const (
 	trimClockSkew = 1 * time.Hour // tolerate future trim.txt timestamps up to this much
 	trimLimit     = 5 * 24 * time.Hour
 
-	minTrimSpacing    = 2 * time.Hour    // min time from any trim to a size triggered trim
+	minTrimSpacing    = 1 * time.Hour    // min time from any trim to a size triggered trim
 	usedAfter30m      = 30 * time.Minute // reuse at this age promotes to tenured30m
 	youngGenDeleteAge = 90 * time.Minute // size trim delete age for young generation files
 	refreshInterval   = 20 * time.Minute // how often a long running process refreshes accessed files
