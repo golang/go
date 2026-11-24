@@ -42,48 +42,46 @@ func TestWrap(t *testing.T) {
 			words := words[:n]
 			t.Logf("words: %v", words)
 			for max := 1; max < 100 && !t.Failed(); max++ {
-				t.Run(fmt.Sprint("max=", max), func(t *testing.T) {
-					seq := wrap(words, max)
+				seq := wrap(words, max)
 
-					// Compute score for seq.
-					start := 0
-					score := int64(0)
-					if len(seq) == 0 {
-						t.Fatalf("wrap seq is empty")
+				// Compute score for seq.
+				start := 0
+				score := int64(0)
+				if len(seq) == 0 {
+					t.Fatalf("max=%d: wrap seq is empty", max)
+				}
+				if seq[0] != 0 {
+					t.Fatalf("max=%d: wrap seq does not start with 0", max)
+				}
+				for _, n := range seq[1:] {
+					if n <= start {
+						t.Fatalf("max=%d: wrap seq is non-increasing: %v", max, seq)
 					}
-					if seq[0] != 0 {
-						t.Fatalf("wrap seq does not start with 0")
+					if n > len(words) {
+						t.Fatalf("max=%d: wrap seq contains %d > %d: %v", max, n, len(words), seq)
 					}
-					for _, n := range seq[1:] {
-						if n <= start {
-							t.Fatalf("wrap seq is non-increasing: %v", seq)
-						}
-						if n > len(words) {
-							t.Fatalf("wrap seq contains %d > %d: %v", n, len(words), seq)
-						}
-						size := -1
-						for _, s := range words[start:n] {
-							size += 1 + utf8.RuneCountInString(s)
-						}
-						if n-start == 1 && size >= max {
-							// no score
-						} else if size > max {
-							t.Fatalf("wrap used overlong line %d:%d: %v", start, n, words[start:n])
-						} else if n != len(words) {
-							score += int64(max-size)*int64(max-size) + wrapPenalty(words[n-1])
-						}
-						start = n
+					size := -1
+					for _, s := range words[start:n] {
+						size += 1 + utf8.RuneCountInString(s)
 					}
-					if start != len(words) {
-						t.Fatalf("wrap seq does not use all words (%d < %d): %v", start, len(words), seq)
+					if n-start == 1 && size >= max {
+						// no score
+					} else if size > max {
+						t.Fatalf("max=%d: wrap used overlong line %d:%d: %v", max, start, n, words[start:n])
+					} else if n != len(words) {
+						score += int64(max-size)*int64(max-size) + wrapPenalty(words[n-1])
 					}
+					start = n
+				}
+				if start != len(words) {
+					t.Fatalf("max=%d: wrap seq does not use all words (%d < %d): %v", max, start, len(words), seq)
+				}
 
-					// Check that score matches slow reference implementation.
-					slowSeq, slowScore := wrapSlow(words, max)
-					if score != slowScore {
-						t.Fatalf("wrap score = %d != wrapSlow score %d\nwrap: %v\nslow: %v", score, slowScore, seq, slowSeq)
-					}
-				})
+				// Check that score matches slow reference implementation.
+				slowSeq, slowScore := wrapSlow(words, max)
+				if score != slowScore {
+					t.Fatalf("max=%d: wrap score = %d != wrapSlow score %d\nwrap: %v\nslow: %v", max, score, slowScore, seq, slowSeq)
+				}
 			}
 		})
 	}
