@@ -1,0 +1,40 @@
+[!cgo] skip
+[short] skip '-a rebuilds the runtime'
+
+go run .
+stderr '^1 10$'
+
+# The nested header is not a direct package input. Force a rebuild
+# so cgo generation and C compilation both use the updated header.
+cp changed.txt include/config.h
+go run -a -x .
+stderr '^2 20$'
+stderr ' -c .*get\.c'
+
+# The rebuilt outputs should be reusable by an ordinary invocation.
+go run -x .
+stderr '^2 20$'
+! stderr ' -importpath example.com/cgorebuild '
+! stderr ' -c .*get\.c'
+
+-- go.mod --
+module example.com/cgorebuild
+
+go 1.27
+-- main.go --
+package main
+
+// #include "api.h"
+import "C"
+
+func main() { println(C.V, C.get()) }
+-- api.h --
+#include "include/config.h"
+int get(void);
+-- include/config.h --
+#define V 1
+-- changed.txt --
+#define V 2
+-- get.c --
+#include "api.h"
+int get(void) { return V * 10; }
