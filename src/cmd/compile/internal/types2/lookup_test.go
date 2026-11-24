@@ -5,8 +5,11 @@
 package types2_test
 
 import (
+	"fmt"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"sync"
 	"testing"
 
 	. "cmd/compile/internal/types2"
@@ -51,5 +54,57 @@ func BenchmarkLookupFieldOrMethod(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
 		lookup()
+	}
+}
+
+// TestLookupManyMethods tests method lookup on types with enough methods
+// to be looked up by name, concurrently and after adding a method.
+func TestLookupManyMethods(t *testing.T) {
+	const n = 200
+
+	var src strings.Builder
+	src.WriteString("package p\n\ntype I interface {\n")
+	for i := range n {
+		fmt.Fprintf(&src, "\tM%d()\n", i)
+	}
+	src.WriteString("}\n\ntype T struct{}\n\ntype G[P any] struct{}\n\n")
+	for i := range n {
+		fmt.Fprintf(&src, "func (T) M%d() {}\nfunc (G[P]) M%d() {}\n", i, i)
+	}
+	src.WriteString("\ntype S struct{ T }\n\nvar _ I = S{}\nvar _ I = G[int]{}\n")
+	pkg := mustTypecheck(src.String(), nil, nil)
+
+	iface := pkg.Scope().Lookup("I").Type().Underlying().(*Interface)
+	S := pkg.Scope().Lookup("S").Type()
+	G, err := Instantiate(nil, pkg.Scope().Lookup("G").Type(), []Type{Typ[String]}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	for _, typ := range []Type{S, S, G, G} {
+		wg.Go(func() {
+			for i := range n {
+				name := fmt.Sprintf("M%d", i)
+				obj, index, _ := LookupFieldOrMethod(typ, false, pkg, name)
+				if obj == nil || obj.Name() != name || index[len(index)-1] != i {
+					t.Errorf("LookupFieldOrMethod(%s, %s) = %v, %v", typ, name, obj, index)
+				}
+			}
+			if obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "M"); obj != nil {
+				t.Errorf("LookupFieldOrMethod(%s, M) = %v, want nil", typ, obj)
+			}
+			if !Implements(typ, iface) {
+				t.Errorf("%s does not implement I", typ)
+			}
+		})
+	}
+	wg.Wait()
+
+	T := pkg.Scope().Lookup("T").Type().(*Named)
+	m := NewFunc(nopos, pkg, "M", NewSignatureType(NewVar(nopos, pkg, "", T), nil, nil, nil, nil, false))
+	T.AddMethod(m)
+	if obj, _, _ := LookupFieldOrMethod(T, false, pkg, "M"); obj != m {
+		t.Errorf("LookupFieldOrMethod(T, M) = %v after AddMethod, want %v", obj, m)
 	}
 }
