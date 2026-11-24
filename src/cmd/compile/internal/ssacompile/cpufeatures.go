@@ -7,6 +7,7 @@ package ssacompile
 import (
 	"fmt"
 	"internal/goarch"
+	"strings"
 
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
@@ -27,10 +28,9 @@ func (e localEffect) String() string {
 }
 
 // ifEffect pattern matches for a BlockIf conditional on a load
-// of a field from internal/cpu.X86 and returns the corresponding
-// effect.
+// of a field from internal/cpu.X86 or internal/cpu.ARM64 and returns the
+// corresponding effect.
 func ifEffect(b *ssa.Block) (features ssa.CPUfeatures, taken int) {
-	// TODO generalize for other architectures.
 	if b.Kind != block.BlockIf {
 		return
 	}
@@ -52,7 +52,8 @@ func ifEffect(b *ssa.Block) (features ssa.CPUfeatures, taken int) {
 		return
 	}
 	sym := addr.Aux.(*obj.LSym)
-	if sym.Name != "internal/cpu.X86" && sym.Name != "internal/cpu.ARM64" {
+	cpu, ok := strings.CutPrefix(sym.Name, "internal/cpu.")
+	if !ok || cpu != "X86" && cpu != "ARM64" {
 		return
 	}
 	o := offPtr.AuxInt
@@ -64,50 +65,53 @@ func ifEffect(b *ssa.Block) (features ssa.CPUfeatures, taken int) {
 	if !t.IsStruct() {
 		b.Func.Fatalf("The referent of symbol %s is not a struct, found %v instead", sym.Name, t)
 	}
+	// match is the field's name, qualified by its struct (for example,
+	// "X86.HasAVX2").
 	match := ""
 	for _, f := range t.Fields() {
 		if o == f.Offset && f.Sym != nil {
-			match = f.Sym.Name
+			match = cpu + "." + f.Sym.Name
 			break
 		}
 	}
 
 	switch match {
 
-	case "HasAVX":
+	case "X86.HasAVX":
 		features = ssa.CPUavx
-	case "HasAVXVNNI":
+	case "X86.HasAVXVNNI":
 		features = ssa.CPUavx | ssa.CPUavxvnni
-	case "HasAVX2":
+	case "X86.HasAVX2":
 		features = ssa.CPUavx2 | ssa.CPUavx
 
 		// Compiler currently treats these all alike.
-	case "HasAVX512", "HasAVX512F", "HasAVX512CD", "HasAVX512BW",
-		"HasAVX512DQ", "HasAVX512VL", "HasAVX512VPCLMULQDQ":
+	case "X86.HasAVX512", "X86.HasAVX512F", "X86.HasAVX512CD", "X86.HasAVX512BW",
+		"X86.HasAVX512DQ", "X86.HasAVX512VL", "X86.HasAVX512VPCLMULQDQ":
 		features = ssa.CPUavx512 | ssa.CPUavx2 | ssa.CPUavx
 
-	case "HasAVX512GFNI":
+	case "X86.HasAVX512GFNI":
 		features = ssa.CPUavx512 | ssa.CPUgfni | ssa.CPUavx2 | ssa.CPUavx
-	case "HasAVX512VNNI":
+	case "X86.HasAVX512VNNI":
 		features = ssa.CPUavx512 | ssa.CPUavx512vnni | ssa.CPUavx2 | ssa.CPUavx
-	case "HasAVX512VBMI":
+	case "X86.HasAVX512VBMI":
 		features = ssa.CPUavx512 | ssa.CPUvbmi | ssa.CPUavx2 | ssa.CPUavx
-	case "HasAVX512VBMI2":
+	case "X86.HasAVX512VBMI2":
 		features = ssa.CPUavx512 | ssa.CPUvbmi2 | ssa.CPUavx2 | ssa.CPUavx
-	case "HasAVX512BITALG":
+	case "X86.HasAVX512BITALG":
 		features = ssa.CPUavx512 | ssa.CPUbitalg | ssa.CPUavx2 | ssa.CPUavx
-	case "HasAVX512VPOPCNTDQ":
+	case "X86.HasAVX512VPOPCNTDQ":
 		features = ssa.CPUavx512 | ssa.CPUvpopcntdq | ssa.CPUavx2 | ssa.CPUavx
 
-	case "HasSVE2":
+	case "ARM64.HasSVE2":
 		features = ssa.CPUsve2
 
 		// Features that are not currently interesting to the compiler.
 	// HasSVE is not among them: rules only ever upgrade an SVE lowering to an
 	// SVE2 encoding, so baseline SVE is never a rule condition.
-	case "HasAES", "HasADX", "HasBMI1", "HasBMI2", "HasERMS", "HasFSRM", "HasFMA",
-		"HasGFNI", "HasOSXSAVE", "HasPCLMULQDQ", "HasPOPCNT", "HasRDTSCP", "HasSHA",
-		"HasSSE3", "HasSSSE3", "HasSSE41", "HasSSE42":
+	case "X86.HasAES", "X86.HasADX", "X86.HasBMI1", "X86.HasBMI2", "X86.HasERMS",
+		"X86.HasFSRM", "X86.HasFMA", "X86.HasGFNI", "X86.HasOSXSAVE",
+		"X86.HasPCLMULQDQ", "X86.HasPOPCNT", "X86.HasRDTSCP", "X86.HasSHA",
+		"X86.HasSSE3", "X86.HasSSSE3", "X86.HasSSE41", "X86.HasSSE42":
 
 	}
 	if b.Func.Pass.Debug > 2 {
