@@ -205,6 +205,8 @@ func (b *batch) initFunc(fn *ir.Func) {
 		ir.Dump("escAnalyze", fn)
 	}
 
+	sinkReturnAddr(fn)
+
 	// Allocate locations for local variables.
 	for _, n := range fn.Dcl {
 		e.newLoc(n, true)
