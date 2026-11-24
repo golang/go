@@ -646,7 +646,55 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 // ----------------------------------------------------------------------------
 // Expressions
 
-func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
+// binaryInfo is the result of walkBinary for a binary expression.
+type binaryInfo struct {
+	has4, has5 bool
+	maxProblem int
+}
+
+// A binaryRun is a run of consecutive left operands of a chain of binary
+// expressions that have the same binaryInfo. The run starts at its
+// innermost expression, first, and extends outward.
+type binaryRun struct {
+	first *ast.BinaryExpr
+	info  binaryInfo
+}
+
+// walkBinary reports what cutoff needs to know about the binary expression e
+// and its operands.
+//
+// The left operands of a chain such as a + b + c + ... are printed outermost
+// first, and each of them asks for its own result. To walk the chain once
+// instead of once per operand, the walk of the outermost expression records
+// the results of its left operands in p.binaryRuns, and each operand takes
+// its result from there when it is printed. The result can only grow from
+// an operand to the expression that holds it, so a chain of any length
+// has at most a handful of runs.
+func (p *printer) walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
+	var info binaryInfo
+	if n := len(p.binaryRuns); n > 0 && e == p.binaryNext {
+		run := p.binaryRuns[n-1]
+		info = run.info
+		if run.first == e {
+			p.binaryRuns = p.binaryRuns[:n-1]
+		}
+	} else {
+		p.binaryRuns = p.binaryRuns[:0]
+		info.has4, info.has5, info.maxProblem = p.walkBinary1(e, true)
+	}
+	// The next result to be asked for is that of the left operand of e,
+	// if walkBinary1 walked it.
+	p.binaryNext = nil
+	if l, ok := parenIfContinued(e.X, e.Op).(*ast.BinaryExpr); ok && l.Op.Precedence() >= e.Op.Precedence() {
+		p.binaryNext = l
+	}
+	return info.has4, info.has5, info.maxProblem
+}
+
+// walkBinary1 implements walkBinary. If spine is set, e is the outermost
+// expression or one of its chain of left operands, and the results of its
+// left operands are recorded in p.binaryRuns.
+func (p *printer) walkBinary1(e *ast.BinaryExpr, spine bool) (has4, has5 bool, maxProblem int) {
 	switch e.Op.Precedence() {
 	case 4:
 		has4 = true
@@ -662,7 +710,13 @@ func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
 			// pretend this is an *ast.ParenExpr and do nothing.
 			break
 		}
-		h4, h5, mp := walkBinary(l)
+		h4, h5, mp := p.walkBinary1(l, spine)
+		if spine {
+			info := binaryInfo{h4, h5, mp}
+			if n := len(p.binaryRuns); n == 0 || p.binaryRuns[n-1].info != info {
+				p.binaryRuns = append(p.binaryRuns, binaryRun{l, info})
+			}
+		}
 		has4 = has4 || h4
 		has5 = has5 || h5
 		maxProblem = max(maxProblem, mp)
@@ -675,7 +729,7 @@ func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
 			// pretend this is an *ast.ParenExpr and do nothing.
 			break
 		}
-		h4, h5, mp := walkBinary(r)
+		h4, h5, mp := p.walkBinary1(r, false)
 		has4 = has4 || h4
 		has5 = has5 || h5
 		maxProblem = max(maxProblem, mp)
@@ -696,8 +750,8 @@ func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
 	return
 }
 
-func cutoff(e *ast.BinaryExpr, depth int) int {
-	has4, has5, maxProblem := walkBinary(e)
+func (p *printer) cutoff(e *ast.BinaryExpr, depth int) int {
+	has4, has5, maxProblem := p.walkBinary(e)
 	if maxProblem > 0 {
 		return maxProblem + 1
 	}
@@ -814,7 +868,12 @@ func isBinary(expr ast.Expr) bool {
 }
 
 func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
-	p.setPos(expr.Pos())
+	// The position of a binary expression is that of its leftmost operand,
+	// which binaryExpr sets anyway unless it adds parentheses. Skipping it
+	// avoids walking the left spine of a chain once per link.
+	if x, ok := expr.(*ast.BinaryExpr); !ok || x.Op.Precedence() < prec1 {
+		p.setPos(expr.Pos())
+	}
 
 	switch x := expr.(type) {
 	case *ast.BadExpr:
@@ -828,7 +887,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 			p.internalError("depth < 1:", depth)
 			depth = 1
 		}
-		p.binaryExpr(x, prec1, cutoff(x, depth), depth)
+		p.binaryExpr(x, prec1, p.cutoff(x, depth), depth)
 
 	case *ast.KeyValueExpr:
 		p.expr(x.Key)

@@ -92,6 +92,12 @@ type printer struct {
 	// Cache of already computed node sizes.
 	nodeSizes map[ast.Node]int
 
+	// Results of walkBinary for the left operands of the binary
+	// expression being printed, and the operand that will ask for
+	// its result next; see walkBinary.
+	binaryRuns []binaryRun
+	binaryNext *ast.BinaryExpr
+
 	// Cache of most recently computed line position.
 	cachedPos  token.Pos
 	cachedLine int // line corresponding to cachedPos
