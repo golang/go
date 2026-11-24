@@ -1,0 +1,19 @@
+-- input --
+See [a [b] and [c [a b].
+
+[b]: https://b
+[a b]: https://ab
+-- gofmt --
+See [a [b] and [c [a b].
+
+[b]: https://b
+[a b]: https://ab
+-- text --
+See [a b and [c a b.
+
+[b]: https://b
+[a b]: https://ab
+-- markdown --
+See \[a [b](https://b) and \[c [a b](https://ab).
+-- html --
+<p>See [a <a href="https://b">b</a> and [c <a href="https://ab">a b</a>.

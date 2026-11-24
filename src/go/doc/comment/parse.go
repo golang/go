@@ -801,6 +801,7 @@ func (d *parseDoc) parseLinkedText(text string) []Text {
 		switch c {
 		case '[':
 			start = i
+			buf = buf[:0]
 		case ']':
 			if start >= 0 {
 				if def, ok := d.links[string(buf)]; ok {
