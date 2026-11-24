@@ -3,7 +3,8 @@
 ### Memory profile {#memory-profile}
 <!-- go.dev/issue/79179 -->
 
-A new profile type that breaks down total process memory (RSS) is now available.
+A new profile type that breaks down the process's resident set size (RSS) is
+now available.
 The new profile type, named `memory`, is supported in the [runtime/pprof] package
 and as a [net/http/pprof] endpoint, `/debug/pprof/memory`.
 
@@ -20,6 +21,11 @@ Go memory is further split into the heap, stacks, and runtime metadata.
 The heap includes the same live object samples as the heap profile, as well
 as dead objects the most recently completed garbage collection found
 unreachable.
+On Linux, non-Go memory is further split into file-backed and shared memory,
+and anonymous memory.
+
+The runtime work that supports the memory profile can be turned off using
+`GODEBUG=memoryprofile=0`. If you encounter a need to set this `GODEBUG`, please [file an issue](/issue/new).
 
 Special thanks to Felix Geisendörfer and Nick Ripley at Datadog for
 contributing this work.
