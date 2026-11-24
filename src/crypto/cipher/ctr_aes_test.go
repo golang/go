@@ -378,13 +378,17 @@ func TestCTR_AES_XORKeyStreamAt_interleaved(t *testing.T) {
 				t.Fatal(err)
 			}
 			genericCtr, _ := makeTestingCiphers(aesBlock, iv)
+			fipsBlock, err := fipsaes.New(key)
+			if err != nil {
+				t.Fatal(err)
+			}
 			want := make([]byte, Size)
 			genericCtr.XORKeyStream(want, plaintext)
 
 			for _, split := range []int{1, 7, 15, 17, 33, 100} {
 				for _, atOffset := range []int{0, 3, 16, 21, 150} {
 					for _, atLen := range []int{1, 9, 16, 30} {
-						ctr := fipsaes.NewCTR(aesBlock.(*fipsaes.Block), iv)
+						ctr := fipsaes.NewCTR(fipsBlock, iv)
 						got := make([]byte, Size)
 						ctr.XORKeyStream(got[:split], plaintext[:split])
 
