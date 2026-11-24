@@ -56,11 +56,9 @@ func runWorker(trials int, cfgPath, outPath, lockPath string, std bool) error {
 		if err := syscall.Flock(fd, syscall.LOCK_EX); err != nil {
 			return fmt.Errorf("couldn't acquire lock file %q: %v", lockPath, err)
 		}
-		if err := os.WriteFile(outPath, data, 0o644); err != nil {
+		defer syscall.Flock(fd, syscall.LOCK_UN)
+		if err := os.WriteFile(outPath, data, 0644); err != nil {
 			return fmt.Errorf("couldn't write output to %q: %v", outPath, err)
-		}
-		if err := syscall.Flock(fd, syscall.LOCK_UN); err != nil {
-			return fmt.Errorf("couldn't release lock file %q: %v", lockPath, err)
 		}
 		return nil
 	}
