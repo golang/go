@@ -1681,7 +1681,9 @@ func (x Uint64s) Or(y Uint64s) (z Uint64s)
 //
 //	z = max(x[0], x[1], ...)
 //
-// The handling of NaN and signed zeroes is platform-dependent. See [Max].
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's max built-in and the IEEE 754-2019 maximum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Max].
 //
 // Asm: ZFMAXVS, CPU Feature: SVE
 func (x Float32s) ReduceMax() (z float32)
@@ -1690,7 +1692,9 @@ func (x Float32s) ReduceMax() (z float32)
 //
 //	z = max(x[0], x[1], ...)
 //
-// The handling of NaN and signed zeroes is platform-dependent. See [Max].
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's max built-in and the IEEE 754-2019 maximum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Max].
 //
 // Asm: ZFMAXVD, CPU Feature: SVE
 func (x Float64s) ReduceMax() (z float64)
@@ -1757,7 +1761,9 @@ func (x Uint64s) ReduceMax() (z uint64)
 //
 //	z = min(x[0], x[1], ...)
 //
-// The handling of NaN and signed zeroes is platform-dependent. See [Min].
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's min built-in and the IEEE 754-2019 minimum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Min].
 //
 // Asm: ZFMINVS, CPU Feature: SVE
 func (x Float32s) ReduceMin() (z float32)
@@ -1766,7 +1772,9 @@ func (x Float32s) ReduceMin() (z float32)
 //
 //	z = min(x[0], x[1], ...)
 //
-// The handling of NaN and signed zeroes is platform-dependent. See [Min].
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's min built-in and the IEEE 754-2019 minimum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Min].
 //
 // Asm: ZFMINVD, CPU Feature: SVE
 func (x Float64s) ReduceMin() (z float64)

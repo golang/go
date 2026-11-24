@@ -64,13 +64,22 @@ func ReduceSumFloats[E Floats, W Width](x Vec[E, W]) (z E) {
 //	z = max(x[0], x[1], ...)
 //
 // {{if eq .xB "float"}}
-// The handling of NaN and signed zeroes is platform-dependent. See [Max].
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's max built-in and the IEEE 754-2019 maximum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Max].
 // {{end}}
 func ReduceMax[E Elt, W Width](x Vec[E, W]) (z E) {
-	// TODO: Do we need per-platform handling of non-finites? Since AMD64 is the
-	// only platform that's weird about non-finite values and it doesn't have
-	// ReduceMax, maybe we don't have to, but if we ever want to emulate this on
-	// AMD64, we'd have to decide whether to match AMD64's Max or Go/IEEE Max.
+	// For floats, unlike [MaxFloats], this is exact on all platforms. A
+	// reduction with a non-commutative operation like AMD64's VMAXP[SD] makes
+	// little sense: its result would depend on the order in which an
+	// implementation happens to combine elements, which isn't something users
+	// can reasonably control or reason about.
+	//
+	// ARM64 (FMAXV, FMAXP) natively implements IEEE 754-2019 maximum. WASM
+	// emulates it. Go's max is IEEE 754-2019 maximum (up to NaN payload, which
+	// equalExact ignores), which is commutative and associative, so the
+	// reduction order doesn't matter. Any future AMD64 implementation must
+	// emulate this, rather than following the semantics of [MaxFloats].
 	z = x[0]
 	for _, xi := range x[1:] {
 		z = max(z, xi)
@@ -83,7 +92,9 @@ func ReduceMax[E Elt, W Width](x Vec[E, W]) (z E) {
 //	z = min(x[0], x[1], ...)
 //
 // {{if eq .xB "float"}}
-// The handling of NaN and signed zeroes is platform-dependent. See [Min].
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's min built-in and the IEEE 754-2019 minimum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Min].
 // {{end}}
 func ReduceMin[E Elt, W Width](x Vec[E, W]) (z E) {
 	// See ReduceMax about the handling of non-finite values.
