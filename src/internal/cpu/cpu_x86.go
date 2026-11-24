@@ -17,6 +17,8 @@ func xgetbv() (eax, edx uint32)
 // getGOAMD64level is implemented in cpu_x86.s. Returns number in [1,4].
 func getGOAMD64level() int32
 
+//go:generate go run mkoptions.go
+
 const (
 	// eax bits
 	cpuid_AVXVNNI = 1 << 4
@@ -87,38 +89,8 @@ func doinit() {
 		{Name: "xgetbv1", Feature: &X86.HasXGETBV1},
 		{Name: "xsavec", Feature: &X86.HasXSAVEC},
 	}
-	level := getGOAMD64level()
-	if level < 2 {
-		// These options are required at level 2. At lower levels
-		// they can be turned off.
-		options = append(options,
-			option{Name: "popcnt", Feature: &X86.HasPOPCNT},
-			option{Name: "sse3", Feature: &X86.HasSSE3},
-			option{Name: "sse41", Feature: &X86.HasSSE41},
-			option{Name: "sse42", Feature: &X86.HasSSE42},
-			option{Name: "ssse3", Feature: &X86.HasSSSE3})
-	}
-	if level < 3 {
-		// These options are required at level 3. At lower levels
-		// they can be turned off.
-		options = append(options,
-			option{Name: "avx", Feature: &X86.HasAVX},
-			option{Name: "avx2", Feature: &X86.HasAVX2},
-			option{Name: "bmi1", Feature: &X86.HasBMI1},
-			option{Name: "bmi2", Feature: &X86.HasBMI2},
-			option{Name: "fma", Feature: &X86.HasFMA})
-	}
-	if level < 4 {
-		// These options are required at level 4. At lower levels
-		// they can be turned off.
-		options = append(options,
-			option{Name: "avx512f", Feature: &X86.HasAVX512F},
-			option{Name: "avx512cd", Feature: &X86.HasAVX512CD},
-			option{Name: "avx512bw", Feature: &X86.HasAVX512BW},
-			option{Name: "avx512dq", Feature: &X86.HasAVX512DQ},
-			option{Name: "avx512vl", Feature: &X86.HasAVX512VL},
-		)
-	}
+	// The features that the GOAMD64 level requires can't be turned off.
+	options = appendLevelOptions(options, getGOAMD64level())
 
 	doDerived = func() {
 		// Cascade GODEBUG cpu.*=off settings (applied by processOptions after
