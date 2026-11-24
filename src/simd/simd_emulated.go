@@ -5352,7 +5352,7 @@ func (x Float64s) ConvertToInt32() (z Int32s) {
 	return z
 }
 
-func reduceMaxSlice[E int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64](v []E) E {
+func reduceMaxSlice[E int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64 | float32 | float64](v []E) E {
 	z := v[0]
 	for _, e := range v[1:] {
 		z = max(z, e)
@@ -5360,7 +5360,7 @@ func reduceMaxSlice[E int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | u
 	return z
 }
 
-func reduceMinSlice[E int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64](v []E) E {
+func reduceMinSlice[E int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64 | float32 | float64](v []E) E {
 	z := v[0]
 	for _, e := range v[1:] {
 		z = min(z, e)
@@ -5447,6 +5447,42 @@ func (x Uint64s) ReduceMax() (z uint64) { return reduceMaxSlice(x.v[:]) }
 //
 //	z = min(x[0], x[1], ...)
 func (x Uint64s) ReduceMin() (z uint64) { return reduceMinSlice(x.v[:]) }
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's max built-in and the IEEE 754-2019 maximum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Max].
+func (x Float32s) ReduceMax() (z float32) { return reduceMaxSlice(x.v[:]) }
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's min built-in and the IEEE 754-2019 minimum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Min].
+func (x Float32s) ReduceMin() (z float32) { return reduceMinSlice(x.v[:]) }
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's max built-in and the IEEE 754-2019 maximum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Max].
+func (x Float64s) ReduceMax() (z float64) { return reduceMaxSlice(x.v[:]) }
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's min built-in and the IEEE 754-2019 minimum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Min].
+func (x Float64s) ReduceMin() (z float64) { return reduceMinSlice(x.v[:]) }
 
 // lanesToWords packs the lanes of v into two 64-bit words, with lane 0 in the
 // low bits of the first word. This defines the lane order of reshapes

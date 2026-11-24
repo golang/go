@@ -2205,6 +2205,24 @@ func (x Float32s) Neg() (z Float32s)
 // result is true if either element is NaN, and +0 equals -0.
 func (x Float32s) NotEqual(y Float32s) (z Mask32s)
 
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's max built-in and the IEEE 754-2019 maximum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Max].
+func (x Float32s) ReduceMax() (z float32)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's min built-in and the IEEE 754-2019 minimum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Min].
+func (x Float32s) ReduceMin() (z float32)
+
 // ReduceSum returns the scalar sum of the elements of x.
 //
 // This uses repeated pairwise summation, which may affect the final precision
@@ -2471,6 +2489,24 @@ func (x Float64s) Neg() (z Float64s)
 // Like Go's != operator on floating-point values, this follows IEEE 754: the
 // result is true if either element is NaN, and +0 equals -0.
 func (x Float64s) NotEqual(y Float64s) (z Mask64s)
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's max built-in and the IEEE 754-2019 maximum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Max].
+func (x Float64s) ReduceMax() (z float64)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's min built-in and the IEEE 754-2019 minimum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Min].
+func (x Float64s) ReduceMin() (z float64)
 
 // ReduceSum returns the scalar sum of the elements of x.
 //

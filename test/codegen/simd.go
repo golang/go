@@ -616,3 +616,18 @@ func reduceMaxUint8x16(x archsimd.Uint8x16) uint8 {
 	// amd64:`VPSRLW \$8,` `VPMINUB` `VPHMINPOSUW`
 	return x.ReduceMax()
 }
+
+func reduceMinFloat32x8(x archsimd.Float32x8) float32 {
+	// amd64:`VMINPS` `VCMPPS \$3,` -`CALL`
+	return x.ReduceMin()
+}
+
+func reduceMaxFloat64x4(x archsimd.Float64x4) float64 {
+	// amd64:`VMAXPD` `VCMPPD \$3,` `VPMAXSD` -`CALL`
+	return x.ReduceMax()
+}
+
+func reduceMinFloat64x2(x archsimd.Float64x2) float64 {
+	// amd64:`VMINPD` `VPOR` -`VCMPPD` -`CALL`
+	return x.ReduceMin()
+}

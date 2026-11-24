@@ -4684,6 +4684,30 @@ func (x Float32x16) NotEqual(y Float32x16) Mask32x16 {
 	return Mask32x16((archsimd.Float32x16(x)).NotEqual(archsimd.Float32x16(y)))
 }
 
+func (x Float32x4) ReduceMax() float32 {
+	return (archsimd.Float32x4(x)).ReduceMax()
+}
+
+func (x Float32x8) ReduceMax() float32 {
+	return (archsimd.Float32x8(x)).ReduceMax()
+}
+
+func (x Float32x16) ReduceMax() float32 {
+	return (archsimd.Float32x16(x)).ReduceMax()
+}
+
+func (x Float32x4) ReduceMin() float32 {
+	return (archsimd.Float32x4(x)).ReduceMin()
+}
+
+func (x Float32x8) ReduceMin() float32 {
+	return (archsimd.Float32x8(x)).ReduceMin()
+}
+
+func (x Float32x16) ReduceMin() float32 {
+	return (archsimd.Float32x16(x)).ReduceMin()
+}
+
 func (x Float32x4) ReduceSum() float32 {
 	return (archsimd.Float32x4(x)).ReduceSum()
 }
@@ -5054,6 +5078,30 @@ func (x Float64x4) NotEqual(y Float64x4) Mask64x4 {
 
 func (x Float64x8) NotEqual(y Float64x8) Mask64x8 {
 	return Mask64x8((archsimd.Float64x8(x)).NotEqual(archsimd.Float64x8(y)))
+}
+
+func (x Float64x2) ReduceMax() float64 {
+	return (archsimd.Float64x2(x)).ReduceMax()
+}
+
+func (x Float64x4) ReduceMax() float64 {
+	return (archsimd.Float64x4(x)).ReduceMax()
+}
+
+func (x Float64x8) ReduceMax() float64 {
+	return (archsimd.Float64x8(x)).ReduceMax()
+}
+
+func (x Float64x2) ReduceMin() float64 {
+	return (archsimd.Float64x2(x)).ReduceMin()
+}
+
+func (x Float64x4) ReduceMin() float64 {
+	return (archsimd.Float64x4(x)).ReduceMin()
+}
+
+func (x Float64x8) ReduceMin() float64 {
+	return (archsimd.Float64x8(x)).ReduceMin()
 }
 
 func (x Float64x2) ReduceSum() float64 {

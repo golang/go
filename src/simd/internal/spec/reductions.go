@@ -75,11 +75,10 @@ func ReduceMax[E Elt, W Width](x Vec[E, W]) (z E) {
 	// implementation happens to combine elements, which isn't something users
 	// can reasonably control or reason about.
 	//
-	// ARM64 (FMAXV, FMAXP) natively implements IEEE 754-2019 maximum. WASM
-	// emulates it. Go's max is IEEE 754-2019 maximum (up to NaN payload, which
-	// equalExact ignores), which is commutative and associative, so the
-	// reduction order doesn't matter. Any future AMD64 implementation must
-	// emulate this, rather than following the semantics of [MaxFloats].
+	// ARM64 (FMAXV, FMAXP) natively implements IEEE 754-2019 maximum. AMD64
+	// and WASM emulate it. Go's max is IEEE 754-2019 maximum (up to NaN payload,
+	// which equalExact ignores), which is commutative and associative, so the
+	// reduction order doesn't matter.
 	z = x[0]
 	for _, xi := range x[1:] {
 		z = max(z, xi)

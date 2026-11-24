@@ -94,6 +94,8 @@ pkg simd, method (Float32s) Mul(Float32s) Float32s #83009
 pkg simd, method (Float32s) MulAdd(Float32s, Float32s) Float32s #83009
 pkg simd, method (Float32s) Neg() Float32s #83009
 pkg simd, method (Float32s) NotEqual(Float32s) Mask32s #83009
+pkg simd, method (Float32s) ReduceMax() float32 #83009
+pkg simd, method (Float32s) ReduceMin() float32 #83009
 pkg simd, method (Float32s) ReduceSum() float32 #83009
 pkg simd, method (Float32s) Round() Float32s #83009
 pkg simd, method (Float32s) Sqrt() Float32s #83009
@@ -126,6 +128,8 @@ pkg simd, method (Float64s) Mul(Float64s) Float64s #83009
 pkg simd, method (Float64s) MulAdd(Float64s, Float64s) Float64s #83009
 pkg simd, method (Float64s) Neg() Float64s #83009
 pkg simd, method (Float64s) NotEqual(Float64s) Mask64s #83009
+pkg simd, method (Float64s) ReduceMax() float64 #83009
+pkg simd, method (Float64s) ReduceMin() float64 #83009
 pkg simd, method (Float64s) ReduceSum() float64 #83009
 pkg simd, method (Float64s) Round() Float64s #83009
 pkg simd, method (Float64s) Sqrt() Float64s #83009
@@ -708,6 +712,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Float32x16) Mul(Float32x16) Float32x16
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) MulAdd(Float32x16, Float32x16) Float32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) Neg() Float32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) NotEqual(Float32x16) Mask32x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x16) ReduceMax() float32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x16) ReduceMin() float32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) ReduceSum() float32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) Round() Float32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x16) SetHi(Float32x8) Float32x16 #83009
@@ -758,6 +764,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Float32x4) Mul(Float32x4) Float32x4 #8
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) MulAdd(Float32x4, Float32x4) Float32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) Neg() Float32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) NotEqual(Float32x4) Mask32x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x4) ReduceMax() float32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x4) ReduceMin() float32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) ReduceSum() float32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) Round() Float32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x4) SetElem(uint8, float32) Float32x4 #83009
@@ -809,6 +817,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Float32x8) Mul(Float32x8) Float32x8 #8
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) MulAdd(Float32x8, Float32x8) Float32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) Neg() Float32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) NotEqual(Float32x8) Mask32x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x8) ReduceMax() float32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float32x8) ReduceMin() float32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) ReduceSum() float32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) Round() Float32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float32x8) SetHi(Float32x4) Float32x8 #83009
@@ -859,6 +869,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Float64x2) Mul(Float64x2) Float64x2 #8
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) MulAdd(Float64x2, Float64x2) Float64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) Neg() Float64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) NotEqual(Float64x2) Mask64x2 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x2) ReduceMax() float64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x2) ReduceMin() float64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) ReduceSum() float64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) Round() Float64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x2) SetElem(uint8, float64) Float64x2 #83009
@@ -910,6 +922,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Float64x4) Mul(Float64x4) Float64x4 #8
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) MulAdd(Float64x4, Float64x4) Float64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) Neg() Float64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) NotEqual(Float64x4) Mask64x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x4) ReduceMax() float64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x4) ReduceMin() float64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) ReduceSum() float64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) Round() Float64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x4) SetHi(Float64x2) Float64x4 #83009
@@ -959,6 +973,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Float64x8) Mul(Float64x8) Float64x8 #8
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) MulAdd(Float64x8, Float64x8) Float64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) Neg() Float64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) NotEqual(Float64x8) Mask64x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x8) ReduceMax() float64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Float64x8) ReduceMin() float64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) ReduceSum() float64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) Round() Float64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Float64x8) SetHi(Float64x4) Float64x8 #83009

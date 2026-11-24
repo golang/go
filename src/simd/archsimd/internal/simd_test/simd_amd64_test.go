@@ -1846,6 +1846,95 @@ func TestReduceMinMaxAmd64(t *testing.T) {
 	testV2S(t, uint64s, archsimd.LoadUint64x2, archsimd.Uint64x2.ReduceMax, func(x []uint64) uint64 { return reduceSlice(x, max_[uint64]) })
 	testV2S(t, uint64s, archsimd.LoadUint64x2, archsimd.Uint64x2.ReduceMin, func(x []uint64) uint64 { return reduceSlice(x, min_[uint64]) })
 
+	testV2S(t, float32s, archsimd.LoadFloat32x4, archsimd.Float32x4.ReduceMax, func(x []float32) float32 { return reduceSlice(x, max_[float32]) })
+	testV2S(t, float32s, archsimd.LoadFloat32x4, archsimd.Float32x4.ReduceMin, func(x []float32) float32 { return reduceSlice(x, min_[float32]) })
+	testV2S(t, float32s, archsimd.LoadFloat32x8, archsimd.Float32x8.ReduceMax, func(x []float32) float32 { return reduceSlice(x, max_[float32]) })
+	testV2S(t, float32s, archsimd.LoadFloat32x8, archsimd.Float32x8.ReduceMin, func(x []float32) float32 { return reduceSlice(x, min_[float32]) })
+	testV2S(t, float64s, archsimd.LoadFloat64x2, archsimd.Float64x2.ReduceMax, func(x []float64) float64 { return reduceSlice(x, max_[float64]) })
+	testV2S(t, float64s, archsimd.LoadFloat64x2, archsimd.Float64x2.ReduceMin, func(x []float64) float64 { return reduceSlice(x, min_[float64]) })
+	testV2S(t, float64s, archsimd.LoadFloat64x4, archsimd.Float64x4.ReduceMax, func(x []float64) float64 { return reduceSlice(x, max_[float64]) })
+	testV2S(t, float64s, archsimd.LoadFloat64x4, archsimd.Float64x4.ReduceMin, func(x []float64) float64 { return reduceSlice(x, min_[float64]) })
+}
+
+// TestReduceMinMaxFloatSpecialAmd64 checks float ReduceMin and ReduceMax on
+// combinations of NaNs, signed zeroes, and infinities. These are emulated on
+// AMD64 because VMINP[SD]/VMAXP[SD] don't follow IEEE 754-2019 for NaNs and
+// signed zeroes, so we check them exhaustively for small vectors, and on random
+// combinations for large vectors.
+func TestReduceMinMaxFloatSpecialAmd64(t *testing.T) {
+	all := []float64{math.NaN(), math.Float64frombits(0xfff8000000000001), math.Inf(-1), -1, math.Copysign(0, -1), 0, 1, math.Inf(1)}
+	few := []float64{math.NaN(), -1, math.Copysign(0, -1), 0, 1}
+	all32 := make([]float32, len(all))
+	for i, v := range all {
+		all32[i] = float32(v)
+	}
+	few32 := make([]float32, len(few))
+	for i, v := range few {
+		few32[i] = float32(v)
+	}
+
+	testReduceSpecial(t, "Float32x4", all32, 4, archsimd.LoadFloat32x4, archsimd.Float32x4.ReduceMin, archsimd.Float32x4.ReduceMax)
+	testReduceSpecial(t, "Float32x8", few32, 8, archsimd.LoadFloat32x8, archsimd.Float32x8.ReduceMin, archsimd.Float32x8.ReduceMax)
+	testReduceSpecial(t, "Float64x2", all, 2, archsimd.LoadFloat64x2, archsimd.Float64x2.ReduceMin, archsimd.Float64x2.ReduceMax)
+	testReduceSpecial(t, "Float64x4", all, 4, archsimd.LoadFloat64x4, archsimd.Float64x4.ReduceMin, archsimd.Float64x4.ReduceMax)
+	if archsimd.X86.AVX512() {
+		testReduceSpecial(t, "Float32x16", all32, 16, archsimd.LoadFloat32x16, archsimd.Float32x16.ReduceMin, archsimd.Float32x16.ReduceMax)
+		testReduceSpecial(t, "Float64x8", all, 8, archsimd.LoadFloat64x8, archsimd.Float64x8.ReduceMin, archsimd.Float64x8.ReduceMax)
+	}
+}
+
+// testReduceSpecial checks reduceMin and reduceMax against Go's min and max on
+// n-element vectors drawn from vals. If there are at most 1<<20 such vectors,
+// it checks all of them. Otherwise, it checks a deterministic pseudo-random
+// sample.
+func testReduceSpecial[F float32 | float64, V any](t *testing.T, name string, vals []F, n int, load func([]F) V, reduceMin, reduceMax func(V) F) {
+	t.Helper()
+	same := func(a, b F) bool {
+		if a != a {
+			return b != b
+		}
+		return math.Float64bits(float64(a)) == math.Float64bits(float64(b))
+	}
+	const limit = 1 << 20
+	total := 1
+	for range n {
+		total *= len(vals)
+		if total > limit {
+			total = limit
+			break
+		}
+	}
+	x := make([]F, n)
+	rnd := uint64(1)
+	failures := 0
+	for i := range total {
+		// Choose x from either the i'th combination or a pseudo-random one.
+		k := i
+		for j := range x {
+			if total == limit {
+				rnd = rnd*6364136223846793005 + 1442695040888963407
+				k = int(rnd >> 33)
+			}
+			x[j] = vals[k%len(vals)]
+			k /= len(vals)
+		}
+		v := load(x)
+		wantMin, wantMax := x[0], x[0]
+		for _, xi := range x[1:] {
+			wantMin, wantMax = min(wantMin, xi), max(wantMax, xi)
+		}
+		if got := reduceMin(v); !same(got, wantMin) {
+			t.Errorf("%s.ReduceMin(%v) = %v, want %v", name, x, got, wantMin)
+			failures++
+		}
+		if got := reduceMax(v); !same(got, wantMax) {
+			t.Errorf("%s.ReduceMax(%v) = %v, want %v", name, x, got, wantMax)
+			failures++
+		}
+		if failures >= 10 {
+			t.Fatalf("too many failures")
+		}
+	}
 }
 
 func TestReduceMinMaxAmd64AVX2(t *testing.T) {
@@ -1899,6 +1988,10 @@ func TestReduceMinMaxAmd64AVX512(t *testing.T) {
 	testV2S(t, uint64s, archsimd.LoadUint64x8, archsimd.Uint64x8.ReduceMax, func(x []uint64) uint64 { return reduceSlice(x, max_[uint64]) })
 	testV2S(t, uint64s, archsimd.LoadUint64x8, archsimd.Uint64x8.ReduceMin, func(x []uint64) uint64 { return reduceSlice(x, min_[uint64]) })
 
+	testV2S(t, float32s, archsimd.LoadFloat32x16, archsimd.Float32x16.ReduceMax, func(x []float32) float32 { return reduceSlice(x, max_[float32]) })
+	testV2S(t, float32s, archsimd.LoadFloat32x16, archsimd.Float32x16.ReduceMin, func(x []float32) float32 { return reduceSlice(x, min_[float32]) })
+	testV2S(t, float64s, archsimd.LoadFloat64x8, archsimd.Float64x8.ReduceMax, func(x []float64) float64 { return reduceSlice(x, max_[float64]) })
+	testV2S(t, float64s, archsimd.LoadFloat64x8, archsimd.Float64x8.ReduceMin, func(x []float64) float64 { return reduceSlice(x, min_[float64]) })
 }
 
 func TestMaskedZeroingResultSize(t *testing.T) {

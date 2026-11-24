@@ -1127,6 +1127,339 @@ func (x Uint64x8) ReduceMin() (z uint64) {
 	return m.Lo().Min(m.Hi()).ReduceMin()
 }
 
+// Float ReduceMin and ReduceMax follow IEEE 754-2019 minimum/maximum, like Go's
+// min and max built-ins, but VMINP[SD]/VMAXP[SD] return their second operand
+// if either operand is NaN or both are zero, regardless of sign. Hence, the
+// reductions below use a VMINP[SD]/VMAXP[SD] reduction tree to compute a result
+// that is correct unless there are NaNs or signed zeroes, and in parallel build
+// a bitwise "fixup" tree that recovers those cases:
+//
+//   - If there are no NaNs, the reduction tree computes the right value except
+//     that the sign of a zero result may be wrong. For min, the correct result
+//     has its sign bit set iff any element has its sign bit set: if the minimum
+//     is negative, it's already set; if it's positive, no element has its sign
+//     bit set; and if it's zero, then all elements are >= 0, so an element with
+//     its sign bit set must be -0. Symmetrically, for max, the correct result
+//     has its sign bit clear iff any element has its sign bit clear.
+//
+//   - If there are any NaNs, the result must be a NaN.
+//
+// The fixup tree ORs together a value that is all 1s in lanes that see a NaN,
+// and otherwise has just the sign bit set if that lane sees a negative sign
+// (for min) or a positive sign (for max). Reducing this vector yields all 1s if
+// any element is NaN, and otherwise just the sign bit indicating the correct
+// result sign.
+//
+// For min, ORing this fixup into the reduction tree result yields the correct
+// sign or a NaN.
+//
+// For max, we flip the fixup's sign bit and take the signed integer maximum of
+// that and the reduction tree result. Viewed as signed integers, floats with
+// the sign bit clear are non-negative and floats with it set are negative. The
+// flipped fixup is 0x7fff... if any element is NaN, which is larger than any
+// other value and is itself a NaN. Otherwise, it's 0 if any element has its sign
+// bit clear, which turns a -0 result into +0 and leaves a non-negative result
+// alone (and the result can't be negative in this case). Otherwise, it's
+// 0x8000..., which is smaller than any other value, so it leaves the result
+// alone. There's no 64-bit VPMAXSQ before AVX-512, so for float64 we use 32-bit
+// VPMAXSD and set the low half of the fixup to 0x8000_0000 (or 0x7fff_ffff for
+// NaN). This leaves the low half of the result alone unless the high half is
+// already a NaN, and only the high half matters for the sign of zero.
+//
+// The fixup tree runs in parallel with the reduction tree, so this adds just
+// one operation (VPOR for min or VPMAXSD for max) to the critical path.
+//
+// For Float64x2, the reduction tree is a single VMINPD/VMAXPD, so the fixup
+// tree would be longer than the reduction tree. Instead, it computes the
+// pairwise operation in both operand orders. For min, the two results are equal
+// unless an operand is NaN, in which case one result is that NaN, or both
+// operands are zero, in which case one result is -0 if either operand is. So
+// ORing them yields the IEEE minimum. For max, ANDing the two results yields
+// +0 if either operand is +0, and ORing them and clearing the sign yields a NaN
+// if either is a NaN. Combining these two yields the IEEE maximum.
+
+// reduceMinTree returns a vector whose element 0 is the VMINPS reduction of x.
+func (x Float32x4) reduceMinTree() Float32x4 {
+	x = x.Min(x.concatPermuteScalars(2, 3, 2, 3, x))
+	return x.Min(x.concatPermuteScalars(1, 1, 1, 1, x))
+}
+
+// reduceMaxTree returns a vector whose element 0 is the VMAXPS reduction of x.
+func (x Float32x4) reduceMaxTree() Float32x4 {
+	x = x.Max(x.concatPermuteScalars(2, 3, 2, 3, x))
+	return x.Max(x.concatPermuteScalars(1, 1, 1, 1, x))
+}
+
+// reduceOr returns a vector whose element 0 is the bitwise OR of all elements
+// of f.
+func (f Uint32x4) reduceOr() Uint32x4 {
+	f = f.Or(f.concatPermuteScalars(2, 3, 2, 3, f))
+	return f.Or(f.concatPermuteScalars(1, 1, 1, 1, f))
+}
+
+// minFixup32 returns the IEEE min fixup vector for x and y.
+func minFixup32(x, y Float32x4) Uint32x4 {
+	nan := x.IsNaN().Or(y.IsNaN()).ToInt32x4().ToBits() // VCMPPS $3, x, y
+	return x.ToBits().Or(y.ToBits()).And(BroadcastUint32x4(1 << 31)).Or(nan)
+}
+
+// maxFixup32 returns the IEEE max fixup vector for x and y.
+func maxFixup32(x, y Float32x4) Uint32x4 {
+	nan := x.IsNaN().Or(y.IsNaN()).ToInt32x4().ToBits() // VCMPPS $3, x, y
+	return BroadcastUint32x4(1 << 31).AndNot(x.ToBits().And(y.ToBits())).Or(nan)
+}
+
+// minFixup32x8 is like minFixup32, but for 256-bit vectors.
+func minFixup32x8(x, y Float32x8) Uint32x8 {
+	nan := x.IsNaN().Or(y.IsNaN()).ToInt32x8().ToBits() // VCMPPS $3, x, y
+	return x.ToBits().Or(y.ToBits()).And(BroadcastUint32x8(1 << 31)).Or(nan)
+}
+
+// maxFixup32x8 is like maxFixup32, but for 256-bit vectors.
+func maxFixup32x8(x, y Float32x8) Uint32x8 {
+	nan := x.IsNaN().Or(y.IsNaN()).ToInt32x8().ToBits() // VCMPPS $3, x, y
+	return BroadcastUint32x8(1 << 31).AndNot(x.ToBits().And(y.ToBits())).Or(nan)
+}
+
+// applyMinFixup32 applies min fixup vector f to the result of a VMINPS
+// reduction tree in element 0 of m.
+func applyMinFixup32(m Float32x4, f Uint32x4) float32 {
+	return m.ToBits().Or(f.reduceOr()).BitsToFloat32().Elem(0)
+}
+
+// applyMaxFixup32 applies max fixup vector f to the result of a VMAXPS
+// reduction tree in element 0 of m.
+func applyMaxFixup32(m Float32x4, f Uint32x4) float32 {
+	z := f.reduceOr().Xor(BroadcastUint32x4(1 << 31)).BitsToInt32()
+	return m.ToBits().BitsToInt32().Max(z).ToBits().BitsToFloat32().Elem(0)
+}
+
+// reduceMinTree returns a vector whose element 0 is the VMINPD reduction of x.
+func (x Float64x2) reduceMinTree() Float64x2 {
+	return x.Min(x.concatPermuteScalars(1, 1, x))
+}
+
+// reduceMaxTree returns a vector whose element 0 is the VMAXPD reduction of x.
+func (x Float64x2) reduceMaxTree() Float64x2 {
+	return x.Max(x.concatPermuteScalars(1, 1, x))
+}
+
+// reduceOr returns a vector whose element 0 is the bitwise OR of all elements
+// of f.
+func (f Uint64x2) reduceOr() Uint64x2 {
+	return f.Or(f.concatPermuteScalars(1, 1, f))
+}
+
+// minFixup64 returns the IEEE min fixup vector for x and y.
+func minFixup64(x, y Float64x2) Uint64x2 {
+	nan := x.IsNaN().Or(y.IsNaN()).ToInt64x2().ToBits() // VCMPPD $3, x, y
+	return x.ToBits().Or(y.ToBits()).And(BroadcastUint64x2(1 << 63)).Or(nan)
+}
+
+// maxFixup64 returns the IEEE max fixup vector for x and y.
+func maxFixup64(x, y Float64x2) Uint64x2 {
+	nan := x.IsNaN().Or(y.IsNaN()).ToInt64x2().ToBits() // VCMPPD $3, x, y
+	return BroadcastUint64x2(1 << 63).AndNot(x.ToBits().And(y.ToBits())).Or(nan)
+}
+
+// minFixup64x4 is like minFixup64, but for 256-bit vectors.
+func minFixup64x4(x, y Float64x4) Uint64x4 {
+	nan := x.IsNaN().Or(y.IsNaN()).ToInt64x4().ToBits() // VCMPPD $3, x, y
+	return x.ToBits().Or(y.ToBits()).And(BroadcastUint64x4(1 << 63)).Or(nan)
+}
+
+// maxFixup64x4 is like maxFixup64, but for 256-bit vectors.
+func maxFixup64x4(x, y Float64x4) Uint64x4 {
+	nan := x.IsNaN().Or(y.IsNaN()).ToInt64x4().ToBits() // VCMPPD $3, x, y
+	return BroadcastUint64x4(1 << 63).AndNot(x.ToBits().And(y.ToBits())).Or(nan)
+}
+
+// applyMinFixup64 applies min fixup vector f to the result of a VMINPD
+// reduction tree in element 0 of m.
+func applyMinFixup64(m Float64x2, f Uint64x2) float64 {
+	return m.ToBits().Or(f.reduceOr()).BitsToFloat64().Elem(0)
+}
+
+// applyMaxFixup64 applies max fixup vector f to the result of a VMAXPD
+// reduction tree in element 0 of m.
+func applyMaxFixup64(m Float64x2, f Uint64x2) float64 {
+	z := f.reduceOr().Xor(BroadcastUint64x2(1<<63 | 1<<31)).ReshapeToUint32s().BitsToInt32()
+	return m.ToBits().ReshapeToUint32s().BitsToInt32().Max(z).ToBits().ReshapeToUint64s().BitsToFloat64().Elem(0)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's max built-in and the IEEE 754-2019 maximum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Max].
+//
+// Emulated, CPU Feature: AVX
+func (x Float32x4) ReduceMax() (z float32) {
+	nan := x.IsNaN().ToInt32x4().ToBits()
+	return applyMaxFixup32(x.reduceMaxTree(), BroadcastUint32x4(1<<31).AndNot(x.ToBits()).Or(nan))
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's min built-in and the IEEE 754-2019 minimum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Min].
+//
+// Emulated, CPU Feature: AVX
+func (x Float32x4) ReduceMin() (z float32) {
+	nan := x.IsNaN().ToInt32x4().ToBits()
+	return applyMinFixup32(x.reduceMinTree(), x.ToBits().And(BroadcastUint32x4(1<<31)).Or(nan))
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's max built-in and the IEEE 754-2019 maximum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Max].
+//
+// Emulated, CPU Feature: AVX
+func (x Float32x8) ReduceMax() (z float32) {
+	lo, hi := x.Lo(), x.Hi()
+	return applyMaxFixup32(lo.Max(hi).reduceMaxTree(), maxFixup32(lo, hi))
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's min built-in and the IEEE 754-2019 minimum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Min].
+//
+// Emulated, CPU Feature: AVX
+func (x Float32x8) ReduceMin() (z float32) {
+	lo, hi := x.Lo(), x.Hi()
+	return applyMinFixup32(lo.Min(hi).reduceMinTree(), minFixup32(lo, hi))
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's max built-in and the IEEE 754-2019 maximum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Max].
+//
+// Emulated, CPU Feature: AVX512
+func (x Float32x16) ReduceMax() (z float32) {
+	lo, hi := x.Lo(), x.Hi()
+	m, f := lo.Max(hi), maxFixup32x8(lo, hi)
+	return applyMaxFixup32(m.Lo().Max(m.Hi()).reduceMaxTree(), f.Lo().Or(f.Hi()))
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's min built-in and the IEEE 754-2019 minimum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Min].
+//
+// Emulated, CPU Feature: AVX512
+func (x Float32x16) ReduceMin() (z float32) {
+	lo, hi := x.Lo(), x.Hi()
+	m, f := lo.Min(hi), minFixup32x8(lo, hi)
+	return applyMinFixup32(m.Lo().Min(m.Hi()).reduceMinTree(), f.Lo().Or(f.Hi()))
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's max built-in and the IEEE 754-2019 maximum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Max].
+//
+// Emulated, CPU Feature: AVX
+func (x Float64x2) ReduceMax() (z float64) {
+	y := x.concatPermuteScalars(1, 1, x)
+	m1, m2 := x.Max(y).ToBits(), y.Max(x).ToBits()
+	return m1.And(m2).Or(m1.Or(m2).AndNot(BroadcastUint64x2(1 << 63))).BitsToFloat64().Elem(0)
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's min built-in and the IEEE 754-2019 minimum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Min].
+//
+// Emulated, CPU Feature: AVX
+func (x Float64x2) ReduceMin() (z float64) {
+	y := x.concatPermuteScalars(1, 1, x)
+	return x.Min(y).ToBits().Or(y.Min(x).ToBits()).BitsToFloat64().Elem(0)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's max built-in and the IEEE 754-2019 maximum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Max].
+//
+// Emulated, CPU Feature: AVX
+func (x Float64x4) ReduceMax() (z float64) {
+	lo, hi := x.Lo(), x.Hi()
+	return applyMaxFixup64(lo.Max(hi).reduceMaxTree(), maxFixup64(lo, hi))
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's min built-in and the IEEE 754-2019 minimum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Min].
+//
+// Emulated, CPU Feature: AVX
+func (x Float64x4) ReduceMin() (z float64) {
+	lo, hi := x.Lo(), x.Hi()
+	return applyMinFixup64(lo.Min(hi).reduceMinTree(), minFixup64(lo, hi))
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's max built-in and the IEEE 754-2019 maximum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Max].
+//
+// Emulated, CPU Feature: AVX512
+func (x Float64x8) ReduceMax() (z float64) {
+	lo, hi := x.Lo(), x.Hi()
+	m, f := lo.Max(hi), maxFixup64x4(lo, hi)
+	return applyMaxFixup64(m.Lo().Max(m.Hi()).reduceMaxTree(), f.Lo().Or(f.Hi()))
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// If any element is NaN, the result is NaN, and -0 is considered less than +0.
+// This matches Go's min built-in and the IEEE 754-2019 minimum operation. Note
+// that on AMD64 (and only AMD64), it differs from [Min].
+//
+// Emulated, CPU Feature: AVX512
+func (x Float64x8) ReduceMin() (z float64) {
+	lo, hi := x.Lo(), x.Hi()
+	m, f := lo.Min(hi), minFixup64x4(lo, hi)
+	return applyMinFixup64(m.Lo().Min(m.Hi()).reduceMinTree(), f.Lo().Or(f.Hi()))
+}
+
 // LookupOrZero permutes x, returning 0 for out-of-range indices.
 //
 //	if indices[i] < 16 {

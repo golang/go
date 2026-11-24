@@ -498,6 +498,8 @@ func TestReduceMax(t *testing.T) {
 	test_helpers.TestV2S(t, test_helpers.Uint16s(), simd.LoadUint16s, simd.Uint16s.ReduceMax, test_helpers.ReduceMax)
 	test_helpers.TestV2S(t, test_helpers.Uint32s(), simd.LoadUint32s, simd.Uint32s.ReduceMax, test_helpers.ReduceMax)
 	test_helpers.TestV2S(t, test_helpers.Uint64s(), simd.LoadUint64s, simd.Uint64s.ReduceMax, test_helpers.ReduceMax)
+	test_helpers.TestV2S(t, test_helpers.Float32s(), simd.LoadFloat32s, simd.Float32s.ReduceMax, test_helpers.ReduceMax)
+	test_helpers.TestV2S(t, test_helpers.Float64s(), simd.LoadFloat64s, simd.Float64s.ReduceMax, test_helpers.ReduceMax)
 }
 
 func TestReduceMin(t *testing.T) {
@@ -509,6 +511,8 @@ func TestReduceMin(t *testing.T) {
 	test_helpers.TestV2S(t, test_helpers.Uint16s(), simd.LoadUint16s, simd.Uint16s.ReduceMin, test_helpers.ReduceMin)
 	test_helpers.TestV2S(t, test_helpers.Uint32s(), simd.LoadUint32s, simd.Uint32s.ReduceMin, test_helpers.ReduceMin)
 	test_helpers.TestV2S(t, test_helpers.Uint64s(), simd.LoadUint64s, simd.Uint64s.ReduceMin, test_helpers.ReduceMin)
+	test_helpers.TestV2S(t, test_helpers.Float32s(), simd.LoadFloat32s, simd.Float32s.ReduceMin, test_helpers.ReduceMin)
+	test_helpers.TestV2S(t, test_helpers.Float64s(), simd.LoadFloat64s, simd.Float64s.ReduceMin, test_helpers.ReduceMin)
 }
 
 func TestMaskRange(t *testing.T) {
