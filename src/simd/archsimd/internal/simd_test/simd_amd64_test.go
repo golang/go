@@ -1069,6 +1069,24 @@ func TestMaskString(t *testing.T) {
 	}
 }
 
+// TestMaskString256 checks that String works on 256-bit masks with only AVX,
+// which is all that their types require. Without AVX2, these masks come from
+// floating-point comparisons.
+func TestMaskString256(t *testing.T) {
+	if !archsimd.X86.AVX() {
+		t.Skip("requires AVX")
+	}
+	x := archsimd.LoadFloat32x8Array(&[8]float32{0, 1, 0, 3, 4, 5, 6, 0})
+	y := archsimd.LoadFloat64x4Array(&[4]float64{1, 0, 0, 3})
+
+	if g, w := x.Equal(archsimd.Float32x8{}).String(), "{1,0,1,0,0,0,0,1}"; g != w {
+		t.Errorf("Mask32x8: got=%s wanted %s", g, w)
+	}
+	if g, w := y.Equal(archsimd.Float64x4{}).String(), "{0,1,1,0}"; g != w {
+		t.Errorf("Mask64x4: got=%s wanted %s", g, w)
+	}
+}
+
 // a returns an slice of 16 int32
 func a() []int32 {
 	return make([]int32, 16, 16)

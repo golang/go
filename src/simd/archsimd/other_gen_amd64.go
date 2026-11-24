@@ -1080,7 +1080,13 @@ func (x Mask64x2) String() string {
 // means true.
 func (x Mask8x32) String() string {
 	var s [32]int8
-	x.ToInt8x32().Neg().StoreArray(&s)
+	x.ToInt8x32().StoreArray(&s)
+	// True elements are -1. Negate them in scalar code: a vector Neg of a
+	// 256-bit integer vector would require AVX2, but the 256-bit mask types
+	// only require AVX.
+	for i := range s {
+		s[i] = -s[i]
+	}
 	return simdfmt.SliceToString(s[:])
 }
 
@@ -1088,7 +1094,13 @@ func (x Mask8x32) String() string {
 // means true.
 func (x Mask16x16) String() string {
 	var s [16]int16
-	x.ToInt16x16().Neg().StoreArray(&s)
+	x.ToInt16x16().StoreArray(&s)
+	// True elements are -1. Negate them in scalar code: a vector Neg of a
+	// 256-bit integer vector would require AVX2, but the 256-bit mask types
+	// only require AVX.
+	for i := range s {
+		s[i] = -s[i]
+	}
 	return simdfmt.SliceToString(s[:])
 }
 
@@ -1096,7 +1108,13 @@ func (x Mask16x16) String() string {
 // means true.
 func (x Mask32x8) String() string {
 	var s [8]int32
-	x.ToInt32x8().Neg().StoreArray(&s)
+	x.ToInt32x8().StoreArray(&s)
+	// True elements are -1. Negate them in scalar code: a vector Neg of a
+	// 256-bit integer vector would require AVX2, but the 256-bit mask types
+	// only require AVX.
+	for i := range s {
+		s[i] = -s[i]
+	}
 	return simdfmt.SliceToString(s[:])
 }
 
@@ -1104,7 +1122,13 @@ func (x Mask32x8) String() string {
 // means true.
 func (x Mask64x4) String() string {
 	var s [4]int64
-	x.ToInt64x4().Neg().StoreArray(&s)
+	x.ToInt64x4().StoreArray(&s)
+	// True elements are -1. Negate them in scalar code: a vector Neg of a
+	// 256-bit integer vector would require AVX2, but the 256-bit mask types
+	// only require AVX.
+	for i := range s {
+		s[i] = -s[i]
+	}
 	return simdfmt.SliceToString(s[:])
 }
 

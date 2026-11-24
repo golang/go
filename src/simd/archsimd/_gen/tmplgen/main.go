@@ -1572,7 +1572,17 @@ var maskToString = shapedTemplateOf(intShapes, "maskToString", `
 // String returns a string representation of SIMD mask x.
 func (x Mask{{.WxC}}) String() string {
 	var s [{{.Count}}]{{.Etype}}
+{{- if eq .Vwidth 256}}
+	x.ToInt{{.WxC}}().StoreArray(&s)
+	// True elements are -1. Negate them in scalar code: a vector Neg of a
+	// 256-bit integer vector would require AVX2, but the 256-bit mask types
+	// only require AVX.
+	for i := range s {
+		s[i] = -s[i]
+	}
+{{- else}}
 	x.ToInt{{.WxC}}().Neg().StoreArray(&s)
+{{- end}}
 	return simdfmt.SliceToString(s[:])
 }
 `)
