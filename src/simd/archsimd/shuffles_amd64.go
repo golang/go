@@ -1159,7 +1159,7 @@ func (x Uint16x32) PermuteScalarsHiGrouped(a, b, c, d uint8) Uint16x32 {
 // Performance: If a through d are constants, then an instruction will be
 // inlined, otherwise a jump table is generated.
 //
-// Asm: VPSHUFLW, CPU Feature: AVX512
+// Asm: VPSHUFLW, CPU Feature: AVX
 func (x Int16x8) PermuteScalarsLo(a, b, c, d uint8) Int16x8 {
 	return x.permuteScalarsLo(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
 }
@@ -1173,7 +1173,7 @@ func (x Int16x8) PermuteScalarsLo(a, b, c, d uint8) Int16x8 {
 // Performance: If a through d are constants, then an instruction will be
 // inlined, otherwise a jump table is generated.
 //
-// Asm: VPSHUFLW, CPU Feature: AVX512
+// Asm: VPSHUFLW, CPU Feature: AVX
 func (x Uint16x8) PermuteScalarsLo(a, b, c, d uint8) Uint16x8 {
 	return x.permuteScalarsLo(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
 }
