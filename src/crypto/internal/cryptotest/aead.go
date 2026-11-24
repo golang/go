@@ -32,7 +32,7 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 		// Test all combinations of plaintext and additional data lengths.
 		for _, ptLen := range lengths {
 			for _, adLen := range lengths {
-				t.Run(fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
+				runCase(t, fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
 					rng := newRandReader(t)
 
 					nonce := make([]byte, aead.NonceSize())
@@ -56,7 +56,7 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 	t.Run("InPlace", func(t *testing.T) {
 		for _, ptLen := range lengths {
 			for _, adLen := range lengths {
-				t.Run(fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
+				runCase(t, fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
 					rng := newRandReader(t)
 
 					nonce := make([]byte, aead.NonceSize())
@@ -122,7 +122,7 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 			sizes = append(sizes, boundarySizes{156, adLen})
 		}
 		for _, size := range sizes {
-			t.Run(fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", size.ptLen, size.adLen), func(t *testing.T) {
+			runCase(t, fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", size.ptLen, size.adLen), func(t *testing.T) {
 				rng := newRandReader(t)
 
 				nonce := make([]byte, aead.NonceSize())
@@ -137,7 +137,7 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 				// buffer (Boundary=End) or before its start (Boundary=Start)
 				// faults, rather than silently landing in adjacent memory.
 				for _, boundary := range []string{"Start", "End"} {
-					t.Run("Boundary="+boundary, func(t *testing.T) {
+					runCase(t, "Boundary="+boundary, func(t *testing.T) {
 						guarded := func(b []byte) []byte {
 							start, end := BoundarySlices(t, len(b))
 							if boundary == "Start" {
@@ -166,10 +166,10 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 	t.Run("InputNotModified", func(t *testing.T) {
 
 		// Test all combinations of plaintext and additional data lengths.
-		for _, ptLen := range lengths {
-			for _, adLen := range lengths {
-				t.Run(fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
-					t.Run("Seal", func(t *testing.T) {
+		t.Run("Seal", func(t *testing.T) {
+			for _, ptLen := range lengths {
+				for _, adLen := range lengths {
+					runCase(t, fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
 						rng := newRandReader(t)
 
 						nonce := make([]byte, aead.NonceSize())
@@ -187,8 +187,14 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 							t.Errorf("Seal modified src; got %s, want %s", truncateHex(src), truncateHex(before))
 						}
 					})
+				}
+			}
+		})
 
-					t.Run("Open", func(t *testing.T) {
+		t.Run("Open", func(t *testing.T) {
+			for _, ptLen := range lengths {
+				for _, adLen := range lengths {
+					runCase(t, fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
 						rng := newRandReader(t)
 
 						nonce := make([]byte, aead.NonceSize())
@@ -209,21 +215,21 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 							t.Errorf("Open modified src; got %s, want %s", truncateHex(ciphertext), truncateHex(before))
 						}
 					})
-				})
+				}
 			}
-		}
+		})
 	})
 
 	t.Run("BufferOverlap", func(t *testing.T) {
 
 		// Test all combinations of plaintext and additional data lengths.
-		for _, ptLen := range lengths {
-			if ptLen <= 1 { // We need enough room for an inexact overlap to occur.
-				continue
-			}
-			for _, adLen := range lengths {
-				t.Run(fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
-					t.Run("Seal", func(t *testing.T) {
+		t.Run("Seal", func(t *testing.T) {
+			for _, ptLen := range lengths {
+				if ptLen <= 1 { // We need enough room for an inexact overlap to occur.
+					continue
+				}
+				for _, adLen := range lengths {
+					runCase(t, fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
 						rng := newRandReader(t)
 
 						nonce := make([]byte, aead.NonceSize())
@@ -248,8 +254,17 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 						dst = buff[ptLen-1 : ptLen-1]
 						mustPanic(t, "invalid buffer overlap", func() { sealMsg(t, aead, dst, nonce, plaintext, addData) })
 					})
+				}
+			}
+		})
 
-					t.Run("Open", func(t *testing.T) {
+		t.Run("Open", func(t *testing.T) {
+			for _, ptLen := range lengths {
+				if ptLen <= 1 { // We need enough room for an inexact overlap to occur.
+					continue
+				}
+				for _, adLen := range lengths {
+					runCase(t, fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
 						rng := newRandReader(t)
 
 						nonce := make([]byte, aead.NonceSize())
@@ -283,19 +298,18 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 						dst = buff[beforeTag-1 : beforeTag-1]
 						mustPanic(t, "invalid buffer overlap", func() { aead.Open(dst, nonce, ciphertext, addData) })
 					})
-				})
+				}
 			}
-		}
+		})
 	})
 
 	t.Run("AppendDst", func(t *testing.T) {
 
 		// Test all combinations of plaintext and additional data lengths.
-		for _, ptLen := range lengths {
-			for _, adLen := range lengths {
-				t.Run(fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
-
-					t.Run("Seal", func(t *testing.T) {
+		t.Run("Seal", func(t *testing.T) {
+			for _, ptLen := range lengths {
+				for _, adLen := range lengths {
+					runCase(t, fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
 						rng := newRandReader(t)
 
 						nonce := make([]byte, aead.NonceSize())
@@ -327,8 +341,14 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 							}
 						}
 					})
+				}
+			}
+		})
 
-					t.Run("Open", func(t *testing.T) {
+		t.Run("Open", func(t *testing.T) {
+			for _, ptLen := range lengths {
+				for _, adLen := range lengths {
+					runCase(t, fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
 						rng := newRandReader(t)
 
 						nonce := make([]byte, aead.NonceSize())
@@ -360,9 +380,9 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 							}
 						}
 					})
-				})
+				}
 			}
-		}
+		})
 	})
 
 	t.Run("WrongNonce", func(t *testing.T) {
@@ -372,7 +392,7 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 		// Test all combinations of plaintext and additional data lengths.
 		for _, ptLen := range lengths {
 			for _, adLen := range lengths {
-				t.Run(fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
+				runCase(t, fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
 					rng := newRandReader(t)
 
 					nonce := make([]byte, aead.NonceSize())
@@ -407,7 +427,7 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 					continue
 				}
 
-				t.Run(fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
+				runCase(t, fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
 					rng := newRandReader(t)
 
 					nonce := make([]byte, aead.NonceSize())
@@ -439,7 +459,7 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 		for _, ptLen := range lengths {
 			for _, adLen := range lengths {
 
-				t.Run(fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
+				runCase(t, fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", ptLen, adLen), func(t *testing.T) {
 					rng := newRandReader(t)
 
 					nonce := make([]byte, aead.NonceSize())
@@ -464,6 +484,21 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 			}
 		}
 	})
+}
+
+// runCase runs f as a named case of the test t, rather than as a subtest of it.
+//
+// TestAEAD covers a large matrix of cases, and callers usually invoke it for
+// several variants of an AEAD across several implementations. If every case
+// were a subtest, a single package could produce tens of thousands of test
+// results, which is more than the test infrastructure handles gracefully.
+// Instead, runCase logs the name of the case, so that any failure reported
+// after it can be attributed to it. Note that a fatal failure in f stops the
+// remaining cases of t.
+func runCase(t *testing.T, name string, f func(t *testing.T)) {
+	t.Helper()
+	t.Logf("case %s", name)
+	f(t)
 }
 
 // Helper function to Seal a plaintext with additional data. Checks that
