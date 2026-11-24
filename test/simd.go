@@ -109,6 +109,16 @@ func ternRewrite(m, w, x, y, z archsimd.Int32x16) (t0, t1, t2 archsimd.Int32x16)
 	return                                          // ERROR "has features avx[+]avx2[+]avx512$"
 }
 
+func ternShared(a, b, c, d, e archsimd.Int32x16) (p1, p2 archsimd.Int32x16) {
+	// x is rewritten on its own, because p1 has too many inputs to absorb
+	// it. p2 also uses x, and must not be rewritten as if x were still
+	// an Or of two of its inputs.
+	x := a.Or(b.Or(c)) // ERROR "Rewriting.*ternInt"
+	p1 = x.And(d)
+	p2 = x.Xor(e)
+	return p1, p2 // ERROR "has features avx[+]avx2[+]avx512$"
+}
+
 func ternTricky1(x, y, z archsimd.Int32x8) archsimd.Int32x8 {
 	// Int32x8 is a 256-bit vector and does not guarantee AVX-512
 	// a is a 3-variable logical expression occurring outside AVX-512 feature check

@@ -188,6 +188,10 @@ func rewriteTern(f *ssa.Func) {
 		a0.Reset(op)
 		a0.SetArgs3(vars0[0], vars0[1], vars0[2])
 		a0.AuxInt = int64(int8(imm))
+		// a0 is no longer a logical operation that rewrite and computeTT
+		// can look inside. To any other expression that uses it, it is
+		// a variable.
+		boolExprTrees[a0] = sloInterior
 	}
 
 	// addOne ensures the no-duplicates addition of a single value
@@ -230,6 +234,12 @@ func rewriteTern(f *ssa.Func) {
 			a0, a1 := v.Args[0], v.Args[1]
 			vars0 := rewrite(a0)
 			vars1 := rewrite(a1)
+			// If a1 used a0, rewriting a1 may have replaced a0. If so,
+			// a0 is now a variable, so vars0 is out of date. (If a0 was
+			// a variable all along, this changes nothing.)
+			if boolExprTrees[a0] == sloInterior {
+				vars0 = [3]*ssa.Value{a0, nil, nil}
+			}
 			vars, ok = combine(vars0, vars1)
 
 			if f.Pass.Debug > 1 {

@@ -1133,6 +1133,20 @@ func TestSelectTernOptInt32x16(t *testing.T) {
 		return (x ^ y ^ z) & (x ^ y ^ ^z)
 	}
 	foo(t2, applyTo3(x, y, z, ft2))
+
+	// t3 and t4 share a subexpression that has three inputs of its own.
+	xyz := x.Or(y.Or(z))
+	t3 := xyz.And(m)
+	ft3 := func(x, y, z, m int32) int32 {
+		return (x | y | z) & m
+	}
+	foo(t3, applyTo4(x, y, z, m, ft3))
+
+	t4 := xyz.Xor(w)
+	ft4 := func(x, y, z, w int32) int32 {
+		return (x | y | z) ^ w
+	}
+	foo(t4, applyTo4(x, y, z, w, ft4))
 }
 
 func TestMaskedMerge(t *testing.T) {
