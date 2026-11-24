@@ -40,7 +40,7 @@ func SealWithRandomNonce(g *GCM, nonce, out, plaintext, additionalData []byte) {
 	}
 	fips140.RecordApproved()
 	drbg.Read(nonce)
-	seal(out, g, nonce, plaintext, additionalData)
+	seal(out[:len(plaintext)], out[len(plaintext):], g, nonce, plaintext, additionalData)
 }
 
 // NewGCMWithCounterNonce returns a new AEAD that works like GCM, but enforces
@@ -98,6 +98,8 @@ func (g *GCMWithCounterNonce) NonceSize() int { return gcmStandardNonceSize }
 
 func (g *GCMWithCounterNonce) Overhead() int { return gcmTagSize }
 
+func (g *GCMWithCounterNonce) TagSize() int { return gcmTagSize }
+
 // Seal implements the [cipher.AEAD] interface, checking that the nonce prefix
 // is stable and that the counter is strictly increasing.
 //
@@ -106,42 +108,67 @@ func (g *GCMWithCounterNonce) Seal(dst, nonce, plaintext, data []byte) []byte {
 	if len(nonce) != gcmStandardNonceSize {
 		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}
-
-	if fips140.Enabled {
-		if !g.prefixReady {
-			// The first invocation sets the fixed prefix.
-			g.prefixReady = true
-			g.prefix = byteorder.BEUint32(nonce[:4])
-		}
-		if g.prefix != byteorder.BEUint32(nonce[:4]) {
-			panic("crypto/cipher: GCM nonce prefix changed")
-		}
-
-		counter := byteorder.BEUint64(nonce[len(nonce)-8:])
-		if !g.startReady {
-			// The first invocation sets the starting counter, if not fixed.
-			g.startReady = true
-			g.start = counter
-		}
-		counter -= g.start
-
-		// Ensure the counter is strictly increasing.
-		if counter == math.MaxUint64 {
-			panic("crypto/cipher: counter exhausted")
-		}
-		if counter < g.next {
-			panic("crypto/cipher: counter decreased or remained the same")
-		}
-		g.next = counter + 1
-	}
-
+	g.checkNonce(nonce)
 	fips140.RecordApproved()
 	return g.g.sealAfterIndicator(dst, nonce, plaintext, data)
+}
+
+// SealRaw is like [GCM.SealRaw], but it checks the nonce like Seal.
+//
+// It is not safe for concurrent use.
+func (g *GCMWithCounterNonce) SealRaw(out, tag, nonce, plaintext, additionalData []byte) error {
+	// The nonce is checked after the other arguments, so that a call that
+	// returns an error doesn't use up a counter.
+	if err := g.g.checkSealRaw(out, tag, nonce, plaintext, additionalData); err != nil {
+		return err
+	}
+	g.checkNonce(nonce)
+	fips140.RecordApproved()
+	seal(out, tag, &g.g, nonce, plaintext, additionalData)
+	return nil
+}
+
+// checkNonce panics, in FIPS 140-3 mode, if the prefix of nonce changed or if
+// its counter did not increase. nonce must be 96 bits.
+func (g *GCMWithCounterNonce) checkNonce(nonce []byte) {
+	if !fips140.Enabled {
+		return
+	}
+
+	if !g.prefixReady {
+		// The first invocation sets the fixed prefix.
+		g.prefixReady = true
+		g.prefix = byteorder.BEUint32(nonce[:4])
+	}
+	if g.prefix != byteorder.BEUint32(nonce[:4]) {
+		panic("crypto/cipher: GCM nonce prefix changed")
+	}
+
+	counter := byteorder.BEUint64(nonce[len(nonce)-8:])
+	if !g.startReady {
+		// The first invocation sets the starting counter, if not fixed.
+		g.startReady = true
+		g.start = counter
+	}
+	counter -= g.start
+
+	// Ensure the counter is strictly increasing.
+	if counter == math.MaxUint64 {
+		panic("crypto/cipher: counter exhausted")
+	}
+	if counter < g.next {
+		panic("crypto/cipher: counter decreased or remained the same")
+	}
+	g.next = counter + 1
 }
 
 func (g *GCMWithCounterNonce) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	fips140.RecordApproved()
 	return g.g.Open(dst, nonce, ciphertext, data)
+}
+
+func (g *GCMWithCounterNonce) OpenRaw(out, nonce, ciphertext, tag, additionalData []byte) error {
+	return g.g.OpenRaw(out, nonce, ciphertext, tag, additionalData)
 }
 
 // NewGCMWithXORCounterNonce returns a new AEAD that works like GCM, but
@@ -243,6 +270,8 @@ func (g *GCMWithXORCounterNonce) NonceSize() int { return gcmStandardNonceSize }
 
 func (g *GCMWithXORCounterNonce) Overhead() int { return gcmTagSize }
 
+func (g *GCMWithXORCounterNonce) TagSize() int { return gcmTagSize }
+
 // Seal implements the [cipher.AEAD] interface, checking that the nonce prefix
 // is stable and that the counter is strictly increasing.
 //
@@ -251,37 +280,62 @@ func (g *GCMWithXORCounterNonce) Seal(dst, nonce, plaintext, data []byte) []byte
 	if len(nonce) != gcmStandardNonceSize {
 		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}
-
-	if fips140.Enabled {
-		counter := byteorder.BEUint64(nonce[len(nonce)-8:])
-		if !g.ready {
-			// In the first call, if [GCMWithXORCounterNonce.SetNoncePrefixAndMask]
-			// wasn't used, we assume the counter is zero to learn the XOR mask and
-			// fixed prefix.
-			g.ready = true
-			g.mask = counter
-			g.prefix = byteorder.BEUint32(nonce[:4])
-		}
-		if g.prefix != byteorder.BEUint32(nonce[:4]) {
-			panic("crypto/cipher: GCM nonce prefix changed")
-		}
-		counter ^= g.mask
-
-		// Ensure the counter is strictly increasing.
-		if counter == math.MaxUint64 {
-			panic("crypto/cipher: counter exhausted")
-		}
-		if counter < g.next {
-			panic("crypto/cipher: counter decreased or remained the same")
-		}
-		g.next = counter + 1
-	}
-
+	g.checkNonce(nonce)
 	fips140.RecordApproved()
 	return g.g.sealAfterIndicator(dst, nonce, plaintext, data)
+}
+
+// SealRaw is like [GCM.SealRaw], but it checks the nonce like Seal.
+//
+// It is not safe for concurrent use.
+func (g *GCMWithXORCounterNonce) SealRaw(out, tag, nonce, plaintext, additionalData []byte) error {
+	// The nonce is checked after the other arguments, so that a call that
+	// returns an error doesn't use up a counter.
+	if err := g.g.checkSealRaw(out, tag, nonce, plaintext, additionalData); err != nil {
+		return err
+	}
+	g.checkNonce(nonce)
+	fips140.RecordApproved()
+	seal(out, tag, &g.g, nonce, plaintext, additionalData)
+	return nil
+}
+
+// checkNonce panics, in FIPS 140-3 mode, if the prefix of nonce changed or if
+// its counter did not increase. nonce must be 96 bits.
+func (g *GCMWithXORCounterNonce) checkNonce(nonce []byte) {
+	if !fips140.Enabled {
+		return
+	}
+
+	counter := byteorder.BEUint64(nonce[len(nonce)-8:])
+	if !g.ready {
+		// In the first call, if [GCMWithXORCounterNonce.SetNoncePrefixAndMask]
+		// wasn't used, we assume the counter is zero to learn the XOR mask and
+		// fixed prefix.
+		g.ready = true
+		g.mask = counter
+		g.prefix = byteorder.BEUint32(nonce[:4])
+	}
+	if g.prefix != byteorder.BEUint32(nonce[:4]) {
+		panic("crypto/cipher: GCM nonce prefix changed")
+	}
+	counter ^= g.mask
+
+	// Ensure the counter is strictly increasing.
+	if counter == math.MaxUint64 {
+		panic("crypto/cipher: counter exhausted")
+	}
+	if counter < g.next {
+		panic("crypto/cipher: counter decreased or remained the same")
+	}
+	g.next = counter + 1
 }
 
 func (g *GCMWithXORCounterNonce) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	fips140.RecordApproved()
 	return g.g.Open(dst, nonce, ciphertext, data)
+}
+
+func (g *GCMWithXORCounterNonce) OpenRaw(out, nonce, ciphertext, tag, additionalData []byte) error {
+	return g.g.OpenRaw(out, nonce, ciphertext, tag, additionalData)
 }

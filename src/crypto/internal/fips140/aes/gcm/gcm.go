@@ -60,6 +60,96 @@ func (g *GCM) Overhead() int {
 	return g.tagSize
 }
 
+func (g *GCM) TagSize() int {
+	return g.tagSize
+}
+
+func (g *GCM) SealRaw(out, tag, nonce, plaintext, additionalData []byte) error {
+	fips140.RecordNonApproved()
+	if err := g.checkSealRaw(out, tag, nonce, plaintext, additionalData); err != nil {
+		return err
+	}
+	seal(out, tag, g, nonce, plaintext, additionalData)
+	return nil
+}
+
+// checkSealRaw checks the arguments of SealRaw.
+// If they are invalid, it clears out and tag and returns an error.
+func (g *GCM) checkSealRaw(out, tag, nonce, plaintext, additionalData []byte) error {
+	if g.nonceSize == 0 || g.tagSize == 0 {
+		panic("internal error: uninitialized GCM")
+	}
+	err := check(out, tag, nonce, plaintext, additionalData, g.tagSize, g.nonceSize)
+	if err != nil {
+		clear(out)
+		clear(tag)
+	}
+	return err
+}
+
+func (g *GCM) OpenRaw(out, nonce, ciphertext, tag, additionalData []byte) error {
+	if g.nonceSize == 0 || g.tagSize == 0 {
+		panic("internal error: uninitialized GCM")
+	}
+	err := check(out, tag, nonce, ciphertext, additionalData, g.tagSize, g.nonceSize)
+	if err != nil {
+		clear(out)
+		return err
+	}
+
+	fips140.RecordApproved()
+	if err := open(out, g, nonce, ciphertext, tag, additionalData); err != nil {
+		clear(out)
+		return err
+	}
+	return nil
+}
+
+func check(out, tag, nonce, input, additionalData []byte, tagSize, nonceSize int) error {
+	// len(out) must equal len(plaintext/ciphertext), len(tag) must equal
+	// TagSize(), and len(nonce) must equal NonceSize().
+	if len(out) != len(input) {
+		return errors.New("incorrect output length for AES-GCM")
+	}
+	if len(tag) != tagSize {
+		return errors.New("incorrect tag length for AES-GCM")
+	}
+	if len(nonce) != nonceSize {
+		return errors.New("incorrect nonce length for AES-GCM")
+	}
+
+	if uint64(len(input)) > uint64((1<<32)-2)*gcmBlockSize {
+		return errors.New("message too large for AES-GCM")
+	}
+
+	// out and plaintext/ciphertext must overlap exactly or not at all; out
+	// must not overlap nonce or additionalData; tag must not overlap any other
+	// argument.
+	if alias.InexactOverlap(out, input) {
+		return errors.New("invalid buffer overlap of output and input")
+	}
+	if alias.AnyOverlap(out, tag) {
+		return errors.New("invalid buffer overlap of output and tag")
+	}
+	if alias.AnyOverlap(out, nonce) {
+		return errors.New("invalid buffer overlap of output and nonce")
+	}
+	if alias.AnyOverlap(out, additionalData) {
+		return errors.New("invalid buffer overlap of output and additional data")
+	}
+	if alias.AnyOverlap(tag, input) {
+		return errors.New("invalid buffer overlap of tag and input")
+	}
+	if alias.AnyOverlap(tag, nonce) {
+		return errors.New("invalid buffer overlap of tag and nonce")
+	}
+	if alias.AnyOverlap(tag, additionalData) {
+		return errors.New("invalid buffer overlap of tag and additional data")
+	}
+
+	return nil
+}
+
 func (g *GCM) Seal(dst, nonce, plaintext, data []byte) []byte {
 	fips140.RecordNonApproved()
 	return g.sealAfterIndicator(dst, nonce, plaintext, data)
@@ -84,7 +174,7 @@ func (g *GCM) sealAfterIndicator(dst, nonce, plaintext, data []byte) []byte {
 		panic("crypto/cipher: invalid buffer overlap of output and additional data")
 	}
 
-	seal(out, g, nonce, plaintext, data)
+	seal(out[:len(plaintext)], out[len(plaintext):], g, nonce, plaintext, data)
 	return ret
 }
 
@@ -115,8 +205,11 @@ func (g *GCM) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 		panic("crypto/cipher: invalid buffer overlap of output and additional data")
 	}
 
+	tag := ciphertext[len(ciphertext)-g.tagSize:]
+	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
+
 	fips140.RecordApproved()
-	if err := open(out, g, nonce, ciphertext, data); err != nil {
+	if err := open(out, g, nonce, ciphertext, tag, data); err != nil {
 		// We sometimes decrypt and authenticate concurrently, so we overwrite
 		// dst in the event of a tag mismatch. To be consistent across platforms
 		// and to avoid releasing unauthenticated plaintext, we clear the buffer

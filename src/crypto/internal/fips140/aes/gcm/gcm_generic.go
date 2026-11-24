@@ -10,7 +10,7 @@ import (
 	"crypto/internal/fips140deps/byteorder"
 )
 
-func sealGeneric(out []byte, g *GCM, nonce, plaintext, additionalData []byte) {
+func sealGeneric(out, tag []byte, g *GCM, nonce, plaintext, additionalData []byte) {
 	var H, counter, tagMask [gcmBlockSize]byte
 	aes.EncryptBlockInternal(&g.cipher, H[:], H[:])
 	deriveCounterGeneric(&H, &counter, nonce)
@@ -18,19 +18,16 @@ func sealGeneric(out []byte, g *GCM, nonce, plaintext, additionalData []byte) {
 
 	gcmCounterCryptGeneric(&g.cipher, out, plaintext, &counter)
 
-	var tag [gcmTagSize]byte
-	gcmAuthGeneric(tag[:], &H, &tagMask, out[:len(plaintext)], additionalData)
-	copy(out[len(plaintext):], tag[:])
+	var tagOut [gcmTagSize]byte
+	gcmAuthGeneric(tagOut[:], &H, &tagMask, out, additionalData)
+	copy(tag, tagOut[:])
 }
 
-func openGeneric(out []byte, g *GCM, nonce, ciphertext, additionalData []byte) error {
+func openGeneric(out []byte, g *GCM, nonce, ciphertext, tag, additionalData []byte) error {
 	var H, counter, tagMask [gcmBlockSize]byte
 	aes.EncryptBlockInternal(&g.cipher, H[:], H[:])
 	deriveCounterGeneric(&H, &counter, nonce)
 	gcmCounterCryptGeneric(&g.cipher, tagMask[:], tagMask[:], &counter)
-
-	tag := ciphertext[len(ciphertext)-g.tagSize:]
-	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
 
 	var expectedTag [gcmTagSize]byte
 	gcmAuthGeneric(expectedTag[:], &H, &tagMask, ciphertext, additionalData)

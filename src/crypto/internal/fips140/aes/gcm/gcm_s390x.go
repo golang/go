@@ -153,47 +153,44 @@ func gcmAuth(out []byte, H *gcmHashKey, tagMask *[gcmBlockSize]byte, ciphertext,
 	}
 }
 
-func seal(out []byte, g *GCM, nonce, plaintext, data []byte) {
+func seal(out, tag []byte, g *GCM, nonce, plaintext, data []byte) {
 	switch {
 	case useGCM:
-		sealKMA(out, g, nonce, plaintext, data)
+		sealKMA(out, tag, g, nonce, plaintext, data)
 	case useGHASH:
-		sealAsm(out, g, nonce, plaintext, data)
+		sealAsm(out, tag, g, nonce, plaintext, data)
 	default:
-		sealGeneric(out, g, nonce, plaintext, data)
+		sealGeneric(out, tag, g, nonce, plaintext, data)
 	}
 }
 
-func sealAsm(out []byte, g *GCM, nonce, plaintext, additionalData []byte) {
+func sealAsm(out, tag []byte, g *GCM, nonce, plaintext, additionalData []byte) {
 	var counter, tagMask [gcmBlockSize]byte
 	deriveCounter(&g.hashKey, &counter, nonce)
 	counterCrypt(g, tagMask[:], tagMask[:], &counter)
 
 	counterCrypt(g, out, plaintext, &counter)
 
-	var tag [gcmTagSize]byte
-	gcmAuth(tag[:], &g.hashKey, &tagMask, out[:len(plaintext)], additionalData)
-	copy(out[len(plaintext):], tag[:])
+	var tagOut [gcmTagSize]byte
+	gcmAuth(tagOut[:], &g.hashKey, &tagMask, out, additionalData)
+	copy(tag, tagOut[:])
 }
 
-func open(out []byte, g *GCM, nonce, ciphertext, data []byte) error {
+func open(out []byte, g *GCM, nonce, ciphertext, tag, data []byte) error {
 	switch {
 	case useGCM:
-		return openKMA(out, g, nonce, ciphertext, data)
+		return openKMA(out, g, nonce, ciphertext, tag, data)
 	case useGHASH:
-		return openAsm(out, g, nonce, ciphertext, data)
+		return openAsm(out, g, nonce, ciphertext, tag, data)
 	default:
-		return openGeneric(out, g, nonce, ciphertext, data)
+		return openGeneric(out, g, nonce, ciphertext, tag, data)
 	}
 }
 
-func openAsm(out []byte, g *GCM, nonce, ciphertext, additionalData []byte) error {
+func openAsm(out []byte, g *GCM, nonce, ciphertext, tag, additionalData []byte) error {
 	var counter, tagMask [gcmBlockSize]byte
 	deriveCounter(&g.hashKey, &counter, nonce)
 	counterCrypt(g, tagMask[:], tagMask[:], &counter)
-
-	tag := ciphertext[len(ciphertext)-g.tagSize:]
-	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
 
 	var expectedTag [gcmTagSize]byte
 	gcmAuth(expectedTag[:], &g.hashKey, &tagMask, ciphertext, additionalData)
@@ -222,26 +219,23 @@ const (
 //go:noescape
 func kmaGCM(fn int, key, dst, src, aad []byte, tag *[16]byte, cnt *[gcmBlockSize]byte)
 
-func sealKMA(out []byte, g *GCM, nonce, plaintext, data []byte) {
+func sealKMA(out, tag []byte, g *GCM, nonce, plaintext, data []byte) {
 	var counter [gcmBlockSize]byte
 	deriveCounter(&g.hashKey, &counter, nonce)
 	fc := aes.BlockFunction(&g.cipher) | kmaLAAD | kmaLPC
 
-	var tag [gcmTagSize]byte
-	kmaGCM(fc, aes.BlockKey(&g.cipher), out[:len(plaintext)], plaintext, data, &tag, &counter)
-	copy(out[len(plaintext):], tag[:])
+	var tagOut [gcmTagSize]byte
+	kmaGCM(fc, aes.BlockKey(&g.cipher), out, plaintext, data, &tagOut, &counter)
+	copy(tag, tagOut[:])
 }
 
-func openKMA(out []byte, g *GCM, nonce, ciphertext, data []byte) error {
-	tag := ciphertext[len(ciphertext)-g.tagSize:]
-	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
-
+func openKMA(out []byte, g *GCM, nonce, ciphertext, tag, data []byte) error {
 	var counter [gcmBlockSize]byte
 	deriveCounter(&g.hashKey, &counter, nonce)
 	fc := aes.BlockFunction(&g.cipher) | kmaLAAD | kmaLPC | kmaDecrypt
 
 	var expectedTag [gcmTagSize]byte
-	kmaGCM(fc, aes.BlockKey(&g.cipher), out[:len(ciphertext)], ciphertext, data, &expectedTag, &counter)
+	kmaGCM(fc, aes.BlockKey(&g.cipher), out, ciphertext, data, &expectedTag, &counter)
 
 	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
 		return errOpen

@@ -69,9 +69,9 @@ func initGCM(g *GCM) {
 	gcmAesInit(&g.productTable, aes.EncryptionKeySchedule(&g.cipher))
 }
 
-func seal(out []byte, g *GCM, nonce, plaintext, data []byte) {
+func seal(out, tag []byte, g *GCM, nonce, plaintext, data []byte) {
 	if !(supportsAESGCM || supportsAESGCMEOR3) {
-		sealGeneric(out, g, nonce, plaintext, data)
+		sealGeneric(out, tag, g, nonce, plaintext, data)
 		return
 	}
 
@@ -96,16 +96,13 @@ func seal(out []byte, g *GCM, nonce, plaintext, data []byte) {
 		gcmAesEnc(&g.productTable, out, plaintext, &counter, &tagOut, aes.EncryptionKeySchedule(&g.cipher))
 	}
 	gcmAesFinish(&g.productTable, &tagMask, &tagOut, uint64(len(plaintext)), uint64(len(data)))
-	copy(out[len(plaintext):], tagOut[:])
+	copy(tag, tagOut[:])
 }
 
-func open(out []byte, g *GCM, nonce, ciphertext, data []byte) error {
+func open(out []byte, g *GCM, nonce, ciphertext, tag, data []byte) error {
 	if !(supportsAESGCM || supportsAESGCMEOR3) {
-		return openGeneric(out, g, nonce, ciphertext, data)
+		return openGeneric(out, g, nonce, ciphertext, tag, data)
 	}
-
-	tag := ciphertext[len(ciphertext)-g.tagSize:]
-	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
 
 	// See GCM spec, section 7.1.
 	var counter, tagMask [gcmBlockSize]byte

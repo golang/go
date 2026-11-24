@@ -124,9 +124,9 @@ func auth(out, ciphertext, aad []byte, tagMask *[gcmTagSize]byte, productTable *
 	}
 }
 
-func seal(out []byte, g *GCM, nonce, plaintext, data []byte) {
+func seal(out, tag []byte, g *GCM, nonce, plaintext, data []byte) {
 	if !supportsAESGCM {
-		sealGeneric(out, g, nonce, plaintext, data)
+		sealGeneric(out, tag, g, nonce, plaintext, data)
 		return
 	}
 
@@ -137,16 +137,13 @@ func seal(out []byte, g *GCM, nonce, plaintext, data []byte) {
 	gcmInc32(&counter)
 
 	counterCrypt(&g.cipher, out, plaintext, &counter)
-	auth(out[len(plaintext):], out[:len(plaintext)], data, &tagMask, &g.productTable)
+	auth(tag, out, data, &tagMask, &g.productTable)
 }
 
-func open(out []byte, g *GCM, nonce, ciphertext, data []byte) error {
+func open(out []byte, g *GCM, nonce, ciphertext, tag, data []byte) error {
 	if !supportsAESGCM {
-		return openGeneric(out, g, nonce, ciphertext, data)
+		return openGeneric(out, g, nonce, ciphertext, tag, data)
 	}
-
-	tag := ciphertext[len(ciphertext)-g.tagSize:]
-	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
 
 	var counter, tagMask [gcmBlockSize]byte
 	deriveCounter(&counter, nonce, &g.productTable)

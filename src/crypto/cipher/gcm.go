@@ -11,7 +11,6 @@ import (
 	"crypto/subtle"
 	"errors"
 	"internal/byteorder"
-	"internal/runtime/sys"
 )
 
 const (
@@ -67,8 +66,6 @@ func newGCM(cipher Block, nonceSize, tagSize int) (AEAD, error) {
 		}
 		return newGCMFallback(cipher, nonceSize, tagSize)
 	}
-	// We don't return gcm.New directly, because it would always return a non-nil
-	// AEAD interface value with type *gcm.GCM even if the *gcm.GCM is nil.
 	var g *gcm.GCM
 	var err error
 	subtle.WithDataIndependentTiming(func() {
@@ -77,12 +74,11 @@ func newGCM(cipher Block, nonceSize, tagSize int) (AEAD, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !sys.DITSupported {
-		return g, nil
-	}
 	return aesGCMWrapper{g}, nil
 }
 
+// aesGCMWrapper wraps a *gcm.GCM to run it with data independent timing, and
+// to expose only the methods of [AEAD], and not SealRaw, OpenRaw, and TagSize.
 type aesGCMWrapper struct {
 	g *gcm.GCM
 }
@@ -139,7 +135,7 @@ func NewGCMWithRandomNonce(cipher Block) (AEAD, error) {
 }
 
 type gcmWithRandomNonce struct {
-	*gcm.GCM
+	g *gcm.GCM
 }
 
 func (g gcmWithRandomNonce) NonceSize() int {
@@ -193,7 +189,7 @@ func (g gcmWithRandomNonce) Seal(dst, nonce, plaintext, additionalData []byte) [
 		plaintext = ciphertext[:len(plaintext)]
 	}
 
-	subtle.WithDataIndependentTiming(func() { gcm.SealWithRandomNonce(g.GCM, nonce, ciphertext, plaintext, additionalData) })
+	subtle.WithDataIndependentTiming(func() { gcm.SealWithRandomNonce(g.g, nonce, ciphertext, plaintext, additionalData) })
 	return ret
 }
 
@@ -227,7 +223,7 @@ func (g gcmWithRandomNonce) Open(dst, nonce, ciphertext, additionalData []byte) 
 	}
 
 	var err error
-	subtle.WithDataIndependentTiming(func() { _, err = g.GCM.Open(out[:0], nonce, ciphertext, additionalData) })
+	subtle.WithDataIndependentTiming(func() { _, err = g.g.Open(out[:0], nonce, ciphertext, additionalData) })
 	if err != nil {
 		return nil, err
 	}
