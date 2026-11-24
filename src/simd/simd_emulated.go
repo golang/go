@@ -532,6 +532,23 @@ func (x Int16s) AndNot(y Int16s) (z Int16s) {
 	return z
 }
 
+// DotProductPairs multiplies corresponding elements of x and y, and sums
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
+//
+//	w[i] = x[i] * y[i]        // Double width
+//	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt16.
+func (x Int16s) DotProductPairs(y Int16s) (z Int32s) {
+	for i := range z.v {
+		z.v[i] = int32(x.v[2*i])*int32(y.v[2*i]) + int32(x.v[2*i+1])*int32(y.v[2*i+1])
+	}
+	return z
+}
+
 // Equal returns a mask indicating which elements of x and y are equal.
 //
 //	z[i] = x[i] == y[i]

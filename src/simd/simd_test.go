@@ -7,6 +7,7 @@
 package simd_test
 
 import (
+	"math"
 	"math/rand"
 	"runtime"
 	"simd"
@@ -633,5 +634,47 @@ func TestLookupOrZeroUint8s(t *testing.T) {
 	v.LookupOrZero(u).StorePart(got)
 	if !slices.Equal(want, got) {
 		t.Errorf("Wanted %v, got %v", want, got)
+	}
+}
+
+func TestDotProductPairs(t *testing.T) {
+	vals := test_helpers.Int16s()
+	n := (simd.Int16s{}).Len()
+	nOut := (simd.Int32s{}).Len()
+	got := make([]int32, nOut)
+	want := make([]int32, nOut)
+
+	for i := 0; i+n <= len(vals); i += n {
+		x := vals[i : i+n]
+		for j := 0; j+n <= len(vals); j += n {
+			y := vals[j : j+n]
+			simd.LoadInt16s(x).DotProductPairs(simd.LoadInt16s(y)).Store(got)
+			for k := range nOut {
+				want[k] = int32(x[2*k])*int32(y[2*k]) + int32(x[2*k+1])*int32(y[2*k+1])
+			}
+			if !slices.Equal(got, want) {
+				t.Fatalf("DotProductPairs(%v, %v) = %v, want %v", x, y, got, want)
+			}
+		}
+	}
+
+	// Test the overflow case where all four inputs to a sum are MinInt16,
+	// wrapping to MinInt32, alongside the largest non-overflowing sum.
+	m := int16(math.MinInt16)
+	x := make([]int16, n)
+	y := make([]int16, n)
+	for i := range n {
+		x[i] = m
+		y[i] = m
+	}
+	y[3] = m + 1
+	x[4], x[5] = 1, 2
+	y[4], y[5] = 3, 4
+	simd.LoadInt16s(x).DotProductPairs(simd.LoadInt16s(y)).Store(got)
+	for k := range nOut {
+		want[k] = int32(x[2*k])*int32(y[2*k]) + int32(x[2*k+1])*int32(y[2*k+1])
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("DotProductPairs overflow(%v, %v) = %v, want %v", x, y, got, want)
 	}
 }

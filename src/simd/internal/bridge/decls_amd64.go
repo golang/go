@@ -892,6 +892,18 @@ func (x Int16x32) ConvertToUint16() Uint16x32 {
 	return Uint16x32((archsimd.Int16x32(x)).ConvertToUint16())
 }
 
+func (x Int16x8) DotProductPairs(y Int16x8) Int32x4 {
+	return Int32x4((archsimd.Int16x8(x)).DotProductPairs(archsimd.Int16x8(y)))
+}
+
+func (x Int16x16) DotProductPairs(y Int16x16) Int32x8 {
+	return Int32x8((archsimd.Int16x16(x)).DotProductPairs(archsimd.Int16x16(y)))
+}
+
+func (x Int16x32) DotProductPairs(y Int16x32) Int32x16 {
+	return Int32x16((archsimd.Int16x32(x)).DotProductPairs(archsimd.Int16x32(y)))
+}
+
 func (x Int16x8) Equal(y Int16x8) Mask16x8 {
 	return Mask16x8((archsimd.Int16x8(x)).Equal(archsimd.Int16x8(y)))
 }

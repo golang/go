@@ -55,3 +55,19 @@ func (x Uint64x2) ReduceMax() (z uint64) {
 func (x Uint64x2) ReduceMin() (z uint64) {
 	return min(x.Elem(0), x.Elem(1))
 }
+
+// DotProductPairs multiplies corresponding elements of x and y, and sums
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
+//
+//	w[i] = x[i] * y[i]        // Double width
+//	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt16.
+//
+// Emulated
+func (x Int16x8) DotProductPairs(y Int16x8) (z Int32x4) {
+	return x.MulWiden(y).ConcatAddPairs(x.HiToLo().MulWiden(y.HiToLo()))
+}

@@ -49,3 +49,9 @@ func simdMulWidenHiUint32x4(x, y archsimd.Uint32x4) archsimd.Uint64x2 {
 	// wasm:`I64x2ExtmulHighI32x4U` -`ExtractLane` -`ReplaceLane`
 	return x.HiToLo().MulWiden(y.HiToLo())
 }
+
+func simdDotProductPairsInt16x8(x, y archsimd.Int16x8) archsimd.Int32x4 {
+	// arm64:`VSMULL\s` `VSMULL2` `VADDP` -`VDUP`
+	// wasm:`I32x4DotI16x8S`
+	return x.DotProductPairs(y)
+}

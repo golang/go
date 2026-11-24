@@ -234,6 +234,18 @@ func (x Int16s) AndNot(y Int16s) (z Int16s)
 // This wraps unrepresentable values.
 func (x Int16s) ConvertToUint16() (z Uint16s)
 
+// DotProductPairs multiplies corresponding elements of x and y, and sums
+// adjacent pairs, returning a vector of half as many elements, each with twice
+// the input element size.
+//
+//	w[i] = x[i] * y[i]        // Double width
+//	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt16.
+func (x Int16s) DotProductPairs(y Int16s) (z Int32s)
+
 // Equal returns a mask indicating which elements of x and y are equal.
 //
 //	z[i] = x[i] == y[i]

@@ -141,6 +141,7 @@ pkg simd, method (Int16s) AddSaturated(Int16s) Int16s #83009
 pkg simd, method (Int16s) And(Int16s) Int16s #83009
 pkg simd, method (Int16s) AndNot(Int16s) Int16s #83009
 pkg simd, method (Int16s) ConvertToUint16() Uint16s #83009
+pkg simd, method (Int16s) DotProductPairs(Int16s) Int32s #83009
 pkg simd, method (Int16s) Equal(Int16s) Mask16s #83009
 pkg simd, method (Int16s) ExtendToInt32() Int32s #83009
 pkg simd, method (Int16s) Greater(Int16s) Mask16s #83009
@@ -2551,6 +2552,7 @@ pkg simd/archsimd (GOARCH=arm64), method (Int16x8) ConcatMaxPairs(Int16x8) Int16
 pkg simd/archsimd (GOARCH=arm64), method (Int16x8) ConcatMinPairs(Int16x8) Int16x8 #83009
 pkg simd/archsimd (GOARCH=arm64), method (Int16x8) ConcatOdd(Int16x8) Int16x8 #83009
 pkg simd/archsimd (GOARCH=arm64), method (Int16x8) ConvertToUint16() Uint16x8 #83009
+pkg simd/archsimd (GOARCH=arm64), method (Int16x8) DotProductPairs(Int16x8) Int32x4 #83009
 pkg simd/archsimd (GOARCH=arm64), method (Int16x8) Elem(uint8) int16 #83009
 pkg simd/archsimd (GOARCH=arm64), method (Int16x8) Equal(Int16x8) Mask16x8 #83009
 pkg simd/archsimd (GOARCH=arm64), method (Int16x8) ExtendToInt32() Int32x4 #83009
