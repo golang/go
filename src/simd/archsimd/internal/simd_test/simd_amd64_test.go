@@ -1087,6 +1087,40 @@ func TestMaskString256(t *testing.T) {
 	}
 }
 
+// TestMaskLogic256 checks bitwise operations on 256-bit masks with only AVX,
+// which is all that their types require. Without AVX2, these masks come from
+// floating-point comparisons.
+func TestMaskLogic256(t *testing.T) {
+	if !archsimd.X86.AVX() {
+		t.Skip("requires AVX")
+	}
+	x := archsimd.LoadFloat32x8Array(&[8]float32{0, 0, 1, 1, 0, 0, 1, 1})
+	y := archsimd.LoadFloat32x8Array(&[8]float32{0, 1, 0, 1, 0, 1, 0, 1})
+	zero := archsimd.Float32x8{}
+	mx, my := x.NotEqual(zero), y.NotEqual(zero)
+	for _, tc := range []struct {
+		name string
+		got  archsimd.Mask32x8
+		want string
+	}{
+		{"And", mx.And(my), "{0,0,0,1,0,0,0,1}"},
+		{"Or", mx.Or(my), "{0,1,1,1,0,1,1,1}"},
+		{"Xor", mx.Xor(my), "{0,1,1,0,0,1,1,0}"},
+		{"AndNot", mx.AndNot(my), "{0,0,1,0,0,0,1,0}"},
+	} {
+		if g := tc.got.String(); g != tc.want {
+			t.Errorf("Mask32x8.%s: got=%s wanted %s", tc.name, g, tc.want)
+		}
+	}
+
+	u := archsimd.LoadFloat64x4Array(&[4]float64{0, 0, 1, 1})
+	v := archsimd.LoadFloat64x4Array(&[4]float64{0, 1, 0, 1})
+	mu, mv := u.NotEqual(archsimd.Float64x4{}), v.NotEqual(archsimd.Float64x4{})
+	if g, w := mu.AndNot(mv).Or(mu.And(mv).Xor(mv)).String(), "{0,1,1,0}"; g != w {
+		t.Errorf("Mask64x4: got=%s wanted %s", g, w)
+	}
+}
+
 // a returns an slice of 16 int32
 func a() []int32 {
 	return make([]int32, 16, 16)

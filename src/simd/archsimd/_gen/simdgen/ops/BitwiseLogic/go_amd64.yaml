@@ -57,6 +57,35 @@
   out:
   - *float128_256
 
+# Likewise for the other floating-point bitwise operations, which 256-bit mask
+# logic uses when AVX2 is not known to be available.
+- go: orFloat
+  asm: "VORP[SD]"
+  inVariant: []
+  in:
+  - *float128_256
+  - *float128_256
+  out:
+  - *float128_256
+
+- go: xorFloat
+  asm: "VXORP[SD]"
+  inVariant: []
+  in:
+  - *float128_256
+  - *float128_256
+  out:
+  - *float128_256
+
+- go: andNotFloat
+  asm: "VANDNP[SD]"
+  inVariant: []
+  in:
+  - *float128_256
+  - *float128_256
+  out:
+  - *float128_256
+
 - go: And
   asm: "VPANDD" # Fill in the gap, And is missing for Uint8x64 and Int8x64
   inVariant: []

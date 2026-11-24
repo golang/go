@@ -1815,6 +1815,19 @@
 (IfElseFloat(32|64) <t> x mask y) && t.Size() == 32 => (VBLENDVP(S|D)256 y x mask)
 (IfElseFloat(32|64) <t> x mask y) && t.Size() == 64 => (VPBLENDM(D|Q)Masked512 y x (VPMOVVec(32x16|64x8)ToM <types.TypeMask> mask))
 
+// 256-bit mask logic. If AVX2 is available, use the integer instructions, which
+// the mask rules below can optimize further. Otherwise, use the floating-point
+// instructions, which require only AVX and do the same thing to masks.
+// (VPANDN x y) and (VANDNPS x y) compute ^x & y.
+(AndMask256 x y) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx2) => (VPAND256 x y)
+(OrMask256 x y) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx2) => (VPOR256 x y)
+(XorMask256 x y) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx2) => (VPXOR256 x y)
+(AndNotMask256 x y) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx2) => (VPANDN256 y x)
+(AndMask256 x y) => (VANDPS256 x y)
+(OrMask256 x y) => (VORPS256 x y)
+(XorMask256 x y) => (VXORPS256 x y)
+(AndNotMask256 x y) => (VANDNPS256 y x)
+
 (ZeroSIMD <t>) && t.Size() == 16 => (Zero128 <t>)
 (ZeroSIMD <t>) && t.Size() == 32 => (Zero256 <t>)
 (ZeroSIMD <t>) && t.Size() == 64 => (Zero512 <t>)
@@ -1823,6 +1836,7 @@
 // do these before the mask rewrites
 (VPOR128 (VCMPP(S|D)128 [3] x x) (VCMPP(S|D)128 [3] y y)) => (VCMPP(S|D)128 [3] x y)
 (VPOR256 (VCMPP(S|D)256 [3] x x) (VCMPP(S|D)256 [3] y y)) => (VCMPP(S|D)256 [3] x y)
+(VORPS256 (VCMPP(S|D)256 [3] x x) (VCMPP(S|D)256 [3] y y)) => (VCMPP(S|D)256 [3] x y)
 (VPORD512 (VPMOVMToVec32x16 (VCMPPS512 [3] x x)) (VPMOVMToVec32x16 (VCMPPS512 [3] y y))) =>
 	(VPMOVMToVec32x16 (VCMPPS512 [3] x y))
 (VPORD512 (VPMOVMToVec64x8  (VCMPPD512 [3] x x)) (VPMOVMToVec64x8  (VCMPPD512 [3] y y))) =>

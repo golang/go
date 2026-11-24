@@ -24,14 +24,16 @@ const (
 
 func classifyBooleanSIMD(v *ssa.Value) SIMDLogicalOP {
 	switch v.Op {
-	case ssaop.OpAndInt8x16, ssaop.OpAndInt16x8, ssaop.OpAndInt32x4, ssaop.OpAndInt64x2, ssaop.OpAndInt8x32, ssaop.OpAndInt16x16, ssaop.OpAndInt32x8, ssaop.OpAndInt64x4, ssaop.OpAndInt8x64, ssaop.OpAndInt16x32, ssaop.OpAndInt32x16, ssaop.OpAndInt64x8:
+	case ssaop.OpAndInt8x16, ssaop.OpAndInt16x8, ssaop.OpAndInt32x4, ssaop.OpAndInt64x2, ssaop.OpAndInt8x32, ssaop.OpAndInt16x16, ssaop.OpAndInt32x8, ssaop.OpAndInt64x4, ssaop.OpAndInt8x64, ssaop.OpAndInt16x32, ssaop.OpAndInt32x16, ssaop.OpAndInt64x8, ssaop.OpAndMask256:
 		return sloAnd
 
-	case ssaop.OpOrInt8x16, ssaop.OpOrInt16x8, ssaop.OpOrInt32x4, ssaop.OpOrInt64x2, ssaop.OpOrInt8x32, ssaop.OpOrInt16x16, ssaop.OpOrInt32x8, ssaop.OpOrInt64x4, ssaop.OpOrInt8x64, ssaop.OpOrInt16x32, ssaop.OpOrInt32x16, ssaop.OpOrInt64x8:
+	case ssaop.OpOrInt8x16, ssaop.OpOrInt16x8, ssaop.OpOrInt32x4, ssaop.OpOrInt64x2, ssaop.OpOrInt8x32, ssaop.OpOrInt16x16, ssaop.OpOrInt32x8, ssaop.OpOrInt64x4, ssaop.OpOrInt8x64, ssaop.OpOrInt16x32, ssaop.OpOrInt32x16, ssaop.OpOrInt64x8, ssaop.OpOrMask256:
 		return sloOr
 
-	case ssaop.OpAndNotInt8x16, ssaop.OpAndNotInt16x8, ssaop.OpAndNotInt32x4, ssaop.OpAndNotInt64x2, ssaop.OpAndNotInt8x32, ssaop.OpAndNotInt16x16, ssaop.OpAndNotInt32x8, ssaop.OpAndNotInt64x4, ssaop.OpAndNotInt8x64, ssaop.OpAndNotInt16x32, ssaop.OpAndNotInt32x16, ssaop.OpAndNotInt64x8:
+	case ssaop.OpAndNotInt8x16, ssaop.OpAndNotInt16x8, ssaop.OpAndNotInt32x4, ssaop.OpAndNotInt64x2, ssaop.OpAndNotInt8x32, ssaop.OpAndNotInt16x16, ssaop.OpAndNotInt32x8, ssaop.OpAndNotInt64x4, ssaop.OpAndNotInt8x64, ssaop.OpAndNotInt16x32, ssaop.OpAndNotInt32x16, ssaop.OpAndNotInt64x8, ssaop.OpAndNotMask256:
 		return sloAndNot
+	case ssaop.OpXorMask256:
+		return sloXor
 	case ssaop.OpXorInt8x16:
 		if y := v.Args[1]; y.Op == ssaop.OpEqualInt8x16 &&
 			y.Args[0] == y.Args[1] {
@@ -159,6 +161,8 @@ func ternOpForLogical(op ssaop.Op) ssaop.Op {
 		return ssaop.OpternInt64x8
 	case ssaop.OpAndUint64x8, ssaop.OpOrUint64x8, ssaop.OpXorUint64x8, ssaop.OpAndNotUint64x8:
 		return ssaop.OpternUint64x8
+	case ssaop.OpAndMask256, ssaop.OpOrMask256, ssaop.OpXorMask256, ssaop.OpAndNotMask256:
+		return ssaop.OpternInt32x8
 
 	}
 	return op

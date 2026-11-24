@@ -608,6 +608,10 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VANDPS256,
 		ssaop.OpAMD64VANDPD128,
 		ssaop.OpAMD64VANDPD256,
+		ssaop.OpAMD64VANDNPS128,
+		ssaop.OpAMD64VANDNPS256,
+		ssaop.OpAMD64VANDNPD128,
+		ssaop.OpAMD64VANDNPD256,
 		ssaop.OpAMD64VPACKSSWB128,
 		ssaop.OpAMD64VPACKSSWB256,
 		ssaop.OpAMD64VPACKUSWB128,
@@ -627,7 +631,15 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VPUNPCKLDQ256,
 		ssaop.OpAMD64VPUNPCKLDQ512,
 		ssaop.OpAMD64VPUNPCKLQDQ256,
-		ssaop.OpAMD64VPUNPCKLQDQ512:
+		ssaop.OpAMD64VPUNPCKLQDQ512,
+		ssaop.OpAMD64VORPS128,
+		ssaop.OpAMD64VORPS256,
+		ssaop.OpAMD64VORPD128,
+		ssaop.OpAMD64VORPD256,
+		ssaop.OpAMD64VXORPS128,
+		ssaop.OpAMD64VXORPS256,
+		ssaop.OpAMD64VXORPD128,
+		ssaop.OpAMD64VXORPD256:
 		p = simdV21(s, v)
 
 	case ssaop.OpAMD64VPCMPEQB512,
@@ -2311,6 +2323,10 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VANDPS256load,
 		ssaop.OpAMD64VANDPD128load,
 		ssaop.OpAMD64VANDPD256load,
+		ssaop.OpAMD64VANDNPS128load,
+		ssaop.OpAMD64VANDNPS256load,
+		ssaop.OpAMD64VANDNPD128load,
+		ssaop.OpAMD64VANDNPD256load,
 		ssaop.OpAMD64VPACKSSWB128load,
 		ssaop.OpAMD64VPACKSSWB256load,
 		ssaop.OpAMD64VPACKUSWB128load,
@@ -2326,7 +2342,15 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VPUNPCKLDQ256load,
 		ssaop.OpAMD64VPUNPCKLDQ512load,
 		ssaop.OpAMD64VPUNPCKLQDQ256load,
-		ssaop.OpAMD64VPUNPCKLQDQ512load:
+		ssaop.OpAMD64VPUNPCKLQDQ512load,
+		ssaop.OpAMD64VORPS128load,
+		ssaop.OpAMD64VORPS256load,
+		ssaop.OpAMD64VORPD128load,
+		ssaop.OpAMD64VORPD256load,
+		ssaop.OpAMD64VXORPS128load,
+		ssaop.OpAMD64VXORPS256load,
+		ssaop.OpAMD64VXORPD128load,
+		ssaop.OpAMD64VXORPD256load:
 		p = simdV21load(s, v)
 
 	case ssaop.OpAMD64VPDPWSSD128load,

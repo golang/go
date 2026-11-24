@@ -153,6 +153,20 @@ func simdCompareToKMaskMerge(x, y, dst, a, b archsimd.Int32x8) archsimd.Int32x8 
 	return x.Add(y).IfElse(a.Less(b), dst)
 }
 
+func simdMaskLogic256(a, b, c, d archsimd.Float32x8) archsimd.Mask32x8 {
+	x, y := a.Less(b), c.Equal(d)
+	if archsimd.X86.AVX2() {
+		// Check that with AVX2, 256-bit mask logic uses the integer
+		// instructions, which the mask optimizations understand.
+		// amd64:`VPANDN` `VPAND Y` `VPOR` `VPXOR` -`VANDNPS` -`VANDPS` -`VORPS` -`VXORPS`
+		return x.AndNot(y).Or(x.And(y).Xor(y))
+	}
+	// Check that without AVX2, 256-bit mask logic uses the AVX1 floating-point
+	// instructions, not the AVX2 integer ones.
+	// amd64/v1:`VANDNPS` `VANDPS` `VORPS` `VXORPS` -`VPAND` -`VPOR` -`VPXOR`
+	return x.AndNot(y).Or(x.And(y).Xor(y))
+}
+
 func simdCompareToKMaskAndIfElse(x, y, a, b, c, d archsimd.Float64x4) archsimd.Float64x4 {
 	if !archsimd.X86.AVX512() {
 		return y
@@ -230,7 +244,7 @@ func simdIsNaN() {
 	y := archsimd.LoadFloat64x4(floats64s[4:])
 	a := x.IsNaN()
 	b := y.IsNaN()
-	// amd64:"VCMPPD [$]3," -"VPOR"
+	// amd64:"VCMPPD [$]3," -"VPOR" -"VORPS"
 	c := a.Or(b)
 	c.ToInt64x4().Store(sinkInt64s)
 }

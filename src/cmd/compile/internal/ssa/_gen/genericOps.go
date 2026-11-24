@@ -419,6 +419,14 @@ var genericOps = []opData{
 	{name: "IfElseFloat32", argLength: 3},
 	{name: "IfElseFloat64", argLength: 3},
 
+	// Bitwise operations on 256-bit SIMD masks held in vector registers.
+	// Unlike the integer vector operations, these can use either integer or
+	// floating-point instructions. AndNotMask256 computes arg0 &^ arg1.
+	{name: "AndMask256", argLength: 2, commutative: true},
+	{name: "OrMask256", argLength: 2, commutative: true},
+	{name: "XorMask256", argLength: 2, commutative: true},
+	{name: "AndNotMask256", argLength: 2},
+
 	// Normally we require that the source and destination of Move do not overlap.
 	// There is an exception when we know all the loads will happen before all
 	// the stores. In that case, overlap is ok. See

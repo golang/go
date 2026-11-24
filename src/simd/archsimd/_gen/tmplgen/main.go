@@ -1795,6 +1795,10 @@ func ternOpForLogical(op ssaop.Op) ssaop.Op {
 		fmt.Fprintf(out, "case ssaop.OpAndUint%[1]dx%[2]d, ssaop.OpOrUint%[1]dx%[2]d, ssaop.OpXorUint%[1]dx%[2]d,ssaop.OpAndNotUint%[1]dx%[2]d: return ssaop.OpternUint%[3]dx%[4]d\n", w, c, wt, ct)
 	}, out)
 
+	// 256-bit mask logic has its own ops, which the 256-bit integer ternary
+	// logic op can implement.
+	fmt.Fprintf(out, "case ssaop.OpAndMask256, ssaop.OpOrMask256, ssaop.OpXorMask256, ssaop.OpAndNotMask256: return ssaop.OpternInt32x8\n")
+
 	fmt.Fprintf(out, `
 	}
 	return op
@@ -1829,7 +1833,7 @@ func classifyBooleanSIMD(v *ssa.Value) SIMDLogicalOP {
 		fmt.Fprintf(out, "ssaop.Op%s%s%dx%d", op, upperT, w, c)
 	}, out)
 
-	fmt.Fprintf(out, `:
+	fmt.Fprintf(out, `, ssaop.OpAndMask256:
 		return sloAnd
 
 		case `)
@@ -1841,7 +1845,7 @@ func classifyBooleanSIMD(v *ssa.Value) SIMDLogicalOP {
 		fmt.Fprintf(out, "ssaop.Op%s%s%dx%d", op, upperT, w, c)
 	}, out)
 
-	fmt.Fprintf(out, `:
+	fmt.Fprintf(out, `, ssaop.OpOrMask256:
 		return sloOr
 
 		case `)
@@ -1853,8 +1857,10 @@ func classifyBooleanSIMD(v *ssa.Value) SIMDLogicalOP {
 		fmt.Fprintf(out, "ssaop.Op%s%s%dx%d", op, upperT, w, c)
 	}, out)
 
-	fmt.Fprintf(out, `:
+	fmt.Fprintf(out, `, ssaop.OpAndNotMask256:
 		return sloAndNot
+	case ssaop.OpXorMask256:
+		return sloXor
 `)
 
 	// "Not" is encoded as x.Xor(x.Equal(x).ToInt8x16().ToBits())

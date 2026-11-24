@@ -9903,28 +9903,28 @@ func (from Int8x32) asMask() (to Mask8x32)
 //
 //	z[i] = x[i] & y[i]
 //
-// CPU Feature: AVX2
+// CPU Feature: AVX
 func (x Mask8x32) And(y Mask8x32) (z Mask8x32)
 
 // AndNot returns the bitwise AND NOT of x and y.
 //
 //	z[i] = x[i] &^ y[i]
 //
-// CPU Feature: AVX2
+// CPU Feature: AVX
 func (x Mask8x32) AndNot(y Mask8x32) (z Mask8x32)
 
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 //
-// CPU Feature: AVX2
+// CPU Feature: AVX
 func (x Mask8x32) Or(y Mask8x32) (z Mask8x32)
 
 // Xor returns the bitwise XOR of x and y.
 //
 //	z[i] = x[i] ^ y[i]
 //
-// CPU Feature: AVX2
+// CPU Feature: AVX
 func (x Mask8x32) Xor(y Mask8x32) (z Mask8x32)
 
 // ToInt8x64 converts the mask to a vector, where element i is set to ^0 (all bits
@@ -10008,28 +10008,28 @@ func (from Int16x16) asMask() (to Mask16x16)
 //
 //	z[i] = x[i] & y[i]
 //
-// CPU Feature: AVX2
+// CPU Feature: AVX
 func (x Mask16x16) And(y Mask16x16) (z Mask16x16)
 
 // AndNot returns the bitwise AND NOT of x and y.
 //
 //	z[i] = x[i] &^ y[i]
 //
-// CPU Feature: AVX2
+// CPU Feature: AVX
 func (x Mask16x16) AndNot(y Mask16x16) (z Mask16x16)
 
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 //
-// CPU Feature: AVX2
+// CPU Feature: AVX
 func (x Mask16x16) Or(y Mask16x16) (z Mask16x16)
 
 // Xor returns the bitwise XOR of x and y.
 //
 //	z[i] = x[i] ^ y[i]
 //
-// CPU Feature: AVX2
+// CPU Feature: AVX
 func (x Mask16x16) Xor(y Mask16x16) (z Mask16x16)
 
 // ToInt16x32 converts the mask to a vector, where element i is set to ^0 (all bits
@@ -10113,28 +10113,28 @@ func (from Int32x8) asMask() (to Mask32x8)
 //
 //	z[i] = x[i] & y[i]
 //
-// CPU Feature: AVX2
+// CPU Feature: AVX
 func (x Mask32x8) And(y Mask32x8) (z Mask32x8)
 
 // AndNot returns the bitwise AND NOT of x and y.
 //
 //	z[i] = x[i] &^ y[i]
 //
-// CPU Feature: AVX2
+// CPU Feature: AVX
 func (x Mask32x8) AndNot(y Mask32x8) (z Mask32x8)
 
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 //
-// CPU Feature: AVX2
+// CPU Feature: AVX
 func (x Mask32x8) Or(y Mask32x8) (z Mask32x8)
 
 // Xor returns the bitwise XOR of x and y.
 //
 //	z[i] = x[i] ^ y[i]
 //
-// CPU Feature: AVX2
+// CPU Feature: AVX
 func (x Mask32x8) Xor(y Mask32x8) (z Mask32x8)
 
 // ToInt32x16 converts the mask to a vector, where element i is set to ^0 (all bits
@@ -10218,28 +10218,28 @@ func (from Int64x4) asMask() (to Mask64x4)
 //
 //	z[i] = x[i] & y[i]
 //
-// CPU Feature: AVX2
+// CPU Feature: AVX
 func (x Mask64x4) And(y Mask64x4) (z Mask64x4)
 
 // AndNot returns the bitwise AND NOT of x and y.
 //
 //	z[i] = x[i] &^ y[i]
 //
-// CPU Feature: AVX2
+// CPU Feature: AVX
 func (x Mask64x4) AndNot(y Mask64x4) (z Mask64x4)
 
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 //
-// CPU Feature: AVX2
+// CPU Feature: AVX
 func (x Mask64x4) Or(y Mask64x4) (z Mask64x4)
 
 // Xor returns the bitwise XOR of x and y.
 //
 //	z[i] = x[i] ^ y[i]
 //
-// CPU Feature: AVX2
+// CPU Feature: AVX
 func (x Mask64x4) Xor(y Mask64x4) (z Mask64x4)
 
 // ToInt64x8 converts the mask to a vector, where element i is set to ^0 (all bits
