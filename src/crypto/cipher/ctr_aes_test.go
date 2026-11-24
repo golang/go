@@ -219,17 +219,17 @@ func TestCTR_AES_multiblock_random_IV(t *testing.T) {
 
 			for part1 := 0; part1 <= Size; part1++ {
 				t.Run(fmt.Sprintf("part1=%d", part1), func(t *testing.T) {
+					// Don't run each part2 as a subtest: that would be
+					// over 15,000 subtests across the key sizes.
 					for part2 := 0; part2 <= Size-part1; part2++ {
-						t.Run(fmt.Sprintf("part2=%d", part2), func(t *testing.T) {
-							_, multiblockCtr := makeTestingCiphers(aesBlock, iv)
-							multiblockCiphertext := make([]byte, len(plaintext))
-							multiblockCtr.XORKeyStream(multiblockCiphertext[:part1], plaintext[:part1])
-							multiblockCtr.XORKeyStream(multiblockCiphertext[part1:part1+part2], plaintext[part1:part1+part2])
-							multiblockCtr.XORKeyStream(multiblockCiphertext[part1+part2:], plaintext[part1+part2:])
-							if !bytes.Equal(genericCiphertext, multiblockCiphertext) {
-								t.Fatal("multiblock CTR's output does not match generic CTR's output")
-							}
-						})
+						_, multiblockCtr := makeTestingCiphers(aesBlock, iv)
+						multiblockCiphertext := make([]byte, len(plaintext))
+						multiblockCtr.XORKeyStream(multiblockCiphertext[:part1], plaintext[:part1])
+						multiblockCtr.XORKeyStream(multiblockCiphertext[part1:part1+part2], plaintext[part1:part1+part2])
+						multiblockCtr.XORKeyStream(multiblockCiphertext[part1+part2:], plaintext[part1+part2:])
+						if !bytes.Equal(genericCiphertext, multiblockCiphertext) {
+							t.Errorf("part2=%d: multiblock CTR's output does not match generic CTR's output", part2)
+						}
 					}
 				})
 			}
