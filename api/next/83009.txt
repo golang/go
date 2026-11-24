@@ -108,6 +108,7 @@ pkg simd, method (Float64s) Abs() Float64s #83009
 pkg simd, method (Float64s) Add(Float64s) Float64s #83009
 pkg simd, method (Float64s) Ceil() Float64s #83009
 pkg simd, method (Float64s) ConvertToFloat32() Float32s #83009
+pkg simd, method (Float64s) ConvertToInt32() Int32s #83009
 pkg simd, method (Float64s) Div(Float64s) Float64s #83009
 pkg simd, method (Float64s) Equal(Float64s) Mask64s #83009
 pkg simd, method (Float64s) Floor() Float64s #83009
@@ -2508,6 +2509,7 @@ pkg simd/archsimd (GOARCH=arm64), method (Float64x2) ConcatAddPairs(Float64x2) F
 pkg simd/archsimd (GOARCH=arm64), method (Float64x2) ConcatMaxPairs(Float64x2) Float64x2 #83009
 pkg simd/archsimd (GOARCH=arm64), method (Float64x2) ConcatMinPairs(Float64x2) Float64x2 #83009
 pkg simd/archsimd (GOARCH=arm64), method (Float64x2) ConvertToFloat32() Float32x4 #83009
+pkg simd/archsimd (GOARCH=arm64), method (Float64x2) ConvertToInt32() Int32x4 #83009
 pkg simd/archsimd (GOARCH=arm64), method (Float64x2) ConvertToInt64() Int64x2 #83009
 pkg simd/archsimd (GOARCH=arm64), method (Float64x2) ConvertToUint64() Uint64x2 #83009
 pkg simd/archsimd (GOARCH=arm64), method (Float64x2) Div(Float64x2) Float64x2 #83009

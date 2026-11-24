@@ -83,3 +83,29 @@ func (x Int16x8) DotProductPairs(y Int16x8) (z Int32x4) {
 func (x Int32x4) ConvertToFloat64() (z Float64x2) {
 	return x.ExtendToInt64().ConvertToFloat64()
 }
+
+// ConvertToInt32 converts each element of x to int32.
+//
+//	z[i] = int32(x[i])
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+//
+// The handling of NaN and values whose truncated result is outside the
+// representable range of int32 is architecture-dependent. ARM64 and WASM map
+// NaN to 0 and saturate out-of-range values (including ±Inf). AMD64 returns
+// math.MinInt32 (the integer indefinite value) for NaN and all out-of-range
+// values.
+//
+//	trunc(x)          ARM64/WASM  AMD64
+//	----------------  ----------  --------
+//	NaN               0           MinInt32
+//	< MinInt32, -Inf  MinInt32    MinInt32
+//	> MaxInt32, +Inf  MaxInt32    MinInt32
+//
+// The results are stored in the low 2 elements of z.
+// The remaining elements of z are zero.
+//
+// Emulated
+func (x Float64x2) ConvertToInt32() (z Int32x4) {
+	return x.ConvertToInt64().SaturateToInt32()
+}

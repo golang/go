@@ -61,3 +61,9 @@ func simdConvertHiInt32x4ToFloat64(x archsimd.Int32x4) archsimd.Float64x2 {
 	// arm64:`VSXTL2` `VSCVTF` -`VDUP`
 	return x.HiToLo().ConvertToFloat64()
 }
+
+func simdConvertFloat64x2ToInt32(x archsimd.Float64x2) archsimd.Int32x4 {
+	// arm64:`VFCVTZS` `VSQXTN`
+	// wasm:`I32x4TruncSatF64x2SZero`
+	return x.ConvertToInt32()
+}

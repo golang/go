@@ -16,6 +16,7 @@ func TestConvertARM64(t *testing.T) {
 	testFloat32x4ConvertToFloat64(t, archsimd.Float32x4.ConvertToFloat64, map1n[float32](toFloat64, 2))
 
 	testFloat32x4ConvertToInt32(t, archsimd.Float32x4.ConvertToInt32, map1[float32](floatToInt32_arm64))
+	testFloat64x2ConvertToInt32(t, archsimd.Float64x2.ConvertToInt32, map1[float64](floatToInt32_arm64))
 	testFloat64x2ConvertToInt64(t, archsimd.Float64x2.ConvertToInt64, map1[float64](floatToInt64_arm64))
 
 	testFloat32x4ConvertToUint32(t, archsimd.Float32x4.ConvertToUint32, map1[float32](floatToUint32_arm64))

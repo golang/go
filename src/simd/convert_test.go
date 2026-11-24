@@ -104,4 +104,19 @@ func TestWidthChangingConversions(t *testing.T) {
 	test_helpers.TestV2Ve(t, test_helpers.Float32s(), simd.LoadFloat32s, simd.Float32s.ConvertToFloat64, conv[float64, float32])
 	test_helpers.TestV2Ve(t, test_helpers.Float64s(), simd.LoadFloat64s, simd.Float64s.ConvertToFloat32, conv[float32, float64])
 	test_helpers.TestV2Ve(t, i32, simd.LoadInt32s, simd.Int32s.ConvertToFloat64, conv[float64, int32])
+
+	// Filter to in-range float64 values because out-of-range/NaN float-to-int
+	// conversion results are architecture-dependent.
+	var f64InRange []float64
+	for _, v := range test_helpers.Float64s() {
+		if tv := math.Trunc(v); math.MinInt32 <= tv && tv <= math.MaxInt32 {
+			f64InRange = append(f64InRange, v)
+		}
+	}
+	f64InRange = append(f64InRange,
+		-0.9, -0.5, math.Copysign(0, -1), 0, 0.5, 0.9, 1.9, -1.9,
+		math.MaxInt32, float64(math.MaxInt32)+0.9,
+		math.MinInt32, float64(math.MinInt32)-0.9,
+	)
+	test_helpers.TestV2Ve(t, f64InRange, simd.LoadFloat64s, simd.Float64s.ConvertToInt32, conv[int32, float64])
 }
