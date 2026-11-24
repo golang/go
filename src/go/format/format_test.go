@@ -9,7 +9,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io"
 	"os"
 	"strings"
 	"testing"
@@ -17,40 +16,69 @@ import (
 
 const testfile = "format_test.go"
 
-func TestNodeSortedImports(t *testing.T) {
-	for _, imports := range []string{
-		`import ()`,
-		`import ("a")`,
-		`import ("a"; "b")`,
-		`import (
+// Node must produce the same output as Source, which always sorts imports.
+// It should only copy and reparse the file when imports need sorting or cleanup.
+func TestNodeImports(t *testing.T) {
+	for _, test := range []struct {
+		name, imports string
+		reparse       bool
+	}{
+		{"empty", `import ()`, false},
+		{"single", `import ("a")`, false},
+		{"sorted", `import ("a"; "b")`, false},
+		{"sorted comments", `import (
 // A
 "a" // a
 other "b" // b
-)`,
-		`import (
+)`, false},
+		{"sorted groups", `import (
 "z"
 
 "a"; "b"
-)`,
-		`import ("a"; ` + "`b`" + `; "\x63")`,
-		`import ("z"); import ("a")`,
+)`, false},
+		{"mixed literals", `import ("a"; ` + "`b`" + `; "\x63")`, false},
+		{"separate declarations", `import ("z"); import ("a")`, false},
+		{"unsorted same line", `import ("b"; "a")`, true},
+		{"unsorted lines", `import (
+"b"
+"a"
+)`, true},
+		{"aliases", `import (b "a"; a "a")`, true},
+		{"duplicates", `import ("a"; "a")`, true},
+		{"duplicate comments", `import (
+"a" // b
+"a" // a
+)`, true},
+		{"comment-separated runs", `import (
+"b" // b
+// A
+"a" // a
+)`, false},
+		{"unsorted group", `import (
+"z"
+
+"b"; "a"
+)`, true},
+		{"trailing blank line", `import (
+"a"
+
+)`, true},
 	} {
-		t.Run(imports, func(t *testing.T) {
-			src := []byte("package p; " + imports)
+		t.Run(test.name, func(t *testing.T) {
+			src := []byte("package p; " + test.imports)
 			fset := token.NewFileSet()
 			file, err := parser.ParseFile(fset, "", src, parserMode)
 			if err != nil {
 				t.Fatal(err)
 			}
 			// Reparsing into fset adds a file and advances its base offset.
-			// An unchanged base therefore shows that Node avoided reparsing.
 			base := fset.Base()
 			var out bytes.Buffer
 			if err := Node(&out, fset, file); err != nil {
 				t.Fatal(err)
 			}
-			if fset.Base() != base {
-				t.Error("Node reparsed a file with sorted imports")
+			if reparsed := fset.Base() != base; reparsed != test.reparse {
+				t.Errorf("Node reparsed = %v, want %v", reparsed, test.reparse)
 			}
 			want, err := Source(src)
 			if err != nil {
@@ -58,67 +86,6 @@ other "b" // b
 			}
 			if !bytes.Equal(out.Bytes(), want) {
 				t.Errorf("Node = %q, want %q", out.Bytes(), want)
-			}
-		})
-	}
-}
-
-func TestNodeImportOrder(t *testing.T) {
-	for _, imports := range []string{
-		`"b"; "a"`,
-		`"b"
-"a"`,
-		`b "a"; a "a"`,
-		`"a"; "a"`,
-		`"a" // b
-"a" // a`,
-		`"b" // b
-// A
-"a" // a`,
-		`"z"
-
-"b"; "a"`,
-		`"a"
-
-`,
-	} {
-		src := []byte("package p; import (\n" + imports + "\n)")
-		fset := token.NewFileSet()
-		file, err := parser.ParseFile(fset, "", src, parserMode)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var out bytes.Buffer
-		if err := Node(&out, fset, file); err != nil {
-			t.Fatal(err)
-		}
-		want, err := Source(src)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !bytes.Equal(out.Bytes(), want) {
-			t.Errorf("Node(%q) = %q, want %q", src, out.Bytes(), want)
-		}
-	}
-}
-
-func BenchmarkNodeImports(b *testing.B) {
-	for _, test := range []struct{ name, imports string }{
-		{"Sorted", `import ("bytes"; "fmt"; "io"; "os")`},
-		{"Unsorted", `import ("os"; "io"; "fmt"; "bytes")`},
-	} {
-		b.Run(test.name, func(b *testing.B) {
-			src := []byte("package p; " + test.imports + "; var x = 1")
-			b.ReportAllocs()
-			for b.Loop() {
-				fset := token.NewFileSet()
-				file, err := parser.ParseFile(fset, "", src, parserMode)
-				if err != nil {
-					b.Fatal(err)
-				}
-				if err := Node(io.Discard, fset, file); err != nil {
-					b.Fatal(err)
-				}
 			}
 		})
 	}
