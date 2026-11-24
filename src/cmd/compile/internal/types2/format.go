@@ -55,6 +55,7 @@ func sprintf(qf Qualifier, tpSubscripts bool, format string, args ...any) string
 			var buf bytes.Buffer
 			w := newTypeWriter(&buf, qf)
 			w.tpSubscripts = tpSubscripts
+			w.shadowing = true
 			w.typ(a)
 			arg = buf.String()
 		case []Type:

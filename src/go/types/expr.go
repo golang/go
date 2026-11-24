@@ -595,10 +595,11 @@ Error:
 			cause = check.sprintf("operator %s not defined on %s", op, what)
 		}
 	}
+	note := check.shadowed(x.expr, y.expr)
 	if switchCase {
-		check.errorf(x, code, "invalid case %s in switch on %s (%s)", x.expr, y.expr, cause) // error position always at 1st operand
+		check.errorf(x, code, "invalid case %s in switch on %s (%s)%s", x.expr, y.expr, cause, note) // error position always at 1st operand
 	} else {
-		check.errorf(errOp, code, invalidOp+"%s %s %s (%s)", x.expr, op, y.expr, cause)
+		check.errorf(errOp, code, invalidOp+"%s %s %s (%s)%s", x.expr, op, y.expr, cause, note)
 	}
 	x.invalidate()
 }

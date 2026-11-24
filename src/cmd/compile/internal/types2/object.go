@@ -14,6 +14,27 @@ import (
 	"unicode/utf8"
 )
 
+// hides returns the object that obj hides: the object with the same name in the
+// nearest enclosing scope that is predeclared, an imported package, a type, or
+// a function. Otherwise the result is nil.
+func hides(obj Object) Object {
+	if obj == nil {
+		return nil
+	}
+	for s := obj.Parent(); s != nil && s.parent != nil; s = s.parent {
+		if alt := s.parent.Lookup(obj.Name()); alt != nil {
+			switch alt.(type) {
+			case *Var, *Const:
+				if alt.Parent() != Universe {
+					continue // shadowing variables and constants is common
+				}
+			}
+			return alt
+		}
+	}
+	return nil
+}
+
 // An Object is a named language entity.
 // An Object may be a constant ([Const]), type name ([TypeName]),
 // variable or struct field ([Var]), function or method ([Func]),

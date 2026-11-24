@@ -71,6 +71,57 @@ func (err *error_) addAltDecl(obj Object) {
 	}
 }
 
+// shadowed returns a note for each of exprs that is an identifier denoting a
+// declaration which hides a predeclared object (see shadowNote).
+func (check *Checker) shadowed(exprs ...ast.Expr) string {
+	var notes string
+	for _, e := range exprs {
+		if obj := check.shadowing(e); obj != nil && Universe.Lookup(obj.Name()) != nil {
+			notes += check.shadowNote(obj)
+		}
+	}
+	return notes
+}
+
+// shadowing returns the object denoted by e if e is an identifier, and nil
+// otherwise. The lookup uses the current scope.
+func (check *Checker) shadowing(e ast.Expr) Object {
+	if name, _ := ast.Unparen(e).(*ast.Ident); name != nil {
+		return check.lookup(name.Name)
+	}
+	return nil
+}
+
+// shadowNote returns a note if obj hides another object (see hides).
+// Otherwise the result is "".
+func (check *Checker) shadowNote(obj Object) string {
+	alt := hides(obj)
+	if alt == nil {
+		return ""
+	}
+	what := "predeclared"
+	switch alt.(type) {
+	case *PkgName:
+		what = "imported package"
+	case *Func:
+		what = "function"
+	case *TypeName:
+		if alt.Parent() != Universe {
+			what = "type"
+		}
+	}
+	return check.sprintf(" (%s %s is shadowed by declaration at %v)", what, alt.Name(), obj.Pos())
+}
+
+// sameName returns a note if the distinct defined types x and y have the same
+// name and are thus printed the same.
+func (check *Checker) sameName(x, y Type) string {
+	if a, b := asNamed(x), asNamed(y); a != nil && b != nil && a.obj != b.obj && a.obj.name == b.obj.name && a.obj.pkg == b.obj.pkg {
+		return check.sprintf(" (different types %s declared at %v and %v)", a.obj.name, a.obj.Pos(), b.obj.Pos())
+	}
+	return ""
+}
+
 func (err *error_) empty() bool {
 	return err.desc == nil
 }

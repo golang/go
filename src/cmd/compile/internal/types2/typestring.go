@@ -73,15 +73,16 @@ type typeWriter struct {
 	paramNames   bool           // if set, write function parameter names, otherwise, write types only
 	tpSubscripts bool           // if set, write type parameter indices as subscripts
 	pkgInfo      bool           // package-annotate first unexported-type field to avoid confusing type description
+	shadowing    bool           // annotate first type name that shadows a predeclared one (for error messages)
 }
 
 func newTypeWriter(buf *bytes.Buffer, qf Qualifier) *typeWriter {
-	return &typeWriter{buf, make(map[Type]bool), qf, nil, nil, true, false, false}
+	return &typeWriter{buf, make(map[Type]bool), qf, nil, nil, true, false, false, false}
 }
 
 func newTypeHasher(buf *bytes.Buffer, ctxt *Context) *typeWriter {
 	assert(ctxt != nil)
-	return &typeWriter{buf, make(map[Type]bool), nil, ctxt, nil, false, false, false}
+	return &typeWriter{buf, make(map[Type]bool), nil, ctxt, nil, false, false, false, false}
 }
 
 func (w *typeWriter) byte(b byte) {
@@ -310,18 +311,8 @@ func (w *typeWriter) typ(typ Type) {
 			if w.tpSubscripts || w.ctxt != nil {
 				w.string(subscript(t.id))
 			}
-			// If the type parameter name is the same as a predeclared object
-			// (say int), point out where it is declared to avoid confusing
-			// error messages. This doesn't need to be super-elegant; we just
-			// need a clear indication that this is not a predeclared name.
 			if w.ctxt == nil && Universe.Lookup(t.obj.name) != nil {
-				if isTypes2 {
-					w.string(fmt.Sprintf(" /* with %s declared at %v */", t.obj.name, t.obj.Pos()))
-				} else {
-					// Can't print position information because
-					// we don't have a token.FileSet accessible.
-					w.string("/* type parameter */")
-				}
+				w.declaredAt(t.obj, "type parameter")
 			}
 		}
 
@@ -427,8 +418,27 @@ func (w *typeWriter) tParamList(list []*TypeParam) {
 }
 
 func (w *typeWriter) typeName(obj *TypeName) {
-	w.string(packagePrefix(obj.pkg, w.qf))
+	prefix := packagePrefix(obj.pkg, w.qf)
+	w.string(prefix)
 	w.string(obj.name)
+	if w.shadowing && prefix == "" && obj.pkg != nil && Universe.Lookup(obj.name) != nil {
+		w.declaredAt(obj, "not predeclared")
+		w.shadowing = false // only tag once
+	}
+}
+
+// declaredAt is used if the name of obj is the same as a predeclared object
+// (say int). It points out where obj is declared to avoid confusing error
+// messages. This doesn't need to be super-elegant; we just need a clear
+// indication that this is not a predeclared name.
+func (w *typeWriter) declaredAt(obj *TypeName, what string) {
+	if isTypes2 {
+		w.string(fmt.Sprintf(" /* with %s declared at %v */", obj.name, obj.Pos()))
+	} else {
+		// Can't print position information because
+		// we don't have a token.FileSet accessible.
+		w.string("/* " + what + " */")
+	}
 }
 
 func (w *typeWriter) tuple(tup *Tuple, variadic bool) {

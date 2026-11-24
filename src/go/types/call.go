@@ -151,6 +151,7 @@ func (check *Checker) instantiateSignature(pos token.Pos, expr ast.Expr, typ *Si
 	assert(len(xlist) <= len(targs))
 
 	// verify instantiation lazily (was go.dev/issue/50450)
+	callee := check.shadowing(expr) // the scope is not current in check.later
 	check.later(func() {
 		tparams := typ.TypeParams().list()
 		// check type constraints
@@ -160,7 +161,7 @@ func (check *Checker) instantiateSignature(pos token.Pos, expr ast.Expr, typ *Si
 			if i < len(xlist) {
 				pos = xlist[i].Pos()
 			}
-			check.softErrorf(atPos(pos), InvalidTypeArg, "%s", err)
+			check.softErrorf(atPos(pos), InvalidTypeArg, "%s%s", err, check.shadowNote(callee))
 		} else {
 			check.mono.recordInstance(check.pkg, pos, tparams, targs, xlist)
 		}
@@ -269,7 +270,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		return nil
 	})
 	if err != nil {
-		check.errorf(x, InvalidCall, invalidOp+"cannot call %s: %s", x, err.format(check))
+		check.errorf(x, InvalidCall, invalidOp+"cannot call %s: %s%s", x, err.format(check), check.shadowNote(check.shadowing(x.expr)))
 		check.use(call.Args...)
 		x.invalidate()
 		x.expr = call
@@ -868,7 +869,14 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 			alt, _, _ := lookupFieldOrMethod(x.typ(), x.mode() == variable, check.pkg, sel, true)
 			why = check.lookupError(x.typ(), sel, alt, false)
 		}
-		check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (%s)", x.expr, sel, why)
+		// x.expr may hide an imported package that has the selected member.
+		var note string
+		if obj := check.shadowing(e.X); obj != nil {
+			if pkg, _ := hides(obj).(*PkgName); pkg != nil && isExported(sel) && pkg.imported.scope.Lookup(sel) != nil {
+				note = check.shadowNote(obj)
+			}
+		}
+		check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (%s)%s", x.expr, sel, why, note)
 		goto Error
 	}
 	// obj != nil

@@ -53,6 +53,7 @@ func sprintf(fset *token.FileSet, qf Qualifier, tpSubscripts bool, format string
 			var buf bytes.Buffer
 			w := newTypeWriter(&buf, qf)
 			w.tpSubscripts = tpSubscripts
+			w.shadowing = true
 			w.typ(a)
 			arg = buf.String()
 		case []Type:

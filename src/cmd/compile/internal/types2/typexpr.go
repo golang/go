@@ -43,7 +43,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, wantType bool) {
 	// (see go.dev/issue/65344).
 	_, gotType := obj.(*TypeName)
 	if !gotType && wantType {
-		check.errorf(e, NotAType, "%s (%s) is not a type", obj.Name(), objectKind(obj))
+		check.errorf(e, NotAType, "%s (%s) is not a type%s", obj.Name(), objectKind(obj), check.shadowNote(obj))
 
 		// avoid "declared but not used" errors
 		// (don't use Checker.use - we don't want to evaluate too much)

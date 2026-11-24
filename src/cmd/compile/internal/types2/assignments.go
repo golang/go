@@ -105,10 +105,11 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 
 	cause := ""
 	if ok, code := x.assignableTo(check, T, &cause); !ok {
+		note := check.shadowed(x.expr) + check.sameName(x.typ(), T)
 		if cause != "" {
-			check.errorf(x, code, "cannot use %s as %s value in %s: %s", x, T, context, cause)
+			check.errorf(x, code, "cannot use %s as %s value in %s: %s%s", x, T, context, cause, note)
 		} else {
-			check.errorf(x, code, "cannot use %s as %s value in %s", x, T, context)
+			check.errorf(x, code, "cannot use %s as %s value in %s%s", x, T, context, note)
 		}
 		x.invalidate()
 	}
@@ -124,7 +125,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 
 	// rhs must be a constant
 	if x.mode() != constant_ {
-		check.errorf(x, InvalidConstInit, "%s is not constant", x)
+		check.errorf(x, InvalidConstInit, "%s is not constant%s", x, check.shadowed(x.expr))
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}

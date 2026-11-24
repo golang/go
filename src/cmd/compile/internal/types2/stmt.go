@@ -604,7 +604,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		var x operand
 		check.expr(nil, &x, s.Cond)
 		if x.isValid() && !allBoolean(x.typ()) {
-			check.error(s.Cond, InvalidCond, "non-boolean condition in if statement")
+			check.errorf(s.Cond, InvalidCond, "non-boolean condition in if statement%s", check.shadowed(s.Cond))
 		}
 		check.stmt(inner, s.Then)
 		// The parser produces a correct AST but if it was modified

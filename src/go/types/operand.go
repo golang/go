@@ -230,11 +230,13 @@ func operandString(x *operand, qf Qualifier) string {
 			// desc is "" or has a trailing space at the end
 
 			buf.WriteString(" of " + desc + "type ")
-			WriteType(&buf, x.typ(), qf)
+			w := newTypeWriter(&buf, qf)
+			w.shadowing = true
+			w.typ(x.typ())
 
 			if tpar != nil {
 				buf.WriteString(" constrained by ")
-				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
+				w.typ(tpar.bound) // do not compute interface type sets here
 				// If we have the type set and it's empty, say so for better error messages.
 				if hasEmptyTypeset(tpar) {
 					buf.WriteString(" with empty type set")
