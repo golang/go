@@ -67,11 +67,12 @@ func testObjs(t *testing.T, f func(t *testing.T, sizeClass int, objMask *gc.ObjM
 			const objMask = 0x101
 			nObj := uintptr(gc.SizeClassToNPages[sizeClass]) * gc.PageSize / size
 			for i := range nObj - uintptr(bits.Len(objMask)-1) {
-				t.Run(fmt.Sprintf("objs=0x%x<<%d", objMask, i), func(t *testing.T) {
-					var objs gc.ObjMask
-					objs[i/goarch.PtrBits] = objMask << (i % goarch.PtrBits)
-					f(t, sizeClass, &objs)
-				})
+				var objs gc.ObjMask
+				objs[i/goarch.PtrBits] = objMask << (i % goarch.PtrBits)
+				f(t, sizeClass, &objs)
+				if t.Failed() {
+					t.Fatalf("failed with objs=0x%x<<%d", objMask, i)
+				}
 			}
 		})
 	}
