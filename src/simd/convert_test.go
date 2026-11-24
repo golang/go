@@ -103,4 +103,5 @@ func TestWidthChangingConversions(t *testing.T) {
 
 	test_helpers.TestV2Ve(t, test_helpers.Float32s(), simd.LoadFloat32s, simd.Float32s.ConvertToFloat64, conv[float64, float32])
 	test_helpers.TestV2Ve(t, test_helpers.Float64s(), simd.LoadFloat64s, simd.Float64s.ConvertToFloat32, conv[float32, float64])
+	test_helpers.TestV2Ve(t, i32, simd.LoadInt32s, simd.Int32s.ConvertToFloat64, conv[float64, int32])
 }

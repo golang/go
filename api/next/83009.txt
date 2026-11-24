@@ -179,6 +179,7 @@ pkg simd, method (Int32s) Add(Int32s) Int32s #83009
 pkg simd, method (Int32s) And(Int32s) Int32s #83009
 pkg simd, method (Int32s) AndNot(Int32s) Int32s #83009
 pkg simd, method (Int32s) ConvertToFloat32() Float32s #83009
+pkg simd, method (Int32s) ConvertToFloat64() Float64s #83009
 pkg simd, method (Int32s) ConvertToUint32() Uint32s #83009
 pkg simd, method (Int32s) Equal(Int32s) Mask32s #83009
 pkg simd, method (Int32s) ExtendToInt64() Int64s #83009
@@ -2608,6 +2609,7 @@ pkg simd/archsimd (GOARCH=arm64), method (Int32x4) ConcatMaxPairs(Int32x4) Int32
 pkg simd/archsimd (GOARCH=arm64), method (Int32x4) ConcatMinPairs(Int32x4) Int32x4 #83009
 pkg simd/archsimd (GOARCH=arm64), method (Int32x4) ConcatOdd(Int32x4) Int32x4 #83009
 pkg simd/archsimd (GOARCH=arm64), method (Int32x4) ConvertToFloat32() Float32x4 #83009
+pkg simd/archsimd (GOARCH=arm64), method (Int32x4) ConvertToFloat64() Float64x2 #83009
 pkg simd/archsimd (GOARCH=arm64), method (Int32x4) ConvertToUint32() Uint32x4 #83009
 pkg simd/archsimd (GOARCH=arm64), method (Int32x4) Elem(uint8) int32 #83009
 pkg simd/archsimd (GOARCH=arm64), method (Int32x4) Equal(Int32x4) Mask32x4 #83009

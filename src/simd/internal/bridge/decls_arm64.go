@@ -452,6 +452,10 @@ func (x Int32x4) ConvertToFloat32() Float32x4 {
 	return Float32x4((archsimd.Int32x4(x)).ConvertToFloat32())
 }
 
+func (x Int32x4) ConvertToFloat64() Float64x2 {
+	return Float64x2((archsimd.Int32x4(x)).ConvertToFloat64())
+}
+
 func (x Int32x4) ConvertToUint32() Uint32x4 {
 	return Uint32x4((archsimd.Int32x4(x)).ConvertToUint32())
 }

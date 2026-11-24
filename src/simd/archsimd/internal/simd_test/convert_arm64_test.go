@@ -22,6 +22,7 @@ func TestConvertARM64(t *testing.T) {
 	testFloat64x2ConvertToUint64(t, archsimd.Float64x2.ConvertToUint64, map1[float64](floatToUint64_arm64))
 
 	testInt32x4ConvertToFloat32(t, archsimd.Int32x4.ConvertToFloat32, map1[int32](toFloat32))
+	testInt32x4ConvertToFloat64(t, archsimd.Int32x4.ConvertToFloat64, map1n[int32](toFloat64, 2))
 	testInt64x2ConvertToFloat64(t, archsimd.Int64x2.ConvertToFloat64, map1[int64](toFloat64))
 
 	testUint32x4ConvertToFloat32(t, archsimd.Uint32x4.ConvertToFloat32, map1[uint32](toFloat32))
@@ -73,6 +74,7 @@ func TestExtendHiARM64(t *testing.T) {
 	testUint16x8ConvertToUint32(t, func(x archsimd.Uint16x8) archsimd.Uint32x4 { return x.HiToLo().ExtendToUint32() }, hi[uint16](toUint32))
 	testUint32x4ConvertToUint64(t, func(x archsimd.Uint32x4) archsimd.Uint64x2 { return x.HiToLo().ExtendToUint64() }, hi[uint32](toUint64))
 
-	// Widening float conversions fold the same way, into FCVTL2.
+	// Widening float conversions fold the same way, into FCVTL2 / SXTL2.
 	testFloat32x4ConvertToFloat64(t, func(x archsimd.Float32x4) archsimd.Float64x2 { return x.HiToLo().ConvertToFloat64() }, hi[float32](toFloat64))
+	testInt32x4ConvertToFloat64(t, func(x archsimd.Int32x4) archsimd.Float64x2 { return x.HiToLo().ConvertToFloat64() }, hi[int32](toFloat64))
 }

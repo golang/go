@@ -71,3 +71,15 @@ func (x Uint64x2) ReduceMin() (z uint64) {
 func (x Int16x8) DotProductPairs(y Int16x8) (z Int32x4) {
 	return x.MulWiden(y).ConcatAddPairs(x.HiToLo().MulWiden(y.HiToLo()))
 }
+
+// ConvertToFloat64 converts each element of x to float64.
+//
+//	z[i] = float64(x[i])
+//
+// Only the low 2 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Emulated
+func (x Int32x4) ConvertToFloat64() (z Float64x2) {
+	return x.ExtendToInt64().ConvertToFloat64()
+}

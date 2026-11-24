@@ -4926,6 +4926,19 @@ func (x Float64s) ConvertToFloat32() (z Float32s) {
 	return z
 }
 
+// ConvertToFloat64 converts each element of x to float64.
+//
+//	z[i] = float64(x[i])
+//
+// Only the low z.Len() elements of x are converted.
+// The remaining elements of x are ignored.
+func (x Int32s) ConvertToFloat64() (z Float64s) {
+	for i := 0; i < 2; i++ {
+		z.set(i, float64(x.get(i)))
+	}
+	return z
+}
+
 // lanesToWords packs the lanes of v into two 64-bit words, with lane 0 in the
 // low bits of the first word. This defines the lane order of reshapes
 // independently of the platform's byte order.

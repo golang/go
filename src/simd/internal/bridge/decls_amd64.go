@@ -1336,6 +1336,18 @@ func (x Int32x16) ConvertToFloat32() Float32x16 {
 	return Float32x16((archsimd.Int32x16(x)).ConvertToFloat32())
 }
 
+func (x Int32x4) ConvertToFloat64() Float64x2 {
+	return Float64x2((archsimd.Int32x4(x)).ConvertToFloat64())
+}
+
+func (x Int32x8) ConvertToFloat64() Float64x4 {
+	return Float64x4((archsimd.Int32x8(x)).ConvertToFloat64())
+}
+
+func (x Int32x16) ConvertToFloat64() Float64x8 {
+	return Float64x8((archsimd.Int32x16(x)).ConvertToFloat64())
+}
+
 func (x Int32x4) ConvertToUint32() Uint32x4 {
 	return Uint32x4((archsimd.Int32x4(x)).ConvertToUint32())
 }

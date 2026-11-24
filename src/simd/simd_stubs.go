@@ -451,6 +451,14 @@ func (x Int32s) AndNot(y Int32s) (z Int32s)
 //	z[i] = float32(x[i])
 func (x Int32s) ConvertToFloat32() (z Float32s)
 
+// ConvertToFloat64 converts each element of x to float64.
+//
+//	z[i] = float64(x[i])
+//
+// Only the low z.Len() elements of x are converted.
+// The remaining elements of x are ignored.
+func (x Int32s) ConvertToFloat64() (z Float64s)
+
 // ConvertToUint32 converts each element of x to uint32.
 //
 //	z[i] = uint32(x[i])
