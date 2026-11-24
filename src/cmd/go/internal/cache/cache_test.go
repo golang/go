@@ -157,6 +157,7 @@ func testCacheTrim(t *testing.T, trimBuildCache bool) {
 		t.Fatalf("Open: %v", err)
 	}
 	c.trimBuildCache = trimBuildCache
+	c.statfs = func(string) (avail, total, bsize uint64) { return 0, 0, 0 }
 	c.sampleAcc.Store(0)
 	const start = 1000000000
 	now := int64(start)
@@ -323,6 +324,7 @@ func newTestCache(t *testing.T, dir string, stride, u int64) *testCache {
 	c := &testCache{DiskCache: d, t: t, start: time.Unix(testStart, 0), outs: map[int]OutputID{}}
 	c.clock = c.start
 	d.now = func() time.Time { return c.clock }
+	d.statfs = func(string) (avail, total, bsize uint64) { return 0, 0, 0 } // never low on disk
 	d.openTime = c.clock
 	d.trimBuildCache, d.sizeSample = true, stride
 	d.sampleAcc.Store(u)
@@ -1086,6 +1088,98 @@ func TestCacheCloseKeepsOwnOutput(t *testing.T) {
 	c.must(c.Close())
 	c.wantEntries(2)
 	wantFile(t, dir, "size.txt", "base 0\nestimated 800\n")
+}
+
+func TestCacheLowDiskFree(t *testing.T) {
+	const MiB, GiB = 1 << 20, 1 << 30
+	for _, tc := range []struct {
+		avail, total, bsize uint64
+		want                bool
+	}{
+		{512*MiB/4096 - 1, 20 * GiB / 4096, 4096, true}, // 20 GiB: 512 MiB is smaller than 5%
+		{512 * MiB / 4096, 20 * GiB / 4096, 4096, false},
+		{512*MiB/4096 - 1, 10 * GiB / 4096, 4096, true}, // 10 GiB: 512 MiB is 5%
+		{50 * MiB / 4096, 1 * GiB / 4096, 4096, true},   // 1 GiB: 5% is about 51 MiB
+		{52 * MiB / 4096, 1 * GiB / 4096, 4096, false},
+		{600 * MiB / 1024, 2048 * GiB / 1024, 1024, false}, // 2 TiB
+		{0, GiB, 1, true},   // completely full
+		{0, 0, 4096, false}, // unknown (statfs error, tmpfs without a size limit, non-Linux)
+		{0, GiB, 0, false},
+		{20, 10, 4096, false}, // avail > total
+		{0, ^uint64(0), 1 << 30, true},
+		{0, ^uint64(0), 1 << 40, true},
+		{1, ^uint64(0), 1 << 40, false},
+	} {
+		c := &DiskCache{statfs: func(string) (avail, total, bsize uint64) { return tc.avail, tc.total, tc.bsize }}
+		free, low := c.lowDiskFree()
+		if low != tc.want || low && free != int64(tc.avail*tc.bsize) {
+			t.Errorf("lowDiskFree() with avail=%d total=%d bsize=%d = %d, %v; want low=%v", tc.avail, tc.total, tc.bsize, free, low, tc.want)
+		}
+	}
+}
+
+func TestCacheTrimLowDisk(t *testing.T) {
+	skipIfLockUnsupported(t)
+	t.Parallel()
+
+	dir := t.TempDir()
+	c := newTestCache(t, dir, 100, 0)
+	low := false
+	c.statfs = func(string) (avail, total, bsize uint64) {
+		if low {
+			return 1, 100, 1 << 20 // 1 MiB of 100 MiB available
+		}
+		return 50, 100, 1 << 20
+	}
+	c.clock = c.start.Add(10 * time.Hour)
+	now := c.clock
+	for i, mt := range []time.Time{
+		now.Add(-90 * time.Minute),                // young, 90m: removed
+		now.Add(-89 * time.Minute),                // young, 89m: kept in base
+		now.Add(-90*time.Minute - 30*time.Second), // tenured, 90m30s: removed
+		now.Add(-89*time.Minute - 30*time.Second), // tenured, 89m30s: kept in base
+		now.Add(-3*time.Hour + 16*time.Second),    // plain mtime (tenured), ~3h: removed
+	} {
+		c.put(i+1, 100*(i+1))
+		c.must(os.Chtimes(c.fileName(dummyID(i+1), "a"), mt, mt))
+		c.must(os.Chtimes(c.fileName(c.outs[i+1], "d"), mt, mt))
+	}
+	c.sampleAcc.Store(0)
+	writeFile(t, dir, "size.txt", "base 0\nestimated 1500\n")
+
+	// A low disk trim waits for minTrimSpacing (with or without sampled bytes),
+	// and a disk with space left does not trim.
+	writeFile(t, dir, "trim.txt", fmt.Sprint(now.Add(-minTrimSpacing+time.Second).Unix()))
+	low = true
+	c.must(c.Trim())
+	c.sampleAcc.Store(100)
+	c.must(c.Trim())
+	writeFile(t, dir, "trim.txt", fmt.Sprint(now.Add(-minTrimSpacing).Unix()))
+	low = false
+	c.must(c.Trim())
+	c.wantEntries(1, 2, 3, 4, 5)
+
+	// With no bytes added, a nearly full disk removes all entries at least 90m old
+	// regardless of generation.
+	low = true
+	c.must(c.Trim())
+	c.wantEntries(2, 4)
+	wantFile(t, dir, "size.txt", "base 600\nestimated 600\n")
+	wantFile(t, dir, "cache.log", now.Format(logTimeFormat)+
+		" trim: low disk trigger: 0.000 GiB -> 0.000 GiB in 0s, removed 6 of 10 files,"+
+		" base=0.000 GiB next=5.000 GiB free=0.001 GiB (consider providing more space)\n")
+
+	// Later, Close measures age from openTime, so it keeps tenured entry 6
+	// (over 90m old now but not at openTime) and the new entry 7 it just wrote.
+	c.clock = now.Add(minTrimSpacing)
+	c.openTime = c.clock.Add(-30 * time.Minute)
+	c.put(6, 100)
+	mt := c.clock.Add(-100*time.Minute - 30*time.Second)
+	c.must(os.Chtimes(c.fileName(dummyID(6), "a"), mt, mt))
+	c.must(os.Chtimes(c.fileName(c.outs[6], "d"), mt, mt))
+	c.put(7, 100)
+	c.must(c.Close())
+	c.wantEntries(6, 7)
 }
 
 func TestCacheTrimBuildCacheDisabled(t *testing.T) {

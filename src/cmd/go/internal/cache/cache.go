@@ -85,8 +85,9 @@ type Cache interface {
 
 // A DiskCache is a package cache, backed by a file system directory tree.
 type DiskCache struct {
-	dir string
-	now func() time.Time
+	dir    string
+	now    func() time.Time
+	statfs func(dir string) (avail, total, bsize uint64) // file system blocks (zeros if unknown)
 
 	trimBuildCache bool         // GOEXPERIMENT=trimbuildcache is enabled
 	openTime       time.Time    // wall time at Open (youngGenDeleteAge cutoff in Close)
@@ -125,6 +126,7 @@ func Open(dir string) (*DiskCache, error) {
 	c := &DiskCache{
 		dir:            dir,
 		now:            time.Now,
+		statfs:         statfs,
 		trimBuildCache: cfg.Experiment != nil && cfg.Experiment.TrimBuildCache,
 		sizeSample:     defaultSizeSample,
 		sizeMinTarget:  defaultMinTarget,
@@ -398,6 +400,11 @@ func (c *DiskCache) OutputFile(out OutputID) string {
 // tenuring young files so concurrent go commands do not trim them either.
 // Daily trims (trimInterval, 24 hours) still only delete files unused for 5 days + 1 hour
 // and never delete young generation files early.
+// On Linux, a nearly full disk (see lowDiskFree) also triggers a trim at most once per
+// minTrimSpacing, even if no bytes were added. It deletes any file whose mtime is at
+// least youngGenDeleteAge (90 minutes) old regardless of generation. Since running go
+// commands refresh files they use every refreshInterval (20 minutes), both young and
+// tenured30m files in use are refreshed before their mtime reaches 80 minutes.
 // For more rationale, see https://go.dev/cl/XXXXX.
 const (
 	mtimeInterval = 1 * time.Hour
@@ -641,6 +648,21 @@ func (c *DiskCache) targetSize(base int64) int64 {
 	return max(c.sizeMinTarget, base+base/2)
 }
 
+// lowDiskBytes is the low disk threshold, unless 5% of the file system is smaller.
+const lowDiskBytes = 512 << 20
+
+// lowDiskFree reports whether the file system holding the cache is nearly full, with less
+// than lowDiskBytes or 5% of its blocks (whichever is smaller) available to unprivileged
+// users, and if so how many bytes are available. It is best effort and false outside Linux.
+func (c *DiskCache) lowDiskFree() (free int64, low bool) {
+	avail, total, bsize := c.statfs(c.dir)
+	// avail > (lowDiskBytes-1)/bsize is avail*bsize >= lowDiskBytes without overflow.
+	if bsize == 0 || avail >= total/20 || avail > (lowDiskBytes-1)/bsize {
+		return 0, false
+	}
+	return int64(avail * bsize), true
+}
+
 // writeTime returns the mtime for a newly written cache file: the current
 // whole minute (:00) under GOEXPERIMENT=trimbuildcache, or c.now().
 func (c *DiskCache) writeTime() time.Time {
@@ -749,8 +771,8 @@ func (c *DiskCache) Trim() error {
 }
 
 // trim implements Trim and Close for GOEXPERIMENT=trimbuildcache, flushing sampled
-// bytes to size.txt, running a daily or size triggered scan when due, and logging
-// the result. Young generation age is measured as of youngGenAsOf (or now if zero).
+// bytes to size.txt, running a daily, size, or low disk triggered scan when due, and logging
+// the result. Young generation and low disk delete ages are measured as of youngGenAsOf (or now if zero).
 func (c *DiskCache) trim(youngGenAsOf time.Time) error {
 	if !c.trimBuildCache {
 		return c.trimLegacy()
@@ -763,20 +785,27 @@ func (c *DiskCache) trim(youngGenAsOf time.Time) error {
 		youngGenAsOf = now
 	}
 
-	// If there are no sampled bytes to add to size.txt, check whether a daily trim
-	// is due under a shared lock, avoiding an exclusive lock in the common case.
+	// If there are no sampled bytes to add to size.txt, check whether a daily or low disk
+	// trim is due under a shared lock, avoiding an exclusive lock in the common case.
 	if c.sampleAcc.Load() < c.sizeSample {
 		if isInterrupted() {
 			return nil
 		}
 		if data, err := lockedfile.Read(filepath.Join(c.dir, "trim.txt")); err == nil && !trimDue(data, now, trimInterval) {
-			return nil
+			if !trimDue(data, now, minTrimSpacing) {
+				return nil
+			}
+			if _, low := c.lowDiskFree(); !low {
+				return nil
+			}
 		}
 	}
 
 	var (
 		walk     bool
-		sizeTrim bool           // size triggered trim, false means daily 5 day trim only
+		sizeTrim bool           // size triggered trim (daily 5 day trim only if neither this nor lowDisk)
+		lowDisk  bool           // low disk triggered trim, ignoring tenure
+		free     int64          // bytes available on a nearly full disk (lowDisk only)
 		stamp    []byte         // trim.txt content written by this scan
 		sizeOK   bool           // size.txt was readable before the scan
 		before   cacheSizeState // size.txt state before the scan
@@ -794,17 +823,20 @@ func (c *DiskCache) trim(youngGenAsOf time.Time) error {
 			st cacheSizeState
 			ok bool
 		)
+		if trimDue(data, now, minTrimSpacing) {
+			free, lowDisk = c.lowDiskFree()
+		}
 		switch {
 		case added > 0:
 			// This command grew the cache: update size.txt and check the size trigger.
 			st, ok = c.addSizeLocked(added)
 			sizeTrim = ok && st.hasEstimated && st.estimated >= c.targetSize(st.base) &&
 				trimDue(data, now, minTrimSpacing)
-			if !sizeTrim && !trimDue(data, now, trimInterval) {
+			if !sizeTrim && !lowDisk && !trimDue(data, now, trimInterval) {
 				return
 			}
-		case trimDue(data, now, trimInterval):
-			// Daily 24 hour trim only: never delete young generation files early.
+		case lowDisk, trimDue(data, now, trimInterval):
+			// Low disk or daily 24 hour trim (the latter never deletes young generation files early).
 			st, _, ok = readSize(c.dir)
 		default:
 			return
@@ -832,11 +864,12 @@ func (c *DiskCache) trim(youngGenAsOf time.Time) error {
 		case mt.Before(cutoff):
 			return true, false // unused for 5 days, either generation
 		case !isYoungGen(mt):
-			return false, true // tenured30m generation
+			// Tenured30m generation: only a low disk trim deletes it early.
+			return lowDisk && youngGenAsOf.Sub(mt) >= youngGenDeleteAge, true
 		}
-		// Young generation: only a size triggered trim deletes it early,
+		// Young generation: only a size or low disk triggered trim deletes it early,
 		// and it counts in the baseline while too young to delete as of now.
-		return sizeTrim && youngGenAsOf.Sub(mt) >= youngGenDeleteAge, now.Sub(mt) < youngGenDeleteAge
+		return (sizeTrim || lowDisk) && youngGenAsOf.Sub(mt) >= youngGenDeleteAge, now.Sub(mt) < youngGenDeleteAge
 	}
 	limit := 8 // lower cap outside Linux for small fd limits
 	if runtime.GOOS == "linux" {
@@ -887,18 +920,24 @@ func (c *DiskCache) trim(youngGenAsOf time.Time) error {
 		}
 		_, _ = writeTrimTimestamp(trimFile, end.Unix())
 		trigger := "24h"
-		if sizeTrim {
+		switch {
+		case lowDisk:
+			trigger = "low disk"
+		case sizeTrim:
 			trigger = "size"
 		}
 		actual := stats.keptBytes + stats.removedBytes
-		var estNote string
+		var estNote, freeNote string
 		if before.hasEstimated {
 			estNote = formatEstimateDelta(before.estimated, actual)
 		}
-		appendLogLocked(c.dir, end, "trim: %s trigger: %s -> %s in %s, removed %d of %d files, base=%s next=%s%s",
+		if lowDisk {
+			freeNote = fmt.Sprintf(" free=%s (consider providing more space)", formatBytes(free))
+		}
+		appendLogLocked(c.dir, end, "trim: %s trigger: %s -> %s in %s, removed %d of %d files, base=%s next=%s%s%s",
 			trigger, formatBytes(actual), formatBytes(stats.keptBytes),
 			elapsed.Round(time.Millisecond), stats.removedFiles, stats.keptFiles+stats.removedFiles,
-			formatBytes(base), formatBytes(c.targetSize(base)), estNote)
+			formatBytes(base), formatBytes(c.targetSize(base)), estNote, freeNote)
 	})
 }
 
