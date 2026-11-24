@@ -204,22 +204,38 @@ func testTransportKeepAlives(t *testing.T, mode testMode) {
 }
 
 func TestTransportConnectionCloseOnResponse(t *testing.T) {
-	runNoSynctest(t, testTransportConnectionCloseOnResponse, http3SkippedMode)
+	runSynctest(t, testTransportConnectionCloseOnResponse)
 }
 func testTransportConnectionCloseOnResponse(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, hostPortHandler, optRealNet).ts
+	var mu sync.Mutex
+	openConns := map[net.Conn]bool{}
+	cst := newClientServerTest(t, mode, hostPortHandler, func(s *Server) {
+		s.ConnState = func(c net.Conn, state ConnState) {
+			mu.Lock()
+			defer mu.Unlock()
+			switch state {
+			case StateNew:
+				openConns[c] = true
+			case StateClosed:
+				delete(openConns, c)
+			}
+		}
+	})
+	var dials atomic.Int32
+	cst.setDialHook(func() error {
+		dials.Add(1)
+		return nil
+	})
 
-	connSet, testDial := makeTestDial(t)
-
-	c := ts.Client()
-	tr := c.Transport.(*Transport)
-	tr.Dial = testDial
+	c := cst.c
+	tr := cst.tr
 
 	for _, connectionClose := range []bool{false, true} {
-		fetch := func(n int) string {
+		dials.Store(0)
+		fetch := func(n int) {
 			req := new(Request)
 			var err error
-			req.URL, err = url.Parse(ts.URL + fmt.Sprintf("/?close=%v", connectionClose))
+			req.URL, err = url.Parse(cst.ts.URL + fmt.Sprintf("/?close=%v", connectionClose))
 			if err != nil {
 				t.Fatalf("URL parse error: %v", err)
 			}
@@ -233,25 +249,30 @@ func testTransportConnectionCloseOnResponse(t *testing.T, mode testMode) {
 				t.Fatalf("error in connectionClose=%v, req #%d, Do: %v", connectionClose, n, err)
 			}
 			defer res.Body.Close()
-			body, err := io.ReadAll(res.Body)
-			if err != nil {
+			if _, err := io.ReadAll(res.Body); err != nil {
 				t.Fatalf("error in connectionClose=%v, req #%d, ReadAll: %v", connectionClose, n, err)
 			}
-			return string(body)
 		}
 
-		body1 := fetch(1)
-		body2 := fetch(2)
-		bodiesDiffer := body1 != body2
-		if bodiesDiffer != connectionClose {
-			t.Errorf("error in connectionClose=%v. unexpected bodiesDiffer=%v; body1=%q; body2=%q",
-				connectionClose, bodiesDiffer, body1, body2)
+		fetch(1)
+		fetch(2)
+		wantDials := 1
+		if connectionClose {
+			wantDials++
+		}
+		if got := int(dials.Load()); got != wantDials {
+			t.Errorf("connectionClose=%v: got %d dials, want %d", connectionClose, got, wantDials)
 		}
 
 		tr.CloseIdleConnections()
+		synctest.Wait()
 	}
 
-	connSet.check(t)
+	mu.Lock()
+	defer mu.Unlock()
+	if len(openConns) != 0 {
+		t.Errorf("%d connections were not closed", len(openConns))
+	}
 }
 
 // TestTransportConnectionCloseOnRequest tests that the Transport's doesn't reuse

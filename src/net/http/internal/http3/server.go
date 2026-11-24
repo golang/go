@@ -379,8 +379,8 @@ func (sc *serverConn) handlePushStream(*stream) error {
 	}
 }
 
-// hasDisallowedConnectionHeader reports whether h contains connection headers
-// that are not allowed in HTTP/3:
+// isDisallowedConnectionHeader reports whether a header field is a
+// connection-specific header that is not allowed in HTTP/3:
 //
 // "An endpoint MUST NOT generate an HTTP/3 field section containing
 // connection-specific fields; any message containing connection-specific
@@ -389,23 +389,15 @@ func (sc *serverConn) handlePushStream(*stream) error {
 // "The only exception to this is the TE header field, which MAY be present in
 // an HTTP/3 request header; when it is, it MUST NOT contain any value other
 // than "trailers"."
-func hasDisallowedConnectionHeader(h http.Header) bool {
-	neverAllowed := []string{
-		"Connection",
-		"Keep-Alive",
-		"Proxy-Connection",
-		"Transfer-Encoding",
-		"Upgrade",
-	}
-	for _, k := range neverAllowed {
-		if _, ok := h[k]; ok {
-			return true
-		}
-	}
-	if te, ok := h["Te"]; ok && (len(te) != 1 || te[0] != "trailers") {
+func isDisallowedConnectionHeader(name string, values []string, allowTE bool) bool {
+	switch name {
+	case "Connection", "Keep-Alive", "Proxy-Connection", "Transfer-Encoding", "Upgrade":
 		return true
+	case "Te":
+		return !allowTE || len(values) != 1 || values[0] != "trailers"
+	default:
+		return false
 	}
-	return false
 }
 
 type pseudoHeader struct {
@@ -511,8 +503,10 @@ func (sc *serverConn) parseHeader(st *stream) (http.Header, pseudoHeader, error)
 	if err := st.endFrame(); err != nil {
 		return nil, pseudoHeader{}, err
 	}
-	if hasDisallowedConnectionHeader(header) {
-		return nil, pseudoHeader{}, &streamError{errH3MessageError, "invalid connection-related header"}
+	for name, values := range header {
+		if isDisallowedConnectionHeader(name, values, true) {
+			return nil, pseudoHeader{}, &streamError{errH3MessageError, "invalid connection-related header"}
+		}
 	}
 
 	// "All HTTP/3 requests MUST include exactly one value for the :method,
@@ -614,6 +608,7 @@ func (sc *serverConn) setStateLocked(state http.ConnState) {
 
 func (sc *serverConn) newResponseWriter(st *stream, hasBody bool) *responseWriter {
 	return &responseWriter{
+		sc:             sc,
 		st:             st,
 		headers:        make(http.Header),
 		trailer:        make(http.Header),
@@ -756,6 +751,7 @@ func (sc *serverConn) abort(err error) {
 const trailerPrefix = "Trailer:"
 
 type responseWriter struct {
+	sc             *serverConn
 	st             *stream
 	bw             *bodyWriter
 	mu             sync.Mutex
@@ -815,10 +811,20 @@ func (rw *responseWriter) writeHeaderLockedOnce() {
 		rw.snapHeaders.Set("Trailer", strings.Join(slices.Sorted(maps.Keys(rw.trailer)), ", "))
 	}
 
+	// Connection-specific headers aren't allowed in HTTP/3 nor HTTP/2.
+	// However, we have historically let handlers set "Connection: close" as a
+	// way to request that a client close the connection (go.dev/issue/20977).
+	if v, ok := rw.snapHeaders["Connection"]; ok && httpguts.HeaderValuesContainsToken(v, "close") {
+		rw.sc.sendGoaway()
+	}
+
 	rw.bb.inferHeader(rw.snapHeaders, rw.statusCode)
 	encHeaders := rw.bw.enc.encode(func(f func(itype indexType, name, value string)) {
 		f(mayIndex, ":status", strconv.Itoa(rw.statusCode))
 		for name, values := range rw.snapHeaders {
+			if isDisallowedConnectionHeader(name, values, false) {
+				continue
+			}
 			if !httpguts.ValidHeaderFieldName(name) {
 				continue
 			}
@@ -855,7 +861,10 @@ func (rw *responseWriter) writeHeaderLocked(statusCode int) {
 	encHeaders := rw.bw.enc.encode(func(f func(itype indexType, name, value string)) {
 		f(mayIndex, ":status", strconv.Itoa(statusCode))
 		for name, values := range rw.headers {
-			if name == "Content-Length" || name == "Transfer-Encoding" {
+			if name == "Content-Length" {
+				continue
+			}
+			if isDisallowedConnectionHeader(name, values, false) {
 				continue
 			}
 			if !httpguts.ValidHeaderFieldName(name) {

@@ -742,6 +742,57 @@ func TestServerShutdownGoaway(t *testing.T) {
 	})
 }
 
+func TestServerResponseConnectionHeaders(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ts := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Keep-Alive", "timeout=5")
+			w.Header().Set("Proxy-Connection", "keep-alive")
+			w.Header().Set("Transfer-Encoding", "chunked")
+			w.Header().Set("Upgrade", "websocket")
+			w.Header().Set("Te", "trailers")
+			w.Header().Set("X-Ok", "yes")
+			if r.URL.Path == "/close" {
+				w.Header().Set("Connection", "keep-alive, close")
+			} else {
+				w.Header().Set("Connection", "keep-alive")
+			}
+			w.WriteHeader(200)
+		}))
+		tc := ts.connect()
+		tc.greet()
+
+		control := tc.wantStream(streamTypeControl)
+		control.wantSettings(nil)
+
+		// Connection header without "close" is stripped without sending GOAWAY.
+		st1 := tc.newStream(streamTypeRequest)
+		st1.writeHeaders(requestHeader(http.Header{":path": {"/keep"}}))
+		st1.wantHeaders(http.Header{
+			":status": {"200"},
+			"Date":    {time.Now().UTC().Format(http.TimeFormat)},
+			"X-Ok":    {"yes"},
+		})
+		st1.wantClosed("request is complete")
+		control.wantIdle("no GOAWAY without Connection: close")
+
+		// Connection: close is stripped and triggers GOAWAY.
+		st2 := tc.newStream(streamTypeRequest)
+		st2.writeHeaders(requestHeader(http.Header{":path": {"/close"}}))
+		st2.wantHeaders(http.Header{
+			":status": {"200"},
+			"Date":    {time.Now().UTC().Format(http.TimeFormat)},
+			"X-Ok":    {"yes"},
+		})
+		st2.wantClosed("request is complete")
+		control.wantGoaway(8)
+
+		// Subsequent requests on the same connection are rejected.
+		st3 := tc.newStream(streamTypeRequest)
+		st3.writeHeaders(requestHeader(http.Header{":path": {"/after"}}))
+		st3.wantError(quic.StreamError(errH3RequestRejected))
+	})
+}
+
 func TestServerConnState(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ts := newTestServer(t, nil)
