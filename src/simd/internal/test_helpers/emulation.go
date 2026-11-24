@@ -21,6 +21,22 @@ func ReduceSum[S number](s []S) S {
 	return x
 }
 
+func ReduceMax[S number](s []S) S {
+	x := s[0]
+	for _, v := range s[1:] {
+		x = max(x, v)
+	}
+	return x
+}
+
+func ReduceMin[S number](s []S) S {
+	x := s[0]
+	for _, v := range s[1:] {
+		x = min(x, v)
+	}
+	return x
+}
+
 // The rounding references compute in float64, which is exact for float32
 // inputs too.
 

@@ -4976,6 +4976,102 @@ func (x Float64s) ConvertToInt32() (z Int32s) {
 	return z
 }
 
+func reduceMaxSlice[E int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64](v []E) E {
+	z := v[0]
+	for _, e := range v[1:] {
+		z = max(z, e)
+	}
+	return z
+}
+
+func reduceMinSlice[E int8 | int16 | int32 | int64 | uint8 | uint16 | uint32 | uint64](v []E) E {
+	z := v[0]
+	for _, e := range v[1:] {
+		z = min(z, e)
+	}
+	return z
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int8s) ReduceMax() (z int8) { return reduceMaxSlice(x.v[:]) }
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func (x Int8s) ReduceMin() (z int8) { return reduceMinSlice(x.v[:]) }
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int16s) ReduceMax() (z int16) { return reduceMaxSlice(x.v[:]) }
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func (x Int16s) ReduceMin() (z int16) { return reduceMinSlice(x.v[:]) }
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int32s) ReduceMax() (z int32) { return reduceMaxSlice(x.v[:]) }
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func (x Int32s) ReduceMin() (z int32) { return reduceMinSlice(x.v[:]) }
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int64s) ReduceMax() (z int64) { return reduceMaxSlice(x.v[:]) }
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func (x Int64s) ReduceMin() (z int64) { return reduceMinSlice(x.v[:]) }
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint8s) ReduceMax() (z uint8) { return reduceMaxSlice(x.v[:]) }
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func (x Uint8s) ReduceMin() (z uint8) { return reduceMinSlice(x.v[:]) }
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint16s) ReduceMax() (z uint16) { return reduceMaxSlice(x.v[:]) }
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func (x Uint16s) ReduceMin() (z uint16) { return reduceMinSlice(x.v[:]) }
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint32s) ReduceMax() (z uint32) { return reduceMaxSlice(x.v[:]) }
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func (x Uint32s) ReduceMin() (z uint32) { return reduceMinSlice(x.v[:]) }
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint64s) ReduceMax() (z uint64) { return reduceMaxSlice(x.v[:]) }
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func (x Uint64s) ReduceMin() (z uint64) { return reduceMinSlice(x.v[:]) }
+
 // lanesToWords packs the lanes of v into two 64-bit words, with lane 0 in the
 // low bits of the first word. This defines the lane order of reshapes
 // independently of the platform's byte order.

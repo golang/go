@@ -37,6 +37,11 @@ func portableLenReduceSum(s []int16) int16 {
 	return simd.LoadInt16s(s[:simd.Int16s{}.Len()]).ReduceSum()
 }
 
+func portableReduceMax(s []int32) int32 {
+	// amd64:-`CALL simd/archsimd` arm64:-`CALL simd/archsimd` wasm:-`CALL simd/archsimd`
+	return simd.LoadInt32s(s).ReduceMax()
+}
+
 // Like any function that uses portable simd types, these are multicompiled
 // for each vector width. That includes an emulated (no SIMD) variant, which
 // uses the bridge's pure-Go fallbacks. Those call math.Float32bits and

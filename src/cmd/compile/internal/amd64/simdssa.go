@@ -261,6 +261,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VPBROADCASTB256,
 		ssaop.OpAMD64VPBROADCASTW512,
 		ssaop.OpAMD64VPBROADCASTB512,
+		ssaop.OpAMD64VPHMINPOSUW128,
 		ssaop.OpAMD64VPOPCNTB128,
 		ssaop.OpAMD64VPOPCNTB256,
 		ssaop.OpAMD64VPOPCNTB512,
@@ -2825,6 +2826,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VPBROADCASTD512load,
 		ssaop.OpAMD64VPBROADCASTB256load,
 		ssaop.OpAMD64VPBROADCASTB512load,
+		ssaop.OpAMD64VPHMINPOSUW128load,
 		ssaop.OpAMD64VPOPCNTB128load,
 		ssaop.OpAMD64VPOPCNTB256load:
 		p = simdV11load(s, v)

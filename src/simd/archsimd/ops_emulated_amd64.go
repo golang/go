@@ -657,6 +657,476 @@ func (x Uint8x64) ReduceSum() (z uint8) {
 	return x.Lo().Add(x.Hi()).ReduceSum()
 }
 
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX
+func (x Uint16x8) ReduceMin() (z uint16) {
+	return x.minPosUnsigned().Elem(0)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX
+func (x Uint16x8) ReduceMax() (z uint16) {
+	return ^x.Not().minPosUnsigned().Elem(0)
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX
+func (x Int16x8) ReduceMin() (z int16) {
+	return int16(x.ToBits().Xor(BroadcastUint16x8(0x8000)).minPosUnsigned().Elem(0) ^ 0x8000)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX
+func (x Int16x8) ReduceMax() (z int16) {
+	return int16(x.ToBits().Xor(BroadcastUint16x8(0x7fff)).minPosUnsigned().Elem(0) ^ 0x7fff)
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX2
+func (x Uint16x16) ReduceMin() (z uint16) {
+	return x.Lo().Min(x.Hi()).ReduceMin()
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX2
+func (x Uint16x16) ReduceMax() (z uint16) {
+	return x.Lo().Max(x.Hi()).ReduceMax()
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX2
+func (x Int16x16) ReduceMin() (z int16) {
+	return x.Lo().Min(x.Hi()).ReduceMin()
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX2
+func (x Int16x16) ReduceMax() (z int16) {
+	return x.Lo().Max(x.Hi()).ReduceMax()
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX512
+func (x Uint16x32) ReduceMin() (z uint16) {
+	return x.Lo().Min(x.Hi()).ReduceMin()
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX512
+func (x Uint16x32) ReduceMax() (z uint16) {
+	return x.Lo().Max(x.Hi()).ReduceMax()
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX512
+func (x Int16x32) ReduceMin() (z int16) {
+	return x.Lo().Min(x.Hi()).ReduceMin()
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX512
+func (x Int16x32) ReduceMax() (z int16) {
+	return x.Lo().Max(x.Hi()).ReduceMax()
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX
+func (x Uint8x16) ReduceMin() (z uint8) {
+	// Shift odd bytes down into low bytes of 16-bit lanes with zero high bytes.
+	// Bytewise min puts min(x[2i], x[2i+1]) in the low bytes and clears every
+	// high byte to min(x[2i+1], 0) == 0, giving 8 zero-extended uint16s for
+	// VPHMINPOSUW without constants or shuffles.
+	t := x.ReshapeToUint16s().ShiftAllRight(8).ReshapeToUint8s()
+	return uint8(x.Min(t).ReshapeToUint16s().minPosUnsigned().Elem(0))
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX
+func (x Uint8x16) ReduceMax() (z uint8) {
+	return ^x.Not().ReduceMin()
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX
+func (x Int8x16) ReduceMin() (z int8) {
+	return int8(x.ToBits().Xor(BroadcastUint8x16(0x80)).ReduceMin() ^ 0x80)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX
+func (x Int8x16) ReduceMax() (z int8) {
+	return int8(x.ToBits().Xor(BroadcastUint8x16(0x7f)).ReduceMin() ^ 0x7f)
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX2
+func (x Uint8x32) ReduceMin() (z uint8) {
+	return x.Lo().Min(x.Hi()).ReduceMin()
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX2
+func (x Uint8x32) ReduceMax() (z uint8) {
+	return x.Lo().Max(x.Hi()).ReduceMax()
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX2
+func (x Int8x32) ReduceMin() (z int8) {
+	return x.Lo().Min(x.Hi()).ReduceMin()
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX2
+func (x Int8x32) ReduceMax() (z int8) {
+	return x.Lo().Max(x.Hi()).ReduceMax()
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX512
+func (x Uint8x64) ReduceMin() (z uint8) {
+	return x.Lo().Min(x.Hi()).ReduceMin()
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX512
+func (x Uint8x64) ReduceMax() (z uint8) {
+	return x.Lo().Max(x.Hi()).ReduceMax()
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX512
+func (x Int8x64) ReduceMin() (z int8) {
+	return x.Lo().Min(x.Hi()).ReduceMin()
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX512
+func (x Int8x64) ReduceMax() (z int8) {
+	return x.Lo().Max(x.Hi()).ReduceMax()
+}
+
+func (x Int32x4) reduceMaxVec() Int32x4 {
+	m := x.Max(x.permuteScalars(2 + 3<<2 + 0<<4 + 1<<6))
+	return m.Max(m.permuteScalars(1 + 0<<2 + 3<<4 + 2<<6))
+}
+
+func (x Int32x4) reduceMinVec() Int32x4 {
+	m := x.Min(x.permuteScalars(2 + 3<<2 + 0<<4 + 1<<6))
+	return m.Min(m.permuteScalars(1 + 0<<2 + 3<<4 + 2<<6))
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX
+func (x Int32x4) ReduceMax() (z int32) {
+	return x.reduceMaxVec().Elem(0)
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX
+func (x Int32x4) ReduceMin() (z int32) {
+	return x.reduceMinVec().Elem(0)
+}
+
+func (x Uint32x4) reduceMaxVec() Uint32x4 {
+	m := x.Max(x.permuteScalars(2 + 3<<2 + 0<<4 + 1<<6))
+	return m.Max(m.permuteScalars(1 + 0<<2 + 3<<4 + 2<<6))
+}
+
+func (x Uint32x4) reduceMinVec() Uint32x4 {
+	m := x.Min(x.permuteScalars(2 + 3<<2 + 0<<4 + 1<<6))
+	return m.Min(m.permuteScalars(1 + 0<<2 + 3<<4 + 2<<6))
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX
+func (x Uint32x4) ReduceMax() (z uint32) {
+	return x.reduceMaxVec().Elem(0)
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX
+func (x Uint32x4) ReduceMin() (z uint32) {
+	return x.reduceMinVec().Elem(0)
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX2
+func (x Int32x8) ReduceMax() (z int32) {
+	return x.Lo().Max(x.Hi()).ReduceMax()
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX2
+func (x Int32x8) ReduceMin() (z int32) {
+	return x.Lo().Min(x.Hi()).ReduceMin()
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX2
+func (x Uint32x8) ReduceMax() (z uint32) {
+	return x.Lo().Max(x.Hi()).ReduceMax()
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX2
+func (x Uint32x8) ReduceMin() (z uint32) {
+	return x.Lo().Min(x.Hi()).ReduceMin()
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX512
+func (x Int32x16) ReduceMax() (z int32) {
+	return x.Lo().Max(x.Hi()).ReduceMax()
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX512
+func (x Int32x16) ReduceMin() (z int32) {
+	return x.Lo().Min(x.Hi()).ReduceMin()
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX512
+func (x Uint32x16) ReduceMax() (z uint32) {
+	return x.Lo().Max(x.Hi()).ReduceMax()
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX512
+func (x Uint32x16) ReduceMin() (z uint32) {
+	return x.Lo().Min(x.Hi()).ReduceMin()
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX
+func (x Int64x2) ReduceMax() (z int64) {
+	return max(x.Elem(0), x.Elem(1))
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX
+func (x Int64x2) ReduceMin() (z int64) {
+	return min(x.Elem(0), x.Elem(1))
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX
+func (x Uint64x2) ReduceMax() (z uint64) {
+	return max(x.Elem(0), x.Elem(1))
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX
+func (x Uint64x2) ReduceMin() (z uint64) {
+	return min(x.Elem(0), x.Elem(1))
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX2
+func (x Int64x4) ReduceMax() (z int64) {
+	lo, hi := x.Lo(), x.Hi()
+	return lo.IfElse(lo.Greater(hi), hi).ReduceMax()
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX2
+func (x Int64x4) ReduceMin() (z int64) {
+	lo, hi := x.Lo(), x.Hi()
+	return hi.IfElse(lo.Greater(hi), lo).ReduceMin()
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX2
+func (x Uint64x4) ReduceMax() (z uint64) {
+	lo, hi := x.Lo(), x.Hi()
+	return max(max(lo.Elem(0), lo.Elem(1)), max(hi.Elem(0), hi.Elem(1)))
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX2
+func (x Uint64x4) ReduceMin() (z uint64) {
+	lo, hi := x.Lo(), x.Hi()
+	return min(min(lo.Elem(0), lo.Elem(1)), min(hi.Elem(0), hi.Elem(1)))
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX512
+func (x Int64x8) ReduceMax() (z int64) {
+	// Fold directly with AVX-512 VPMAXSQ rather than calling m.ReduceMax(),
+	// which would fall back to the AVX2 VPCMPGTQ/scalar path.
+	m := x.Lo().Max(x.Hi())
+	return m.Lo().Max(m.Hi()).ReduceMax()
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX512
+func (x Int64x8) ReduceMin() (z int64) {
+	// Fold directly with AVX-512 VPMINSQ rather than calling m.ReduceMin().
+	m := x.Lo().Min(x.Hi())
+	return m.Lo().Min(m.Hi()).ReduceMin()
+}
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX512
+func (x Uint64x8) ReduceMax() (z uint64) {
+	// Fold directly with AVX-512 VPMAXUQ rather than calling m.ReduceMax().
+	m := x.Lo().Max(x.Hi())
+	return m.Lo().Max(m.Hi()).ReduceMax()
+}
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+//
+// Emulated, CPU Feature: AVX512
+func (x Uint64x8) ReduceMin() (z uint64) {
+	// Fold directly with AVX-512 VPMINUQ rather than calling m.ReduceMin().
+	m := x.Lo().Min(x.Hi())
+	return m.Lo().Min(m.Hi()).ReduceMin()
+}
+
 // LookupOrZero permutes x, returning 0 for out-of-range indices.
 //
 //	if indices[i] < 16 {

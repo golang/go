@@ -1287,6 +1287,7 @@ func init() {
 		{name: "interleaveLoGroupedUint32x16", argLength: 2},
 		{name: "interleaveLoGroupedUint64x4", argLength: 2},
 		{name: "interleaveLoGroupedUint64x8", argLength: 2},
+		{name: "minPosUnsignedUint16x8", argLength: 1},
 		{name: "onesCountInt8x16", argLength: 1},
 		{name: "onesCountInt8x32", argLength: 1},
 		{name: "onesCountInt8x64", argLength: 1},

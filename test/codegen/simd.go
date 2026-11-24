@@ -596,3 +596,23 @@ func simdIfAVX512() int {
 	}
 	return simdSlow()
 }
+
+func reduceMinUint16x8(x archsimd.Uint16x8) uint16 {
+	// amd64:`VPHMINPOSUW`
+	return x.ReduceMin()
+}
+
+func reduceMaxUint16x8(x archsimd.Uint16x8) uint16 {
+	// amd64:`VPHMINPOSUW`
+	return x.ReduceMax()
+}
+
+func reduceMinUint8x16(x archsimd.Uint8x16) uint8 {
+	// amd64:`VPSRLW \$8,` `VPMINUB` `VPHMINPOSUW`
+	return x.ReduceMin()
+}
+
+func reduceMaxUint8x16(x archsimd.Uint8x16) uint8 {
+	// amd64:`VPSRLW \$8,` `VPMINUB` `VPHMINPOSUW`
+	return x.ReduceMax()
+}

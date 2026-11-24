@@ -1785,6 +1785,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpAMD64VPHADDW128(v)
 	case ssaop.OpAMD64VPHADDW256:
 		return rewriteValue_OpAMD64VPHADDW256(v)
+	case ssaop.OpAMD64VPHMINPOSUW128:
+		return rewriteValue_OpAMD64VPHMINPOSUW128(v)
 	case ssaop.OpAMD64VPHSUBD128:
 		return rewriteValue_OpAMD64VPHSUBD128(v)
 	case ssaop.OpAMD64VPHSUBD256:
@@ -7567,6 +7569,9 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpinterleaveLoGroupedUint8x64:
 		v.Op = ssaop.OpAMD64VPUNPCKLBW512
+		return true
+	case ssaop.OpminPosUnsignedUint16x8:
+		v.Op = ssaop.OpAMD64VPHMINPOSUW128
 		return true
 	case ssaop.OponesCountInt8x16:
 		v.Op = ssaop.OpAMD64VPOPCNTB128
@@ -75016,6 +75021,31 @@ func rewriteValue_OpAMD64VPHADDW256(v *ssa.Value) bool {
 		v.AuxInt = ssa.Int32ToAuxInt(off)
 		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPHMINPOSUW128(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (VPHMINPOSUW128 l:(VMOVDQUload128 {sym} [off] ptr mem))
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VPHMINPOSUW128load {sym} [off] ptr mem)
+	for {
+		l := v_0
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPHMINPOSUW128load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg2(ptr, mem)
 		return true
 	}
 	return false

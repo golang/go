@@ -1294,6 +1294,7 @@ func simdAMD64Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamil
 	addF(simdPackage, "Uint32x16.interleaveLoGrouped", opLen2(ssaop.OpinterleaveLoGroupedUint32x16, types.TypeVec512), sys.AMD64)
 	addF(simdPackage, "Uint64x4.interleaveLoGrouped", opLen2(ssaop.OpinterleaveLoGroupedUint64x4, types.TypeVec256), sys.AMD64)
 	addF(simdPackage, "Uint64x8.interleaveLoGrouped", opLen2(ssaop.OpinterleaveLoGroupedUint64x8, types.TypeVec512), sys.AMD64)
+	addF(simdPackage, "Uint16x8.minPosUnsigned", opLen1(ssaop.OpminPosUnsignedUint16x8, types.TypeVec128), sys.AMD64)
 	addF(simdPackage, "Int8x16.onesCount", opLen1(ssaop.OponesCountInt8x16, types.TypeVec128), sys.AMD64)
 	addF(simdPackage, "Int8x32.onesCount", opLen1(ssaop.OponesCountInt8x32, types.TypeVec256), sys.AMD64)
 	addF(simdPackage, "Int8x64.onesCount", opLen1(ssaop.OponesCountInt8x64, types.TypeVec512), sys.AMD64)

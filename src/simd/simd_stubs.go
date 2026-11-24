@@ -154,6 +154,16 @@ func (x Int8s) OnesCount() (z Int8s)
 //	z[i] = x[i] | y[i]
 func (x Int8s) Or(y Int8s) (z Int8s)
 
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int8s) ReduceMax() (z int8)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func (x Int8s) ReduceMin() (z int8)
+
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
@@ -336,6 +346,16 @@ func (x Int16s) NotEqual(y Int16s) (z Mask16s)
 //
 //	z[i] = x[i] | y[i]
 func (x Int16s) Or(y Int16s) (z Int16s)
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int16s) ReduceMax() (z int16)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func (x Int16s) ReduceMin() (z int16)
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
@@ -557,6 +577,16 @@ func (x Int32s) NotEqual(y Int32s) (z Mask32s)
 //	z[i] = x[i] | y[i]
 func (x Int32s) Or(y Int32s) (z Int32s)
 
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int32s) ReduceMax() (z int32)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func (x Int32s) ReduceMin() (z int32)
+
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
@@ -735,6 +765,16 @@ func (x Int64s) NotEqual(y Int64s) (z Mask64s)
 //
 //	z[i] = x[i] | y[i]
 func (x Int64s) Or(y Int64s) (z Int64s)
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Int64s) ReduceMax() (z int64)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func (x Int64s) ReduceMin() (z int64)
 
 // SaturateToInt32 converts each element of x to int32, saturating values
 // that are outside the range of int32.
@@ -953,6 +993,16 @@ func (x Uint8s) OnesCount() (z Uint8s)
 //	z[i] = x[i] | y[i]
 func (x Uint8s) Or(y Uint8s) (z Uint8s)
 
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint8s) ReduceMax() (z uint8)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func (x Uint8s) ReduceMin() (z uint8)
+
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
@@ -1148,6 +1198,16 @@ func (x Uint16s) NotEqual(y Uint16s) (z Mask16s)
 //
 //	z[i] = x[i] | y[i]
 func (x Uint16s) Or(y Uint16s) (z Uint16s)
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint16s) ReduceMax() (z uint16)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func (x Uint16s) ReduceMin() (z uint16)
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
@@ -1379,6 +1439,16 @@ func (x Uint32s) NotEqual(y Uint32s) (z Mask32s)
 //
 //	z[i] = x[i] | y[i]
 func (x Uint32s) Or(y Uint32s) (z Uint32s)
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint32s) ReduceMax() (z uint32)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func (x Uint32s) ReduceMin() (z uint32)
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
@@ -1662,6 +1732,16 @@ func (x Uint64s) NotEqual(y Uint64s) (z Mask64s)
 //
 //	z[i] = x[i] | y[i]
 func (x Uint64s) Or(y Uint64s) (z Uint64s)
+
+// ReduceMax returns the largest element of x.
+//
+//	z = max(x[0], x[1], ...)
+func (x Uint64s) ReduceMax() (z uint64)
+
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func (x Uint64s) ReduceMin() (z uint64)
 
 // ReshapeToUint16s reinterprets the bits of x as a Uint16s vector.
 //

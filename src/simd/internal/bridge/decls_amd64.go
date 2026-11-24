@@ -712,6 +712,30 @@ func (x Int8x64) Or(y Int8x64) Int8x64 {
 	return Int8x64((archsimd.Int8x64(x)).Or(archsimd.Int8x64(y)))
 }
 
+func (x Int8x16) ReduceMax() int8 {
+	return (archsimd.Int8x16(x)).ReduceMax()
+}
+
+func (x Int8x32) ReduceMax() int8 {
+	return (archsimd.Int8x32(x)).ReduceMax()
+}
+
+func (x Int8x64) ReduceMax() int8 {
+	return (archsimd.Int8x64(x)).ReduceMax()
+}
+
+func (x Int8x16) ReduceMin() int8 {
+	return (archsimd.Int8x16(x)).ReduceMin()
+}
+
+func (x Int8x32) ReduceMin() int8 {
+	return (archsimd.Int8x32(x)).ReduceMin()
+}
+
+func (x Int8x64) ReduceMin() int8 {
+	return (archsimd.Int8x64(x)).ReduceMin()
+}
+
 func (x Int8x16) ReduceSum() int8 {
 	return (archsimd.Int8x16(x)).ReduceSum()
 }
@@ -1106,6 +1130,30 @@ func (x Int16x16) Or(y Int16x16) Int16x16 {
 
 func (x Int16x32) Or(y Int16x32) Int16x32 {
 	return Int16x32((archsimd.Int16x32(x)).Or(archsimd.Int16x32(y)))
+}
+
+func (x Int16x8) ReduceMax() int16 {
+	return (archsimd.Int16x8(x)).ReduceMax()
+}
+
+func (x Int16x16) ReduceMax() int16 {
+	return (archsimd.Int16x16(x)).ReduceMax()
+}
+
+func (x Int16x32) ReduceMax() int16 {
+	return (archsimd.Int16x32(x)).ReduceMax()
+}
+
+func (x Int16x8) ReduceMin() int16 {
+	return (archsimd.Int16x8(x)).ReduceMin()
+}
+
+func (x Int16x16) ReduceMin() int16 {
+	return (archsimd.Int16x16(x)).ReduceMin()
+}
+
+func (x Int16x32) ReduceMin() int16 {
+	return (archsimd.Int16x32(x)).ReduceMin()
 }
 
 func (x Int16x8) ReduceSum() int16 {
@@ -1564,6 +1612,30 @@ func (x Int32x16) Or(y Int32x16) Int32x16 {
 	return Int32x16((archsimd.Int32x16(x)).Or(archsimd.Int32x16(y)))
 }
 
+func (x Int32x4) ReduceMax() int32 {
+	return (archsimd.Int32x4(x)).ReduceMax()
+}
+
+func (x Int32x8) ReduceMax() int32 {
+	return (archsimd.Int32x8(x)).ReduceMax()
+}
+
+func (x Int32x16) ReduceMax() int32 {
+	return (archsimd.Int32x16(x)).ReduceMax()
+}
+
+func (x Int32x4) ReduceMin() int32 {
+	return (archsimd.Int32x4(x)).ReduceMin()
+}
+
+func (x Int32x8) ReduceMin() int32 {
+	return (archsimd.Int32x8(x)).ReduceMin()
+}
+
+func (x Int32x16) ReduceMin() int32 {
+	return (archsimd.Int32x16(x)).ReduceMin()
+}
+
 func (x Int32x4) ReduceSum() int32 {
 	return (archsimd.Int32x4(x)).ReduceSum()
 }
@@ -1934,6 +2006,30 @@ func (x Int64x4) Or(y Int64x4) Int64x4 {
 
 func (x Int64x8) Or(y Int64x8) Int64x8 {
 	return Int64x8((archsimd.Int64x8(x)).Or(archsimd.Int64x8(y)))
+}
+
+func (x Int64x2) ReduceMax() int64 {
+	return (archsimd.Int64x2(x)).ReduceMax()
+}
+
+func (x Int64x4) ReduceMax() int64 {
+	return (archsimd.Int64x4(x)).ReduceMax()
+}
+
+func (x Int64x8) ReduceMax() int64 {
+	return (archsimd.Int64x8(x)).ReduceMax()
+}
+
+func (x Int64x2) ReduceMin() int64 {
+	return (archsimd.Int64x2(x)).ReduceMin()
+}
+
+func (x Int64x4) ReduceMin() int64 {
+	return (archsimd.Int64x4(x)).ReduceMin()
+}
+
+func (x Int64x8) ReduceMin() int64 {
+	return (archsimd.Int64x8(x)).ReduceMin()
 }
 
 func (x Int64x2) SaturateToInt32() Int32x4 {
@@ -2380,6 +2476,30 @@ func (x Uint8x64) Or(y Uint8x64) Uint8x64 {
 	return Uint8x64((archsimd.Uint8x64(x)).Or(archsimd.Uint8x64(y)))
 }
 
+func (x Uint8x16) ReduceMax() uint8 {
+	return (archsimd.Uint8x16(x)).ReduceMax()
+}
+
+func (x Uint8x32) ReduceMax() uint8 {
+	return (archsimd.Uint8x32(x)).ReduceMax()
+}
+
+func (x Uint8x64) ReduceMax() uint8 {
+	return (archsimd.Uint8x64(x)).ReduceMax()
+}
+
+func (x Uint8x16) ReduceMin() uint8 {
+	return (archsimd.Uint8x16(x)).ReduceMin()
+}
+
+func (x Uint8x32) ReduceMin() uint8 {
+	return (archsimd.Uint8x32(x)).ReduceMin()
+}
+
+func (x Uint8x64) ReduceMin() uint8 {
+	return (archsimd.Uint8x64(x)).ReduceMin()
+}
+
 func (x Uint8x16) ReduceSum() uint8 {
 	return (archsimd.Uint8x16(x)).ReduceSum()
 }
@@ -2774,6 +2894,30 @@ func (x Uint16x16) Or(y Uint16x16) Uint16x16 {
 
 func (x Uint16x32) Or(y Uint16x32) Uint16x32 {
 	return Uint16x32((archsimd.Uint16x32(x)).Or(archsimd.Uint16x32(y)))
+}
+
+func (x Uint16x8) ReduceMax() uint16 {
+	return (archsimd.Uint16x8(x)).ReduceMax()
+}
+
+func (x Uint16x16) ReduceMax() uint16 {
+	return (archsimd.Uint16x16(x)).ReduceMax()
+}
+
+func (x Uint16x32) ReduceMax() uint16 {
+	return (archsimd.Uint16x32(x)).ReduceMax()
+}
+
+func (x Uint16x8) ReduceMin() uint16 {
+	return (archsimd.Uint16x8(x)).ReduceMin()
+}
+
+func (x Uint16x16) ReduceMin() uint16 {
+	return (archsimd.Uint16x16(x)).ReduceMin()
+}
+
+func (x Uint16x32) ReduceMin() uint16 {
+	return (archsimd.Uint16x32(x)).ReduceMin()
 }
 
 func (x Uint16x8) ReduceSum() uint16 {
@@ -3232,6 +3376,30 @@ func (x Uint32x16) Or(y Uint32x16) Uint32x16 {
 	return Uint32x16((archsimd.Uint32x16(x)).Or(archsimd.Uint32x16(y)))
 }
 
+func (x Uint32x4) ReduceMax() uint32 {
+	return (archsimd.Uint32x4(x)).ReduceMax()
+}
+
+func (x Uint32x8) ReduceMax() uint32 {
+	return (archsimd.Uint32x8(x)).ReduceMax()
+}
+
+func (x Uint32x16) ReduceMax() uint32 {
+	return (archsimd.Uint32x16(x)).ReduceMax()
+}
+
+func (x Uint32x4) ReduceMin() uint32 {
+	return (archsimd.Uint32x4(x)).ReduceMin()
+}
+
+func (x Uint32x8) ReduceMin() uint32 {
+	return (archsimd.Uint32x8(x)).ReduceMin()
+}
+
+func (x Uint32x16) ReduceMin() uint32 {
+	return (archsimd.Uint32x16(x)).ReduceMin()
+}
+
 func (x Uint32x4) ReduceSum() uint32 {
 	return (archsimd.Uint32x4(x)).ReduceSum()
 }
@@ -3674,6 +3842,30 @@ func (x Uint64x4) Or(y Uint64x4) Uint64x4 {
 
 func (x Uint64x8) Or(y Uint64x8) Uint64x8 {
 	return Uint64x8((archsimd.Uint64x8(x)).Or(archsimd.Uint64x8(y)))
+}
+
+func (x Uint64x2) ReduceMax() uint64 {
+	return (archsimd.Uint64x2(x)).ReduceMax()
+}
+
+func (x Uint64x4) ReduceMax() uint64 {
+	return (archsimd.Uint64x4(x)).ReduceMax()
+}
+
+func (x Uint64x8) ReduceMax() uint64 {
+	return (archsimd.Uint64x8(x)).ReduceMax()
+}
+
+func (x Uint64x2) ReduceMin() uint64 {
+	return (archsimd.Uint64x2(x)).ReduceMin()
+}
+
+func (x Uint64x4) ReduceMin() uint64 {
+	return (archsimd.Uint64x4(x)).ReduceMin()
+}
+
+func (x Uint64x8) ReduceMin() uint64 {
+	return (archsimd.Uint64x8(x)).ReduceMin()
 }
 
 func (x Uint64x2) ReshapeToUint16s() Uint16x8 {

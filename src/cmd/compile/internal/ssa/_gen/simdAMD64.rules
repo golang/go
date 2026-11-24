@@ -1333,6 +1333,7 @@
 (interleaveLoGroupedUint32x16 ...) => (VPUNPCKLDQ512 ...) // pureVreg
 (interleaveLoGroupedUint64x4 ...) => (VPUNPCKLQDQ256 ...) // pureVreg
 (interleaveLoGroupedUint64x8 ...) => (VPUNPCKLQDQ512 ...) // pureVreg
+(minPosUnsignedUint16x8 ...) => (VPHMINPOSUW128 ...) // pureVreg
 (onesCountInt8x16 ...) => (VPOPCNTB128 ...) // pureVreg
 (onesCountInt8x32 ...) => (VPOPCNTB256 ...) // pureVreg
 (onesCountInt8x64 ...) => (VPOPCNTB512 ...) // pureVreg
@@ -3622,6 +3623,7 @@
 (VPUNPCKLDQ512 x l:(VMOVDQUload512 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPUNPCKLDQ512load {sym} [off] x ptr mem) // vregMem
 (VPUNPCKLQDQ256 x l:(VMOVDQUload256 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPUNPCKLQDQ256load {sym} [off] x ptr mem) // vregMem
 (VPUNPCKLQDQ512 x l:(VMOVDQUload512 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPUNPCKLQDQ512load {sym} [off] x ptr mem) // vregMem
+(VPHMINPOSUW128 l:(VMOVDQUload128 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPHMINPOSUW128load {sym} [off] ptr mem) // vregMem
 (VPOPCNTB128 l:(VMOVDQUload128 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTB128load {sym} [off] ptr mem) // vregMem
 (VPOPCNTB256 l:(VMOVDQUload256 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTB256load {sym} [off] ptr mem) // vregMem
 (VPOPCNTBMasked128 l:(VMOVDQUload128 {sym} [off] ptr mem) mask) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPOPCNTBMasked128load {sym} [off] ptr mask mem) // vregMem

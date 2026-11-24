@@ -1554,6 +1554,7 @@ const (
 	OpAMD64VPHADDSW256
 	OpAMD64VPHADDW128
 	OpAMD64VPHADDW256
+	OpAMD64VPHMINPOSUW128
 	OpAMD64VPHSUBD128
 	OpAMD64VPHSUBD256
 	OpAMD64VPHSUBSW128
@@ -2999,6 +3000,7 @@ const (
 	OpAMD64VPHADDSW256load
 	OpAMD64VPHADDW128load
 	OpAMD64VPHADDW256load
+	OpAMD64VPHMINPOSUW128load
 	OpAMD64VPHSUBD128load
 	OpAMD64VPHSUBD256load
 	OpAMD64VPHSUBSW128load
@@ -9443,6 +9445,7 @@ const (
 	OpinterleaveLoGroupedUint64x8
 	OpinterleaveLoGroupedUint8x32
 	OpinterleaveLoGroupedUint8x64
+	OpminPosUnsignedUint16x8
 	OponesCountInt8x16
 	OponesCountInt8x32
 	OponesCountInt8x64
@@ -33606,6 +33609,20 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:         "VPHMINPOSUW128",
+		ArgLen:       1,
+		ZeroUpperVec: true,
+		asm:          x86.AVPHMINPOSUW,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 4294901760, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		Name:         "VPHSUBD128",
 		ArgLen:       2,
 		ZeroUpperVec: true,
@@ -56933,6 +56950,22 @@ var OpcodeTable = [...]OpInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 4294901760, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 				{1, RegMask{V1: 72057594037977087, V2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		Name:         "VPHMINPOSUW128load",
+		AuxType:      AuxTypeSymOff,
+		ArgLen:       2,
+		ZeroUpperVec: true,
+		symEffect:    SymRead,
+		asm:          x86.AVPHMINPOSUW,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 72057594037977087, V2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
 			},
 			Outputs: []OutputInfo{
 				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -132300,6 +132333,11 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "interleaveLoGroupedUint8x64",
 		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "minPosUnsignedUint16x8",
+		ArgLen:  1,
 		Generic: true,
 	},
 	{

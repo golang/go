@@ -1181,6 +1181,15 @@ func (x Uint64x4) interleaveLoGrouped(y Uint64x4) Uint64x4
 // Asm: VPUNPCKLQDQ, CPU Feature: AVX512
 func (x Uint64x8) interleaveLoGrouped(y Uint64x8) Uint64x8
 
+/* minPosUnsigned */
+
+// minPosUnsigned computes the minimum unsigned 16-bit element of x and its lowest
+// index, placing the minimum in element 0 and the index in element 1, with
+// the remaining elements zeroed.
+//
+// Asm: VPHMINPOSUW, CPU Feature: AVX
+func (x Uint16x8) minPosUnsigned() Uint16x8
+
 /* onesCount */
 
 // onesCount counts the number of set bits in each element.

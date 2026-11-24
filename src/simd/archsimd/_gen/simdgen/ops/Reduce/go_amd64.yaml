@@ -1,0 +1,8 @@
+!sum
+# Horizontal unsigned 16-bit minimum and lowest index (VPHMINPOSUW).
+- go: minPosUnsigned
+  asm: "VPHMINPOSUW"
+  in:
+  - go: Uint16x8
+  out:
+  - go: Uint16x8

@@ -489,6 +489,28 @@ func TestReduceSum(t *testing.T) {
 	test_helpers.TestV2S(t, test_helpers.Uint8s(), simd.LoadUint8s, simd.Uint8s.ReduceSum, test_helpers.ReduceSum)
 }
 
+func TestReduceMax(t *testing.T) {
+	test_helpers.TestV2S(t, test_helpers.Int8s(), simd.LoadInt8s, simd.Int8s.ReduceMax, test_helpers.ReduceMax)
+	test_helpers.TestV2S(t, test_helpers.Int16s(), simd.LoadInt16s, simd.Int16s.ReduceMax, test_helpers.ReduceMax)
+	test_helpers.TestV2S(t, test_helpers.Int32s(), simd.LoadInt32s, simd.Int32s.ReduceMax, test_helpers.ReduceMax)
+	test_helpers.TestV2S(t, test_helpers.Int64s(), simd.LoadInt64s, simd.Int64s.ReduceMax, test_helpers.ReduceMax)
+	test_helpers.TestV2S(t, test_helpers.Uint8s(), simd.LoadUint8s, simd.Uint8s.ReduceMax, test_helpers.ReduceMax)
+	test_helpers.TestV2S(t, test_helpers.Uint16s(), simd.LoadUint16s, simd.Uint16s.ReduceMax, test_helpers.ReduceMax)
+	test_helpers.TestV2S(t, test_helpers.Uint32s(), simd.LoadUint32s, simd.Uint32s.ReduceMax, test_helpers.ReduceMax)
+	test_helpers.TestV2S(t, test_helpers.Uint64s(), simd.LoadUint64s, simd.Uint64s.ReduceMax, test_helpers.ReduceMax)
+}
+
+func TestReduceMin(t *testing.T) {
+	test_helpers.TestV2S(t, test_helpers.Int8s(), simd.LoadInt8s, simd.Int8s.ReduceMin, test_helpers.ReduceMin)
+	test_helpers.TestV2S(t, test_helpers.Int16s(), simd.LoadInt16s, simd.Int16s.ReduceMin, test_helpers.ReduceMin)
+	test_helpers.TestV2S(t, test_helpers.Int32s(), simd.LoadInt32s, simd.Int32s.ReduceMin, test_helpers.ReduceMin)
+	test_helpers.TestV2S(t, test_helpers.Int64s(), simd.LoadInt64s, simd.Int64s.ReduceMin, test_helpers.ReduceMin)
+	test_helpers.TestV2S(t, test_helpers.Uint8s(), simd.LoadUint8s, simd.Uint8s.ReduceMin, test_helpers.ReduceMin)
+	test_helpers.TestV2S(t, test_helpers.Uint16s(), simd.LoadUint16s, simd.Uint16s.ReduceMin, test_helpers.ReduceMin)
+	test_helpers.TestV2S(t, test_helpers.Uint32s(), simd.LoadUint32s, simd.Uint32s.ReduceMin, test_helpers.ReduceMin)
+	test_helpers.TestV2S(t, test_helpers.Uint64s(), simd.LoadUint64s, simd.Uint64s.ReduceMin, test_helpers.ReduceMin)
+}
+
 func TestMaskRange(t *testing.T) {
 	test_helpers.TestMaskAllAny(t, simd.LoadUint8s)
 }

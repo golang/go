@@ -26,3 +26,9 @@
   commutative: false
   documentation: !string |-
     // NAME returns the smallest element of x.
+- go: minPosUnsigned
+  commutative: false
+  documentation: !string |-
+    // NAME computes the minimum unsigned 16-bit element of x and its lowest
+    // index, placing the minimum in element 0 and the index in element 1, with
+    // the remaining elements zeroed.

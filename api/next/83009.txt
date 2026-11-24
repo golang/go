@@ -160,6 +160,8 @@ pkg simd, method (Int16s) Neg() Int16s #83009
 pkg simd, method (Int16s) Not() Int16s #83009
 pkg simd, method (Int16s) NotEqual(Int16s) Mask16s #83009
 pkg simd, method (Int16s) Or(Int16s) Int16s #83009
+pkg simd, method (Int16s) ReduceMax() int16 #83009
+pkg simd, method (Int16s) ReduceMin() int16 #83009
 pkg simd, method (Int16s) ReduceSum() int16 #83009
 pkg simd, method (Int16s) SaturateToInt8() Int8s #83009
 pkg simd, method (Int16s) SaturateToUint8() Uint8s #83009
@@ -199,6 +201,8 @@ pkg simd, method (Int32s) Neg() Int32s #83009
 pkg simd, method (Int32s) Not() Int32s #83009
 pkg simd, method (Int32s) NotEqual(Int32s) Mask32s #83009
 pkg simd, method (Int32s) Or(Int32s) Int32s #83009
+pkg simd, method (Int32s) ReduceMax() int32 #83009
+pkg simd, method (Int32s) ReduceMin() int32 #83009
 pkg simd, method (Int32s) ReduceSum() int32 #83009
 pkg simd, method (Int32s) SaturateToInt16() Int16s #83009
 pkg simd, method (Int32s) SaturateToUint16() Uint16s #83009
@@ -231,6 +235,8 @@ pkg simd, method (Int64s) Neg() Int64s #83009
 pkg simd, method (Int64s) Not() Int64s #83009
 pkg simd, method (Int64s) NotEqual(Int64s) Mask64s #83009
 pkg simd, method (Int64s) Or(Int64s) Int64s #83009
+pkg simd, method (Int64s) ReduceMax() int64 #83009
+pkg simd, method (Int64s) ReduceMin() int64 #83009
 pkg simd, method (Int64s) SaturateToInt32() Int32s #83009
 pkg simd, method (Int64s) SaturateToUint32() Uint32s #83009
 pkg simd, method (Int64s) ShiftAllLeft(uint64) Int64s #83009
@@ -269,6 +275,8 @@ pkg simd, method (Int8s) Not() Int8s #83009
 pkg simd, method (Int8s) NotEqual(Int8s) Mask8s #83009
 pkg simd, method (Int8s) OnesCount() Int8s #83009
 pkg simd, method (Int8s) Or(Int8s) Int8s #83009
+pkg simd, method (Int8s) ReduceMax() int8 #83009
+pkg simd, method (Int8s) ReduceMin() int8 #83009
 pkg simd, method (Int8s) ReduceSum() int8 #83009
 pkg simd, method (Int8s) Store([]int8) #83009
 pkg simd, method (Int8s) StorePart([]int8) int #83009
@@ -350,6 +358,8 @@ pkg simd, method (Uint16s) Mul(Uint16s) Uint16s #83009
 pkg simd, method (Uint16s) Not() Uint16s #83009
 pkg simd, method (Uint16s) NotEqual(Uint16s) Mask16s #83009
 pkg simd, method (Uint16s) Or(Uint16s) Uint16s #83009
+pkg simd, method (Uint16s) ReduceMax() uint16 #83009
+pkg simd, method (Uint16s) ReduceMin() uint16 #83009
 pkg simd, method (Uint16s) ReduceSum() uint16 #83009
 pkg simd, method (Uint16s) ReshapeToUint32s() Uint32s #83009
 pkg simd, method (Uint16s) ReshapeToUint64s() Uint64s #83009
@@ -389,6 +399,8 @@ pkg simd, method (Uint32s) Mul(Uint32s) Uint32s #83009
 pkg simd, method (Uint32s) Not() Uint32s #83009
 pkg simd, method (Uint32s) NotEqual(Uint32s) Mask32s #83009
 pkg simd, method (Uint32s) Or(Uint32s) Uint32s #83009
+pkg simd, method (Uint32s) ReduceMax() uint32 #83009
+pkg simd, method (Uint32s) ReduceMin() uint32 #83009
 pkg simd, method (Uint32s) ReduceSum() uint32 #83009
 pkg simd, method (Uint32s) ReshapeToUint16s() Uint16s #83009
 pkg simd, method (Uint32s) ReshapeToUint64s() Uint64s #83009
@@ -427,6 +439,8 @@ pkg simd, method (Uint64s) Masked(Mask64s) Uint64s #83009
 pkg simd, method (Uint64s) Not() Uint64s #83009
 pkg simd, method (Uint64s) NotEqual(Uint64s) Mask64s #83009
 pkg simd, method (Uint64s) Or(Uint64s) Uint64s #83009
+pkg simd, method (Uint64s) ReduceMax() uint64 #83009
+pkg simd, method (Uint64s) ReduceMin() uint64 #83009
 pkg simd, method (Uint64s) ReshapeToUint16s() Uint16s #83009
 pkg simd, method (Uint64s) ReshapeToUint32s() Uint32s #83009
 pkg simd, method (Uint64s) ReshapeToUint8s() Uint8s #83009
@@ -467,6 +481,8 @@ pkg simd, method (Uint8s) Not() Uint8s #83009
 pkg simd, method (Uint8s) NotEqual(Uint8s) Mask8s #83009
 pkg simd, method (Uint8s) OnesCount() Uint8s #83009
 pkg simd, method (Uint8s) Or(Uint8s) Uint8s #83009
+pkg simd, method (Uint8s) ReduceMax() uint8 #83009
+pkg simd, method (Uint8s) ReduceMin() uint8 #83009
 pkg simd, method (Uint8s) ReduceSum() uint8 #83009
 pkg simd, method (Uint8s) ReshapeToUint16s() Uint16s #83009
 pkg simd, method (Uint8s) ReshapeToUint32s() Uint32s #83009
@@ -938,6 +954,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int16x16) Not() Int16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) NotEqual(Int16x16) Mask16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) OnesCount() Int16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) Or(Int16x16) Int16x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int16x16) ReduceMax() int16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int16x16) ReduceMin() int16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) ReduceSum() int16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) SaturateToInt8() Int8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x16) SaturateToUint8() Uint8x32 #83009
@@ -989,6 +1007,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int16x32) Not() Int16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) NotEqual(Int16x32) Mask16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) OnesCount() Int16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) Or(Int16x32) Int16x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int16x32) ReduceMax() int16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int16x32) ReduceMin() int16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) ReduceSum() int16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) SaturateToInt8() Int8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x32) SaturateToUint8() Uint8x64 #83009
@@ -1048,6 +1068,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int16x8) Not() Int16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x8) NotEqual(Int16x8) Mask16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x8) OnesCount() Int16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x8) Or(Int16x8) Int16x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int16x8) ReduceMax() int16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int16x8) ReduceMin() int16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x8) ReduceSum() int16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x8) SaturateToInt8() Int8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int16x8) SaturateToUint8() Uint8x16 #83009
@@ -1100,6 +1122,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int32x16) Not() Int32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) NotEqual(Int32x16) Mask32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) OnesCount() Int32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) Or(Int32x16) Int32x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int32x16) ReduceMax() int32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int32x16) ReduceMin() int32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) ReduceSum() int32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) SaturateToInt16() Int16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x16) SaturateToInt8() Int8x64 #83009
@@ -1160,6 +1184,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int32x4) Not() Int32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x4) NotEqual(Int32x4) Mask32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x4) OnesCount() Int32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x4) Or(Int32x4) Int32x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int32x4) ReduceMax() int32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int32x4) ReduceMin() int32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x4) ReduceSum() int32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x4) SaturateToInt16() Int16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x4) SaturateToInt8() Int8x16 #83009
@@ -1219,6 +1245,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int32x8) Not() Int32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) NotEqual(Int32x8) Mask32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) OnesCount() Int32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) Or(Int32x8) Int32x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int32x8) ReduceMax() int32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int32x8) ReduceMin() int32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) ReduceSum() int32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) SaturateToInt16() Int16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int32x8) SaturateToInt8() Int8x32 #83009
@@ -1274,6 +1302,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int64x2) Not() Int64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x2) NotEqual(Int64x2) Mask64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x2) OnesCount() Int64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x2) Or(Int64x2) Int64x2 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int64x2) ReduceMax() int64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int64x2) ReduceMin() int64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x2) SaturateToInt16() Int16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x2) SaturateToInt32() Int32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x2) SaturateToInt8() Int8x16 #83009
@@ -1330,6 +1360,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int64x4) Not() Int64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) NotEqual(Int64x4) Mask64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) OnesCount() Int64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) Or(Int64x4) Int64x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int64x4) ReduceMax() int64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int64x4) ReduceMin() int64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) SaturateToInt16() Int16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) SaturateToInt32() Int32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x4) SaturateToInt8() Int8x32 #83009
@@ -1385,6 +1417,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int64x8) Not() Int64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) NotEqual(Int64x8) Mask64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) OnesCount() Int64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) Or(Int64x8) Int64x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int64x8) ReduceMax() int64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int64x8) ReduceMin() int64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) SaturateToInt16() Int16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) SaturateToInt32() Int32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int64x8) SaturateToInt8() Int8x64 #83009
@@ -1446,6 +1480,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int8x16) Not() Int8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x16) NotEqual(Int8x16) Mask8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x16) OnesCount() Int8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x16) Or(Int8x16) Int8x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int8x16) ReduceMax() int8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int8x16) ReduceMin() int8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x16) ReduceSum() int8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x16) SetElem(uint8, int8) Int8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x16) Store([]int8) #83009
@@ -1493,6 +1529,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int8x32) Not() Int8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) NotEqual(Int8x32) Mask8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) OnesCount() Int8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) Or(Int8x32) Int8x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int8x32) ReduceMax() int8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int8x32) ReduceMin() int8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) ReduceSum() int8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) SetHi(Int8x16) Int8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x32) SetLo(Int8x16) Int8x32 #83009
@@ -1539,6 +1577,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Int8x64) Not() Int8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) NotEqual(Int8x64) Mask8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) OnesCount() Int8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) Or(Int8x64) Int8x64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int8x64) ReduceMax() int8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Int8x64) ReduceMin() int8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) ReduceSum() int8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) SetHi(Int8x32) Int8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Int8x64) SetLo(Int8x32) Int8x64 #83009
@@ -1731,6 +1771,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) Not() Uint16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) NotEqual(Uint16x16) Mask16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) OnesCount() Uint16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) Or(Uint16x16) Uint16x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) ReduceMax() uint16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) ReduceMin() uint16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) ReduceSum() uint16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) ReshapeToUint32s() Uint32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x16) ReshapeToUint64s() Uint64x4 #83009
@@ -1783,6 +1825,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) Not() Uint16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) NotEqual(Uint16x32) Mask16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) OnesCount() Uint16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) Or(Uint16x32) Uint16x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) ReduceMax() uint16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) ReduceMin() uint16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) ReduceSum() uint16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) ReshapeToUint32s() Uint32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x32) ReshapeToUint64s() Uint64x8 #83009
@@ -1841,6 +1885,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) Not() Uint16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) NotEqual(Uint16x8) Mask16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) OnesCount() Uint16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) Or(Uint16x8) Uint16x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) ReduceMax() uint16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) ReduceMin() uint16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) ReduceSum() uint16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) ReshapeToUint32s() Uint32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint16x8) ReshapeToUint64s() Uint64x2 #83009
@@ -1893,6 +1939,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) Not() Uint32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) NotEqual(Uint32x16) Mask32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) OnesCount() Uint32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) Or(Uint32x16) Uint32x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) ReduceMax() uint32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) ReduceMin() uint32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) ReduceSum() uint32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) ReshapeToUint16s() Uint16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x16) ReshapeToUint64s() Uint64x8 #83009
@@ -1954,6 +2002,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) Not() Uint32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) NotEqual(Uint32x4) Mask32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) OnesCount() Uint32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) Or(Uint32x4) Uint32x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) ReduceMax() uint32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) ReduceMin() uint32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) ReduceSum() uint32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) ReshapeToUint16s() Uint16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x4) ReshapeToUint64s() Uint64x2 #83009
@@ -2014,6 +2064,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) Not() Uint32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) NotEqual(Uint32x8) Mask32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) OnesCount() Uint32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) Or(Uint32x8) Uint32x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) ReduceMax() uint32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) ReduceMin() uint32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) ReduceSum() uint32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) ReshapeToUint16s() Uint16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint32x8) ReshapeToUint64s() Uint64x4 #83009
@@ -2076,6 +2128,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) Not() Uint64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) NotEqual(Uint64x2) Mask64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) OnesCount() Uint64x2 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) Or(Uint64x2) Uint64x2 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) ReduceMax() uint64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) ReduceMin() uint64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) ReshapeToUint16s() Uint16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) ReshapeToUint32s() Uint32x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x2) ReshapeToUint8s() Uint8x16 #83009
@@ -2138,6 +2192,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) Not() Uint64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) NotEqual(Uint64x4) Mask64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) OnesCount() Uint64x4 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) Or(Uint64x4) Uint64x4 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) ReduceMax() uint64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) ReduceMin() uint64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) ReshapeToUint16s() Uint16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) ReshapeToUint32s() Uint32x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x4) ReshapeToUint8s() Uint8x32 #83009
@@ -2199,6 +2255,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) Not() Uint64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) NotEqual(Uint64x8) Mask64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) OnesCount() Uint64x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) Or(Uint64x8) Uint64x8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) ReduceMax() uint64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) ReduceMin() uint64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) ReshapeToUint16s() Uint16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) ReshapeToUint32s() Uint32x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint64x8) ReshapeToUint8s() Uint8x64 #83009
@@ -2264,6 +2322,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) Not() Uint8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) NotEqual(Uint8x16) Mask8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) OnesCount() Uint8x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) Or(Uint8x16) Uint8x16 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) ReduceMax() uint8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) ReduceMin() uint8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) ReduceSum() uint8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) ReshapeToUint16s() Uint16x8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x16) ReshapeToUint32s() Uint32x4 #83009
@@ -2315,6 +2375,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) Not() Uint8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) NotEqual(Uint8x32) Mask8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) OnesCount() Uint8x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) Or(Uint8x32) Uint8x32 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) ReduceMax() uint8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) ReduceMin() uint8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) ReduceSum() uint8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) ReshapeToUint16s() Uint16x16 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x32) ReshapeToUint32s() Uint32x8 #83009
@@ -2365,6 +2427,8 @@ pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) Not() Uint8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) NotEqual(Uint8x64) Mask8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) OnesCount() Uint8x64 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) Or(Uint8x64) Uint8x64 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) ReduceMax() uint8 #83009
+pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) ReduceMin() uint8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) ReduceSum() uint8 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) ReshapeToUint16s() Uint16x32 #83009
 pkg simd/archsimd (GOARCH=amd64), method (Uint8x64) ReshapeToUint32s() Uint32x16 #83009
