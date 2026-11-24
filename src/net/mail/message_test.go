@@ -1165,6 +1165,14 @@ func TestAddressString(t *testing.T) {
 	}
 }
 
+func TestAddressStringDomainControl(t *testing.T) {
+	a := &Address{Name: "Alice", Address: "alice@example.com\r\nBcc: postmaster"}
+	s := a.String()
+	if strings.ContainsAny(s, "\r\n") {
+		t.Errorf("Address%+v.String() = %q, contains CR or LF", *a, s)
+	}
+}
+
 // Check if all valid addresses can be parsed, formatted and parsed again
 func TestAddressParsingAndFormatting(t *testing.T) {
 

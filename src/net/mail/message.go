@@ -298,6 +298,15 @@ func (a *Address) String() string {
 
 	}
 
+	// Drop characters that are not allowed in a domain, such as CR or
+	// LF, which would otherwise end the header line.
+	domain = strings.Map(func(r rune) rune {
+		if !isVchar(r) {
+			return -1
+		}
+		return r
+	}, domain)
+
 	s := "<" + local + "@" + domain + ">"
 
 	if a.Name == "" {
