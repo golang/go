@@ -46,6 +46,9 @@ type ArshalValues struct {
 	Marshalers   any // jsonflags.Marshalers
 	Unmarshalers any // jsonflags.Unmarshalers
 
+	// TransformUnmarshalError converts a top-level v2 error to a v1 error.
+	TransformUnmarshalError func(any, error) error
+
 	Format string // valid if jsonflags.FormatTag is set
 }
 
@@ -151,6 +154,9 @@ func (dst *Struct) Join(srcs ...Options) {
 			dst.DepthLimit = int(src)
 		case *Struct:
 			dst.Flags.Join(src.Flags)
+			if src.Flags.Has(jsonflags.ReportErrorsWithLegacySemantics) {
+				dst.TransformUnmarshalError = src.TransformUnmarshalError
+			}
 			if src.Flags.Has(jsonflags.NonBooleanFlags) {
 				if src.Flags.Has(jsonflags.Indent) {
 					dst.Indent = src.Indent

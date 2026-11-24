@@ -21,7 +21,6 @@ import (
 // Inject functionality into v2 to properly handle v1 types.
 func init() {
 	internal.TransformMarshalError = transformMarshalError
-	internal.TransformUnmarshalError = transformUnmarshalError
 	internal.NewMarshalerError = func(val any, err error, funcName string) error {
 		return &MarshalerError{reflect.TypeOf(val), err, funcName}
 	}

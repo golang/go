@@ -390,8 +390,8 @@ func Unmarshal(in []byte, out any, opts ...Options) (err error) {
 	defer export.PutBufferedDecoder(dec)
 	xd := export.Decoder(dec)
 	err = unmarshalDecode(dec, out, &xd.Struct, true)
-	if err != nil && xd.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-		return internal.TransformUnmarshalError(out, err)
+	if err != nil && xd.TransformUnmarshalError != nil && xd.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+		return xd.TransformUnmarshalError(out, err)
 	}
 	return err
 }
@@ -410,8 +410,8 @@ func UnmarshalRead(in io.Reader, out any, opts ...Options) (err error) {
 	defer export.PutStreamingDecoder(dec)
 	xd := export.Decoder(dec)
 	err = unmarshalDecode(dec, out, &xd.Struct, true)
-	if err != nil && xd.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-		return internal.TransformUnmarshalError(out, err)
+	if err != nil && xd.TransformUnmarshalError != nil && xd.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+		return xd.TransformUnmarshalError(out, err)
 	}
 	return err
 }
@@ -445,8 +445,8 @@ func UnmarshalDecode(in *jsontext.Decoder, out any, opts ...Options) (err error)
 		}
 	}
 	err = unmarshalDecode(in, out, &xd.Struct, false)
-	if err != nil && xd.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-		return internal.TransformUnmarshalError(out, err)
+	if err != nil && xd.TransformUnmarshalError != nil && xd.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+		return xd.TransformUnmarshalError(out, err)
 	}
 	return err
 }
