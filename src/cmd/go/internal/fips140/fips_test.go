@@ -240,11 +240,10 @@ func TestAliases(t *testing.T) {
 		t.Fatal("no *.txt files in GOROOT/lib/fips140")
 	}
 
-	defer func(origGOFIPS140, origVersion string, origTags []string) {
+	defer func(origGOFIPS140, origVersion string) {
 		cfg.GOFIPS140 = origGOFIPS140
-		cfg.BuildContext.BuildTags = origTags
 		version = origVersion
-	}(cfg.GOFIPS140, version, cfg.BuildContext.BuildTags)
+	}(cfg.GOFIPS140, version)
 
 	for _, txt := range txts {
 		alias := strings.TrimSuffix(filepath.Base(txt), ".txt")
@@ -258,7 +257,6 @@ func TestAliases(t *testing.T) {
 			continue
 		}
 		cfg.GOFIPS140 = alias
-		cfg.BuildContext.BuildTags = nil
 		version = ""
 		initVersion()
 		if version != want {
