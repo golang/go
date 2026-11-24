@@ -20,6 +20,7 @@ import (
 func testInt16x16ConvertToInt8(t *testing.T, f func(x archsimd.Int16x16) archsimd.Int8x32, want func(x []int16) []int8) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -38,6 +39,7 @@ func testInt16x16ConvertToInt8(t *testing.T, f func(x archsimd.Int16x16) archsim
 func testInt32x8ConvertToInt8(t *testing.T, f func(x archsimd.Int32x8) archsimd.Int8x32, want func(x []int32) []int8) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -56,6 +58,7 @@ func testInt32x8ConvertToInt8(t *testing.T, f func(x archsimd.Int32x8) archsimd.
 func testInt64x4ConvertToInt8(t *testing.T, f func(x archsimd.Int64x4) archsimd.Int8x32, want func(x []int64) []int8) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -74,6 +77,7 @@ func testInt64x4ConvertToInt8(t *testing.T, f func(x archsimd.Int64x4) archsimd.
 func testUint8x32ConvertToInt8(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Int8x32, want func(x []uint8) []int8) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -92,6 +96,7 @@ func testUint8x32ConvertToInt8(t *testing.T, f func(x archsimd.Uint8x32) archsim
 func testUint16x16ConvertToInt8(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Int8x32, want func(x []uint16) []int8) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -110,6 +115,7 @@ func testUint16x16ConvertToInt8(t *testing.T, f func(x archsimd.Uint16x16) archs
 func testUint32x8ConvertToInt8(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Int8x32, want func(x []uint32) []int8) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -128,6 +134,7 @@ func testUint32x8ConvertToInt8(t *testing.T, f func(x archsimd.Uint32x8) archsim
 func testUint64x4ConvertToInt8(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Int8x32, want func(x []uint64) []int8) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -146,6 +153,7 @@ func testUint64x4ConvertToInt8(t *testing.T, f func(x archsimd.Uint64x4) archsim
 func testFloat32x8ConvertToInt8(t *testing.T, f func(x archsimd.Float32x8) archsimd.Int8x32, want func(x []float32) []int8) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -164,6 +172,7 @@ func testFloat32x8ConvertToInt8(t *testing.T, f func(x archsimd.Float32x8) archs
 func testFloat64x4ConvertToInt8(t *testing.T, f func(x archsimd.Float64x4) archsimd.Int8x32, want func(x []float64) []int8) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -182,6 +191,7 @@ func testFloat64x4ConvertToInt8(t *testing.T, f func(x archsimd.Float64x4) archs
 func testInt16x32ConvertToInt8(t *testing.T, f func(x archsimd.Int16x32) archsimd.Int8x64, want func(x []int16) []int8) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -200,6 +210,7 @@ func testInt16x32ConvertToInt8(t *testing.T, f func(x archsimd.Int16x32) archsim
 func testInt32x16ConvertToInt8(t *testing.T, f func(x archsimd.Int32x16) archsimd.Int8x64, want func(x []int32) []int8) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -218,6 +229,7 @@ func testInt32x16ConvertToInt8(t *testing.T, f func(x archsimd.Int32x16) archsim
 func testInt64x8ConvertToInt8(t *testing.T, f func(x archsimd.Int64x8) archsimd.Int8x64, want func(x []int64) []int8) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -236,6 +248,7 @@ func testInt64x8ConvertToInt8(t *testing.T, f func(x archsimd.Int64x8) archsimd.
 func testUint8x64ConvertToInt8(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Int8x64, want func(x []uint8) []int8) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -254,6 +267,7 @@ func testUint8x64ConvertToInt8(t *testing.T, f func(x archsimd.Uint8x64) archsim
 func testUint16x32ConvertToInt8(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Int8x64, want func(x []uint16) []int8) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -272,6 +286,7 @@ func testUint16x32ConvertToInt8(t *testing.T, f func(x archsimd.Uint16x32) archs
 func testUint32x16ConvertToInt8(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Int8x64, want func(x []uint32) []int8) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -290,6 +305,7 @@ func testUint32x16ConvertToInt8(t *testing.T, f func(x archsimd.Uint32x16) archs
 func testUint64x8ConvertToInt8(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Int8x64, want func(x []uint64) []int8) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -308,6 +324,7 @@ func testUint64x8ConvertToInt8(t *testing.T, f func(x archsimd.Uint64x8) archsim
 func testFloat32x16ConvertToInt8(t *testing.T, f func(x archsimd.Float32x16) archsimd.Int8x64, want func(x []float32) []int8) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -326,6 +343,7 @@ func testFloat32x16ConvertToInt8(t *testing.T, f func(x archsimd.Float32x16) arc
 func testFloat64x8ConvertToInt8(t *testing.T, f func(x archsimd.Float64x8) archsimd.Int8x64, want func(x []float64) []int8) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -344,6 +362,7 @@ func testFloat64x8ConvertToInt8(t *testing.T, f func(x archsimd.Float64x8) archs
 func testInt8x32ConvertToUint8(t *testing.T, f func(x archsimd.Int8x32) archsimd.Uint8x32, want func(x []int8) []uint8) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -362,6 +381,7 @@ func testInt8x32ConvertToUint8(t *testing.T, f func(x archsimd.Int8x32) archsimd
 func testInt16x16ConvertToUint8(t *testing.T, f func(x archsimd.Int16x16) archsimd.Uint8x32, want func(x []int16) []uint8) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -380,6 +400,7 @@ func testInt16x16ConvertToUint8(t *testing.T, f func(x archsimd.Int16x16) archsi
 func testInt32x8ConvertToUint8(t *testing.T, f func(x archsimd.Int32x8) archsimd.Uint8x32, want func(x []int32) []uint8) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -398,6 +419,7 @@ func testInt32x8ConvertToUint8(t *testing.T, f func(x archsimd.Int32x8) archsimd
 func testInt64x4ConvertToUint8(t *testing.T, f func(x archsimd.Int64x4) archsimd.Uint8x32, want func(x []int64) []uint8) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -416,6 +438,7 @@ func testInt64x4ConvertToUint8(t *testing.T, f func(x archsimd.Int64x4) archsimd
 func testUint16x16ConvertToUint8(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Uint8x32, want func(x []uint16) []uint8) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -434,6 +457,7 @@ func testUint16x16ConvertToUint8(t *testing.T, f func(x archsimd.Uint16x16) arch
 func testUint32x8ConvertToUint8(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Uint8x32, want func(x []uint32) []uint8) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -452,6 +476,7 @@ func testUint32x8ConvertToUint8(t *testing.T, f func(x archsimd.Uint32x8) archsi
 func testUint64x4ConvertToUint8(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Uint8x32, want func(x []uint64) []uint8) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -470,6 +495,7 @@ func testUint64x4ConvertToUint8(t *testing.T, f func(x archsimd.Uint64x4) archsi
 func testFloat32x8ConvertToUint8(t *testing.T, f func(x archsimd.Float32x8) archsimd.Uint8x32, want func(x []float32) []uint8) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -488,6 +514,7 @@ func testFloat32x8ConvertToUint8(t *testing.T, f func(x archsimd.Float32x8) arch
 func testFloat64x4ConvertToUint8(t *testing.T, f func(x archsimd.Float64x4) archsimd.Uint8x32, want func(x []float64) []uint8) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -506,6 +533,7 @@ func testFloat64x4ConvertToUint8(t *testing.T, f func(x archsimd.Float64x4) arch
 func testInt8x64ConvertToUint8(t *testing.T, f func(x archsimd.Int8x64) archsimd.Uint8x64, want func(x []int8) []uint8) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -524,6 +552,7 @@ func testInt8x64ConvertToUint8(t *testing.T, f func(x archsimd.Int8x64) archsimd
 func testInt16x32ConvertToUint8(t *testing.T, f func(x archsimd.Int16x32) archsimd.Uint8x64, want func(x []int16) []uint8) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -542,6 +571,7 @@ func testInt16x32ConvertToUint8(t *testing.T, f func(x archsimd.Int16x32) archsi
 func testInt32x16ConvertToUint8(t *testing.T, f func(x archsimd.Int32x16) archsimd.Uint8x64, want func(x []int32) []uint8) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -560,6 +590,7 @@ func testInt32x16ConvertToUint8(t *testing.T, f func(x archsimd.Int32x16) archsi
 func testInt64x8ConvertToUint8(t *testing.T, f func(x archsimd.Int64x8) archsimd.Uint8x64, want func(x []int64) []uint8) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -578,6 +609,7 @@ func testInt64x8ConvertToUint8(t *testing.T, f func(x archsimd.Int64x8) archsimd
 func testUint16x32ConvertToUint8(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Uint8x64, want func(x []uint16) []uint8) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -596,6 +628,7 @@ func testUint16x32ConvertToUint8(t *testing.T, f func(x archsimd.Uint16x32) arch
 func testUint32x16ConvertToUint8(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Uint8x64, want func(x []uint32) []uint8) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -614,6 +647,7 @@ func testUint32x16ConvertToUint8(t *testing.T, f func(x archsimd.Uint32x16) arch
 func testUint64x8ConvertToUint8(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Uint8x64, want func(x []uint64) []uint8) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -632,6 +666,7 @@ func testUint64x8ConvertToUint8(t *testing.T, f func(x archsimd.Uint64x8) archsi
 func testFloat32x16ConvertToUint8(t *testing.T, f func(x archsimd.Float32x16) archsimd.Uint8x64, want func(x []float32) []uint8) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -650,6 +685,7 @@ func testFloat32x16ConvertToUint8(t *testing.T, f func(x archsimd.Float32x16) ar
 func testFloat64x8ConvertToUint8(t *testing.T, f func(x archsimd.Float64x8) archsimd.Uint8x64, want func(x []float64) []uint8) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -668,6 +704,7 @@ func testFloat64x8ConvertToUint8(t *testing.T, f func(x archsimd.Float64x8) arch
 func testInt8x32ConvertToInt16(t *testing.T, f func(x archsimd.Int8x32) archsimd.Int16x16, want func(x []int8) []int16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -686,6 +723,7 @@ func testInt8x32ConvertToInt16(t *testing.T, f func(x archsimd.Int8x32) archsimd
 func testInt32x8ConvertToInt16(t *testing.T, f func(x archsimd.Int32x8) archsimd.Int16x16, want func(x []int32) []int16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -704,6 +742,7 @@ func testInt32x8ConvertToInt16(t *testing.T, f func(x archsimd.Int32x8) archsimd
 func testInt64x4ConvertToInt16(t *testing.T, f func(x archsimd.Int64x4) archsimd.Int16x16, want func(x []int64) []int16) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -722,6 +761,7 @@ func testInt64x4ConvertToInt16(t *testing.T, f func(x archsimd.Int64x4) archsimd
 func testUint8x32ConvertToInt16(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Int16x16, want func(x []uint8) []int16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -740,6 +780,7 @@ func testUint8x32ConvertToInt16(t *testing.T, f func(x archsimd.Uint8x32) archsi
 func testUint16x16ConvertToInt16(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Int16x16, want func(x []uint16) []int16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -758,6 +799,7 @@ func testUint16x16ConvertToInt16(t *testing.T, f func(x archsimd.Uint16x16) arch
 func testUint32x8ConvertToInt16(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Int16x16, want func(x []uint32) []int16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -776,6 +818,7 @@ func testUint32x8ConvertToInt16(t *testing.T, f func(x archsimd.Uint32x8) archsi
 func testUint64x4ConvertToInt16(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Int16x16, want func(x []uint64) []int16) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -794,6 +837,7 @@ func testUint64x4ConvertToInt16(t *testing.T, f func(x archsimd.Uint64x4) archsi
 func testFloat32x8ConvertToInt16(t *testing.T, f func(x archsimd.Float32x8) archsimd.Int16x16, want func(x []float32) []int16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -812,6 +856,7 @@ func testFloat32x8ConvertToInt16(t *testing.T, f func(x archsimd.Float32x8) arch
 func testFloat64x4ConvertToInt16(t *testing.T, f func(x archsimd.Float64x4) archsimd.Int16x16, want func(x []float64) []int16) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -830,6 +875,7 @@ func testFloat64x4ConvertToInt16(t *testing.T, f func(x archsimd.Float64x4) arch
 func testInt8x64ConvertToInt16(t *testing.T, f func(x archsimd.Int8x64) archsimd.Int16x32, want func(x []int8) []int16) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -848,6 +894,7 @@ func testInt8x64ConvertToInt16(t *testing.T, f func(x archsimd.Int8x64) archsimd
 func testInt32x16ConvertToInt16(t *testing.T, f func(x archsimd.Int32x16) archsimd.Int16x32, want func(x []int32) []int16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -866,6 +913,7 @@ func testInt32x16ConvertToInt16(t *testing.T, f func(x archsimd.Int32x16) archsi
 func testInt64x8ConvertToInt16(t *testing.T, f func(x archsimd.Int64x8) archsimd.Int16x32, want func(x []int64) []int16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -884,6 +932,7 @@ func testInt64x8ConvertToInt16(t *testing.T, f func(x archsimd.Int64x8) archsimd
 func testUint8x64ConvertToInt16(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Int16x32, want func(x []uint8) []int16) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -902,6 +951,7 @@ func testUint8x64ConvertToInt16(t *testing.T, f func(x archsimd.Uint8x64) archsi
 func testUint16x32ConvertToInt16(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Int16x32, want func(x []uint16) []int16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -920,6 +970,7 @@ func testUint16x32ConvertToInt16(t *testing.T, f func(x archsimd.Uint16x32) arch
 func testUint32x16ConvertToInt16(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Int16x32, want func(x []uint32) []int16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -938,6 +989,7 @@ func testUint32x16ConvertToInt16(t *testing.T, f func(x archsimd.Uint32x16) arch
 func testUint64x8ConvertToInt16(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Int16x32, want func(x []uint64) []int16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -956,6 +1008,7 @@ func testUint64x8ConvertToInt16(t *testing.T, f func(x archsimd.Uint64x8) archsi
 func testFloat32x16ConvertToInt16(t *testing.T, f func(x archsimd.Float32x16) archsimd.Int16x32, want func(x []float32) []int16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -974,6 +1027,7 @@ func testFloat32x16ConvertToInt16(t *testing.T, f func(x archsimd.Float32x16) ar
 func testFloat64x8ConvertToInt16(t *testing.T, f func(x archsimd.Float64x8) archsimd.Int16x32, want func(x []float64) []int16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -992,6 +1046,7 @@ func testFloat64x8ConvertToInt16(t *testing.T, f func(x archsimd.Float64x8) arch
 func testInt8x32ConvertToUint16(t *testing.T, f func(x archsimd.Int8x32) archsimd.Uint16x16, want func(x []int8) []uint16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -1010,6 +1065,7 @@ func testInt8x32ConvertToUint16(t *testing.T, f func(x archsimd.Int8x32) archsim
 func testInt16x16ConvertToUint16(t *testing.T, f func(x archsimd.Int16x16) archsimd.Uint16x16, want func(x []int16) []uint16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -1028,6 +1084,7 @@ func testInt16x16ConvertToUint16(t *testing.T, f func(x archsimd.Int16x16) archs
 func testInt32x8ConvertToUint16(t *testing.T, f func(x archsimd.Int32x8) archsimd.Uint16x16, want func(x []int32) []uint16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -1046,6 +1103,7 @@ func testInt32x8ConvertToUint16(t *testing.T, f func(x archsimd.Int32x8) archsim
 func testInt64x4ConvertToUint16(t *testing.T, f func(x archsimd.Int64x4) archsimd.Uint16x16, want func(x []int64) []uint16) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -1064,6 +1122,7 @@ func testInt64x4ConvertToUint16(t *testing.T, f func(x archsimd.Int64x4) archsim
 func testUint8x32ConvertToUint16(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Uint16x16, want func(x []uint8) []uint16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -1082,6 +1141,7 @@ func testUint8x32ConvertToUint16(t *testing.T, f func(x archsimd.Uint8x32) archs
 func testUint32x8ConvertToUint16(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Uint16x16, want func(x []uint32) []uint16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -1100,6 +1160,7 @@ func testUint32x8ConvertToUint16(t *testing.T, f func(x archsimd.Uint32x8) archs
 func testUint64x4ConvertToUint16(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Uint16x16, want func(x []uint64) []uint16) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -1118,6 +1179,7 @@ func testUint64x4ConvertToUint16(t *testing.T, f func(x archsimd.Uint64x4) archs
 func testFloat32x8ConvertToUint16(t *testing.T, f func(x archsimd.Float32x8) archsimd.Uint16x16, want func(x []float32) []uint16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -1136,6 +1198,7 @@ func testFloat32x8ConvertToUint16(t *testing.T, f func(x archsimd.Float32x8) arc
 func testFloat64x4ConvertToUint16(t *testing.T, f func(x archsimd.Float64x4) archsimd.Uint16x16, want func(x []float64) []uint16) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -1154,6 +1217,7 @@ func testFloat64x4ConvertToUint16(t *testing.T, f func(x archsimd.Float64x4) arc
 func testInt8x64ConvertToUint16(t *testing.T, f func(x archsimd.Int8x64) archsimd.Uint16x32, want func(x []int8) []uint16) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -1172,6 +1236,7 @@ func testInt8x64ConvertToUint16(t *testing.T, f func(x archsimd.Int8x64) archsim
 func testInt16x32ConvertToUint16(t *testing.T, f func(x archsimd.Int16x32) archsimd.Uint16x32, want func(x []int16) []uint16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -1190,6 +1255,7 @@ func testInt16x32ConvertToUint16(t *testing.T, f func(x archsimd.Int16x32) archs
 func testInt32x16ConvertToUint16(t *testing.T, f func(x archsimd.Int32x16) archsimd.Uint16x32, want func(x []int32) []uint16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -1208,6 +1274,7 @@ func testInt32x16ConvertToUint16(t *testing.T, f func(x archsimd.Int32x16) archs
 func testInt64x8ConvertToUint16(t *testing.T, f func(x archsimd.Int64x8) archsimd.Uint16x32, want func(x []int64) []uint16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -1226,6 +1293,7 @@ func testInt64x8ConvertToUint16(t *testing.T, f func(x archsimd.Int64x8) archsim
 func testUint8x64ConvertToUint16(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Uint16x32, want func(x []uint8) []uint16) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -1244,6 +1312,7 @@ func testUint8x64ConvertToUint16(t *testing.T, f func(x archsimd.Uint8x64) archs
 func testUint32x16ConvertToUint16(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Uint16x32, want func(x []uint32) []uint16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -1262,6 +1331,7 @@ func testUint32x16ConvertToUint16(t *testing.T, f func(x archsimd.Uint32x16) arc
 func testUint64x8ConvertToUint16(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Uint16x32, want func(x []uint64) []uint16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -1280,6 +1350,7 @@ func testUint64x8ConvertToUint16(t *testing.T, f func(x archsimd.Uint64x8) archs
 func testFloat32x16ConvertToUint16(t *testing.T, f func(x archsimd.Float32x16) archsimd.Uint16x32, want func(x []float32) []uint16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -1298,6 +1369,7 @@ func testFloat32x16ConvertToUint16(t *testing.T, f func(x archsimd.Float32x16) a
 func testFloat64x8ConvertToUint16(t *testing.T, f func(x archsimd.Float64x8) archsimd.Uint16x32, want func(x []float64) []uint16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -1316,6 +1388,7 @@ func testFloat64x8ConvertToUint16(t *testing.T, f func(x archsimd.Float64x8) arc
 func testInt8x32ConvertToInt32(t *testing.T, f func(x archsimd.Int8x32) archsimd.Int32x8, want func(x []int8) []int32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -1334,6 +1407,7 @@ func testInt8x32ConvertToInt32(t *testing.T, f func(x archsimd.Int8x32) archsimd
 func testInt16x16ConvertToInt32(t *testing.T, f func(x archsimd.Int16x16) archsimd.Int32x8, want func(x []int16) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -1352,6 +1426,7 @@ func testInt16x16ConvertToInt32(t *testing.T, f func(x archsimd.Int16x16) archsi
 func testInt64x4ConvertToInt32(t *testing.T, f func(x archsimd.Int64x4) archsimd.Int32x8, want func(x []int64) []int32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -1370,6 +1445,7 @@ func testInt64x4ConvertToInt32(t *testing.T, f func(x archsimd.Int64x4) archsimd
 func testUint8x32ConvertToInt32(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Int32x8, want func(x []uint8) []int32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -1388,6 +1464,7 @@ func testUint8x32ConvertToInt32(t *testing.T, f func(x archsimd.Uint8x32) archsi
 func testUint16x16ConvertToInt32(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Int32x8, want func(x []uint16) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -1406,6 +1483,7 @@ func testUint16x16ConvertToInt32(t *testing.T, f func(x archsimd.Uint16x16) arch
 func testUint32x8ConvertToInt32(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Int32x8, want func(x []uint32) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -1424,6 +1502,7 @@ func testUint32x8ConvertToInt32(t *testing.T, f func(x archsimd.Uint32x8) archsi
 func testUint64x4ConvertToInt32(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Int32x8, want func(x []uint64) []int32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -1442,6 +1521,7 @@ func testUint64x4ConvertToInt32(t *testing.T, f func(x archsimd.Uint64x4) archsi
 func testFloat32x8ConvertToInt32(t *testing.T, f func(x archsimd.Float32x8) archsimd.Int32x8, want func(x []float32) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -1460,6 +1540,7 @@ func testFloat32x8ConvertToInt32(t *testing.T, f func(x archsimd.Float32x8) arch
 func testFloat64x4ConvertToInt32(t *testing.T, f func(x archsimd.Float64x4) archsimd.Int32x8, want func(x []float64) []int32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -1478,6 +1559,7 @@ func testFloat64x4ConvertToInt32(t *testing.T, f func(x archsimd.Float64x4) arch
 func testInt8x64ConvertToInt32(t *testing.T, f func(x archsimd.Int8x64) archsimd.Int32x16, want func(x []int8) []int32) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -1496,6 +1578,7 @@ func testInt8x64ConvertToInt32(t *testing.T, f func(x archsimd.Int8x64) archsimd
 func testInt16x32ConvertToInt32(t *testing.T, f func(x archsimd.Int16x32) archsimd.Int32x16, want func(x []int16) []int32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -1514,6 +1597,7 @@ func testInt16x32ConvertToInt32(t *testing.T, f func(x archsimd.Int16x32) archsi
 func testInt64x8ConvertToInt32(t *testing.T, f func(x archsimd.Int64x8) archsimd.Int32x16, want func(x []int64) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -1532,6 +1616,7 @@ func testInt64x8ConvertToInt32(t *testing.T, f func(x archsimd.Int64x8) archsimd
 func testUint8x64ConvertToInt32(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Int32x16, want func(x []uint8) []int32) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -1550,6 +1635,7 @@ func testUint8x64ConvertToInt32(t *testing.T, f func(x archsimd.Uint8x64) archsi
 func testUint16x32ConvertToInt32(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Int32x16, want func(x []uint16) []int32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -1568,6 +1654,7 @@ func testUint16x32ConvertToInt32(t *testing.T, f func(x archsimd.Uint16x32) arch
 func testUint32x16ConvertToInt32(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Int32x16, want func(x []uint32) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -1586,6 +1673,7 @@ func testUint32x16ConvertToInt32(t *testing.T, f func(x archsimd.Uint32x16) arch
 func testUint64x8ConvertToInt32(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Int32x16, want func(x []uint64) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -1604,6 +1692,7 @@ func testUint64x8ConvertToInt32(t *testing.T, f func(x archsimd.Uint64x8) archsi
 func testFloat32x16ConvertToInt32(t *testing.T, f func(x archsimd.Float32x16) archsimd.Int32x16, want func(x []float32) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -1622,6 +1711,7 @@ func testFloat32x16ConvertToInt32(t *testing.T, f func(x archsimd.Float32x16) ar
 func testFloat64x8ConvertToInt32(t *testing.T, f func(x archsimd.Float64x8) archsimd.Int32x16, want func(x []float64) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -1640,6 +1730,7 @@ func testFloat64x8ConvertToInt32(t *testing.T, f func(x archsimd.Float64x8) arch
 func testInt8x32ConvertToUint32(t *testing.T, f func(x archsimd.Int8x32) archsimd.Uint32x8, want func(x []int8) []uint32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -1658,6 +1749,7 @@ func testInt8x32ConvertToUint32(t *testing.T, f func(x archsimd.Int8x32) archsim
 func testInt16x16ConvertToUint32(t *testing.T, f func(x archsimd.Int16x16) archsimd.Uint32x8, want func(x []int16) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -1676,6 +1768,7 @@ func testInt16x16ConvertToUint32(t *testing.T, f func(x archsimd.Int16x16) archs
 func testInt32x8ConvertToUint32(t *testing.T, f func(x archsimd.Int32x8) archsimd.Uint32x8, want func(x []int32) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -1694,6 +1787,7 @@ func testInt32x8ConvertToUint32(t *testing.T, f func(x archsimd.Int32x8) archsim
 func testInt64x4ConvertToUint32(t *testing.T, f func(x archsimd.Int64x4) archsimd.Uint32x8, want func(x []int64) []uint32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -1712,6 +1806,7 @@ func testInt64x4ConvertToUint32(t *testing.T, f func(x archsimd.Int64x4) archsim
 func testUint8x32ConvertToUint32(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Uint32x8, want func(x []uint8) []uint32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -1730,6 +1825,7 @@ func testUint8x32ConvertToUint32(t *testing.T, f func(x archsimd.Uint8x32) archs
 func testUint16x16ConvertToUint32(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Uint32x8, want func(x []uint16) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -1748,6 +1844,7 @@ func testUint16x16ConvertToUint32(t *testing.T, f func(x archsimd.Uint16x16) arc
 func testUint64x4ConvertToUint32(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Uint32x8, want func(x []uint64) []uint32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -1766,6 +1863,7 @@ func testUint64x4ConvertToUint32(t *testing.T, f func(x archsimd.Uint64x4) archs
 func testFloat32x8ConvertToUint32(t *testing.T, f func(x archsimd.Float32x8) archsimd.Uint32x8, want func(x []float32) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -1784,6 +1882,7 @@ func testFloat32x8ConvertToUint32(t *testing.T, f func(x archsimd.Float32x8) arc
 func testFloat64x4ConvertToUint32(t *testing.T, f func(x archsimd.Float64x4) archsimd.Uint32x8, want func(x []float64) []uint32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -1802,6 +1901,7 @@ func testFloat64x4ConvertToUint32(t *testing.T, f func(x archsimd.Float64x4) arc
 func testInt8x64ConvertToUint32(t *testing.T, f func(x archsimd.Int8x64) archsimd.Uint32x16, want func(x []int8) []uint32) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -1820,6 +1920,7 @@ func testInt8x64ConvertToUint32(t *testing.T, f func(x archsimd.Int8x64) archsim
 func testInt16x32ConvertToUint32(t *testing.T, f func(x archsimd.Int16x32) archsimd.Uint32x16, want func(x []int16) []uint32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -1838,6 +1939,7 @@ func testInt16x32ConvertToUint32(t *testing.T, f func(x archsimd.Int16x32) archs
 func testInt32x16ConvertToUint32(t *testing.T, f func(x archsimd.Int32x16) archsimd.Uint32x16, want func(x []int32) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -1856,6 +1958,7 @@ func testInt32x16ConvertToUint32(t *testing.T, f func(x archsimd.Int32x16) archs
 func testInt64x8ConvertToUint32(t *testing.T, f func(x archsimd.Int64x8) archsimd.Uint32x16, want func(x []int64) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -1874,6 +1977,7 @@ func testInt64x8ConvertToUint32(t *testing.T, f func(x archsimd.Int64x8) archsim
 func testUint8x64ConvertToUint32(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Uint32x16, want func(x []uint8) []uint32) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -1892,6 +1996,7 @@ func testUint8x64ConvertToUint32(t *testing.T, f func(x archsimd.Uint8x64) archs
 func testUint16x32ConvertToUint32(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Uint32x16, want func(x []uint16) []uint32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -1910,6 +2015,7 @@ func testUint16x32ConvertToUint32(t *testing.T, f func(x archsimd.Uint16x32) arc
 func testUint64x8ConvertToUint32(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Uint32x16, want func(x []uint64) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -1928,6 +2034,7 @@ func testUint64x8ConvertToUint32(t *testing.T, f func(x archsimd.Uint64x8) archs
 func testFloat32x16ConvertToUint32(t *testing.T, f func(x archsimd.Float32x16) archsimd.Uint32x16, want func(x []float32) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -1946,6 +2053,7 @@ func testFloat32x16ConvertToUint32(t *testing.T, f func(x archsimd.Float32x16) a
 func testFloat64x8ConvertToUint32(t *testing.T, f func(x archsimd.Float64x8) archsimd.Uint32x16, want func(x []float64) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -1964,6 +2072,7 @@ func testFloat64x8ConvertToUint32(t *testing.T, f func(x archsimd.Float64x8) arc
 func testInt8x32ConvertToInt64(t *testing.T, f func(x archsimd.Int8x32) archsimd.Int64x4, want func(x []int8) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -1982,6 +2091,7 @@ func testInt8x32ConvertToInt64(t *testing.T, f func(x archsimd.Int8x32) archsimd
 func testInt16x16ConvertToInt64(t *testing.T, f func(x archsimd.Int16x16) archsimd.Int64x4, want func(x []int16) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -2000,6 +2110,7 @@ func testInt16x16ConvertToInt64(t *testing.T, f func(x archsimd.Int16x16) archsi
 func testInt32x8ConvertToInt64(t *testing.T, f func(x archsimd.Int32x8) archsimd.Int64x4, want func(x []int32) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -2018,6 +2129,7 @@ func testInt32x8ConvertToInt64(t *testing.T, f func(x archsimd.Int32x8) archsimd
 func testUint8x32ConvertToInt64(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Int64x4, want func(x []uint8) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -2036,6 +2148,7 @@ func testUint8x32ConvertToInt64(t *testing.T, f func(x archsimd.Uint8x32) archsi
 func testUint16x16ConvertToInt64(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Int64x4, want func(x []uint16) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -2054,6 +2167,7 @@ func testUint16x16ConvertToInt64(t *testing.T, f func(x archsimd.Uint16x16) arch
 func testUint32x8ConvertToInt64(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Int64x4, want func(x []uint32) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -2072,6 +2186,7 @@ func testUint32x8ConvertToInt64(t *testing.T, f func(x archsimd.Uint32x8) archsi
 func testUint64x4ConvertToInt64(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Int64x4, want func(x []uint64) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -2090,6 +2205,7 @@ func testUint64x4ConvertToInt64(t *testing.T, f func(x archsimd.Uint64x4) archsi
 func testFloat32x8ConvertToInt64(t *testing.T, f func(x archsimd.Float32x8) archsimd.Int64x4, want func(x []float32) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -2108,6 +2224,7 @@ func testFloat32x8ConvertToInt64(t *testing.T, f func(x archsimd.Float32x8) arch
 func testFloat64x4ConvertToInt64(t *testing.T, f func(x archsimd.Float64x4) archsimd.Int64x4, want func(x []float64) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -2126,6 +2243,7 @@ func testFloat64x4ConvertToInt64(t *testing.T, f func(x archsimd.Float64x4) arch
 func testInt8x64ConvertToInt64(t *testing.T, f func(x archsimd.Int8x64) archsimd.Int64x8, want func(x []int8) []int64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -2144,6 +2262,7 @@ func testInt8x64ConvertToInt64(t *testing.T, f func(x archsimd.Int8x64) archsimd
 func testInt16x32ConvertToInt64(t *testing.T, f func(x archsimd.Int16x32) archsimd.Int64x8, want func(x []int16) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -2162,6 +2281,7 @@ func testInt16x32ConvertToInt64(t *testing.T, f func(x archsimd.Int16x32) archsi
 func testInt32x16ConvertToInt64(t *testing.T, f func(x archsimd.Int32x16) archsimd.Int64x8, want func(x []int32) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -2180,6 +2300,7 @@ func testInt32x16ConvertToInt64(t *testing.T, f func(x archsimd.Int32x16) archsi
 func testUint8x64ConvertToInt64(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Int64x8, want func(x []uint8) []int64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -2198,6 +2319,7 @@ func testUint8x64ConvertToInt64(t *testing.T, f func(x archsimd.Uint8x64) archsi
 func testUint16x32ConvertToInt64(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Int64x8, want func(x []uint16) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -2216,6 +2338,7 @@ func testUint16x32ConvertToInt64(t *testing.T, f func(x archsimd.Uint16x32) arch
 func testUint32x16ConvertToInt64(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Int64x8, want func(x []uint32) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -2234,6 +2357,7 @@ func testUint32x16ConvertToInt64(t *testing.T, f func(x archsimd.Uint32x16) arch
 func testUint64x8ConvertToInt64(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Int64x8, want func(x []uint64) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -2252,6 +2376,7 @@ func testUint64x8ConvertToInt64(t *testing.T, f func(x archsimd.Uint64x8) archsi
 func testFloat32x16ConvertToInt64(t *testing.T, f func(x archsimd.Float32x16) archsimd.Int64x8, want func(x []float32) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -2270,6 +2395,7 @@ func testFloat32x16ConvertToInt64(t *testing.T, f func(x archsimd.Float32x16) ar
 func testFloat64x8ConvertToInt64(t *testing.T, f func(x archsimd.Float64x8) archsimd.Int64x8, want func(x []float64) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -2288,6 +2414,7 @@ func testFloat64x8ConvertToInt64(t *testing.T, f func(x archsimd.Float64x8) arch
 func testInt8x32ConvertToUint64(t *testing.T, f func(x archsimd.Int8x32) archsimd.Uint64x4, want func(x []int8) []uint64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -2306,6 +2433,7 @@ func testInt8x32ConvertToUint64(t *testing.T, f func(x archsimd.Int8x32) archsim
 func testInt16x16ConvertToUint64(t *testing.T, f func(x archsimd.Int16x16) archsimd.Uint64x4, want func(x []int16) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -2324,6 +2452,7 @@ func testInt16x16ConvertToUint64(t *testing.T, f func(x archsimd.Int16x16) archs
 func testInt32x8ConvertToUint64(t *testing.T, f func(x archsimd.Int32x8) archsimd.Uint64x4, want func(x []int32) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -2342,6 +2471,7 @@ func testInt32x8ConvertToUint64(t *testing.T, f func(x archsimd.Int32x8) archsim
 func testInt64x4ConvertToUint64(t *testing.T, f func(x archsimd.Int64x4) archsimd.Uint64x4, want func(x []int64) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -2360,6 +2490,7 @@ func testInt64x4ConvertToUint64(t *testing.T, f func(x archsimd.Int64x4) archsim
 func testUint8x32ConvertToUint64(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Uint64x4, want func(x []uint8) []uint64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -2378,6 +2509,7 @@ func testUint8x32ConvertToUint64(t *testing.T, f func(x archsimd.Uint8x32) archs
 func testUint16x16ConvertToUint64(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Uint64x4, want func(x []uint16) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -2396,6 +2528,7 @@ func testUint16x16ConvertToUint64(t *testing.T, f func(x archsimd.Uint16x16) arc
 func testUint32x8ConvertToUint64(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Uint64x4, want func(x []uint32) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -2414,6 +2547,7 @@ func testUint32x8ConvertToUint64(t *testing.T, f func(x archsimd.Uint32x8) archs
 func testFloat32x8ConvertToUint64(t *testing.T, f func(x archsimd.Float32x8) archsimd.Uint64x4, want func(x []float32) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -2432,6 +2566,7 @@ func testFloat32x8ConvertToUint64(t *testing.T, f func(x archsimd.Float32x8) arc
 func testFloat64x4ConvertToUint64(t *testing.T, f func(x archsimd.Float64x4) archsimd.Uint64x4, want func(x []float64) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -2450,6 +2585,7 @@ func testFloat64x4ConvertToUint64(t *testing.T, f func(x archsimd.Float64x4) arc
 func testInt8x64ConvertToUint64(t *testing.T, f func(x archsimd.Int8x64) archsimd.Uint64x8, want func(x []int8) []uint64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -2468,6 +2604,7 @@ func testInt8x64ConvertToUint64(t *testing.T, f func(x archsimd.Int8x64) archsim
 func testInt16x32ConvertToUint64(t *testing.T, f func(x archsimd.Int16x32) archsimd.Uint64x8, want func(x []int16) []uint64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -2486,6 +2623,7 @@ func testInt16x32ConvertToUint64(t *testing.T, f func(x archsimd.Int16x32) archs
 func testInt32x16ConvertToUint64(t *testing.T, f func(x archsimd.Int32x16) archsimd.Uint64x8, want func(x []int32) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -2504,6 +2642,7 @@ func testInt32x16ConvertToUint64(t *testing.T, f func(x archsimd.Int32x16) archs
 func testInt64x8ConvertToUint64(t *testing.T, f func(x archsimd.Int64x8) archsimd.Uint64x8, want func(x []int64) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -2522,6 +2661,7 @@ func testInt64x8ConvertToUint64(t *testing.T, f func(x archsimd.Int64x8) archsim
 func testUint8x64ConvertToUint64(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Uint64x8, want func(x []uint8) []uint64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -2540,6 +2680,7 @@ func testUint8x64ConvertToUint64(t *testing.T, f func(x archsimd.Uint8x64) archs
 func testUint16x32ConvertToUint64(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Uint64x8, want func(x []uint16) []uint64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -2558,6 +2699,7 @@ func testUint16x32ConvertToUint64(t *testing.T, f func(x archsimd.Uint16x32) arc
 func testUint32x16ConvertToUint64(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Uint64x8, want func(x []uint32) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -2576,6 +2718,7 @@ func testUint32x16ConvertToUint64(t *testing.T, f func(x archsimd.Uint32x16) arc
 func testFloat32x16ConvertToUint64(t *testing.T, f func(x archsimd.Float32x16) archsimd.Uint64x8, want func(x []float32) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -2594,6 +2737,7 @@ func testFloat32x16ConvertToUint64(t *testing.T, f func(x archsimd.Float32x16) a
 func testFloat64x8ConvertToUint64(t *testing.T, f func(x archsimd.Float64x8) archsimd.Uint64x8, want func(x []float64) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -2612,6 +2756,7 @@ func testFloat64x8ConvertToUint64(t *testing.T, f func(x archsimd.Float64x8) arc
 func testInt8x32ConvertToFloat32(t *testing.T, f func(x archsimd.Int8x32) archsimd.Float32x8, want func(x []int8) []float32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -2630,6 +2775,7 @@ func testInt8x32ConvertToFloat32(t *testing.T, f func(x archsimd.Int8x32) archsi
 func testInt16x16ConvertToFloat32(t *testing.T, f func(x archsimd.Int16x16) archsimd.Float32x8, want func(x []int16) []float32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -2648,6 +2794,7 @@ func testInt16x16ConvertToFloat32(t *testing.T, f func(x archsimd.Int16x16) arch
 func testInt32x8ConvertToFloat32(t *testing.T, f func(x archsimd.Int32x8) archsimd.Float32x8, want func(x []int32) []float32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -2666,6 +2813,7 @@ func testInt32x8ConvertToFloat32(t *testing.T, f func(x archsimd.Int32x8) archsi
 func testInt64x4ConvertToFloat32(t *testing.T, f func(x archsimd.Int64x4) archsimd.Float32x8, want func(x []int64) []float32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -2684,6 +2832,7 @@ func testInt64x4ConvertToFloat32(t *testing.T, f func(x archsimd.Int64x4) archsi
 func testUint8x32ConvertToFloat32(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Float32x8, want func(x []uint8) []float32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -2702,6 +2851,7 @@ func testUint8x32ConvertToFloat32(t *testing.T, f func(x archsimd.Uint8x32) arch
 func testUint16x16ConvertToFloat32(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Float32x8, want func(x []uint16) []float32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -2720,6 +2870,7 @@ func testUint16x16ConvertToFloat32(t *testing.T, f func(x archsimd.Uint16x16) ar
 func testUint32x8ConvertToFloat32(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Float32x8, want func(x []uint32) []float32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -2738,6 +2889,7 @@ func testUint32x8ConvertToFloat32(t *testing.T, f func(x archsimd.Uint32x8) arch
 func testUint64x4ConvertToFloat32(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Float32x8, want func(x []uint64) []float32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -2756,6 +2908,7 @@ func testUint64x4ConvertToFloat32(t *testing.T, f func(x archsimd.Uint64x4) arch
 func testFloat64x4ConvertToFloat32(t *testing.T, f func(x archsimd.Float64x4) archsimd.Float32x8, want func(x []float64) []float32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -2774,6 +2927,7 @@ func testFloat64x4ConvertToFloat32(t *testing.T, f func(x archsimd.Float64x4) ar
 func testInt8x64ConvertToFloat32(t *testing.T, f func(x archsimd.Int8x64) archsimd.Float32x16, want func(x []int8) []float32) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -2792,6 +2946,7 @@ func testInt8x64ConvertToFloat32(t *testing.T, f func(x archsimd.Int8x64) archsi
 func testInt16x32ConvertToFloat32(t *testing.T, f func(x archsimd.Int16x32) archsimd.Float32x16, want func(x []int16) []float32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -2810,6 +2965,7 @@ func testInt16x32ConvertToFloat32(t *testing.T, f func(x archsimd.Int16x32) arch
 func testInt32x16ConvertToFloat32(t *testing.T, f func(x archsimd.Int32x16) archsimd.Float32x16, want func(x []int32) []float32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -2828,6 +2984,7 @@ func testInt32x16ConvertToFloat32(t *testing.T, f func(x archsimd.Int32x16) arch
 func testInt64x8ConvertToFloat32(t *testing.T, f func(x archsimd.Int64x8) archsimd.Float32x16, want func(x []int64) []float32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -2846,6 +3003,7 @@ func testInt64x8ConvertToFloat32(t *testing.T, f func(x archsimd.Int64x8) archsi
 func testUint8x64ConvertToFloat32(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Float32x16, want func(x []uint8) []float32) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -2864,6 +3022,7 @@ func testUint8x64ConvertToFloat32(t *testing.T, f func(x archsimd.Uint8x64) arch
 func testUint16x32ConvertToFloat32(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Float32x16, want func(x []uint16) []float32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -2882,6 +3041,7 @@ func testUint16x32ConvertToFloat32(t *testing.T, f func(x archsimd.Uint16x32) ar
 func testUint32x16ConvertToFloat32(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Float32x16, want func(x []uint32) []float32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -2900,6 +3060,7 @@ func testUint32x16ConvertToFloat32(t *testing.T, f func(x archsimd.Uint32x16) ar
 func testUint64x8ConvertToFloat32(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Float32x16, want func(x []uint64) []float32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -2918,6 +3079,7 @@ func testUint64x8ConvertToFloat32(t *testing.T, f func(x archsimd.Uint64x8) arch
 func testFloat64x8ConvertToFloat32(t *testing.T, f func(x archsimd.Float64x8) archsimd.Float32x16, want func(x []float64) []float32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -2936,6 +3098,7 @@ func testFloat64x8ConvertToFloat32(t *testing.T, f func(x archsimd.Float64x8) ar
 func testInt8x32ConvertToFloat64(t *testing.T, f func(x archsimd.Int8x32) archsimd.Float64x4, want func(x []int8) []float64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -2954,6 +3117,7 @@ func testInt8x32ConvertToFloat64(t *testing.T, f func(x archsimd.Int8x32) archsi
 func testInt16x16ConvertToFloat64(t *testing.T, f func(x archsimd.Int16x16) archsimd.Float64x4, want func(x []int16) []float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -2972,6 +3136,7 @@ func testInt16x16ConvertToFloat64(t *testing.T, f func(x archsimd.Int16x16) arch
 func testInt32x8ConvertToFloat64(t *testing.T, f func(x archsimd.Int32x8) archsimd.Float64x4, want func(x []int32) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -2990,6 +3155,7 @@ func testInt32x8ConvertToFloat64(t *testing.T, f func(x archsimd.Int32x8) archsi
 func testInt64x4ConvertToFloat64(t *testing.T, f func(x archsimd.Int64x4) archsimd.Float64x4, want func(x []int64) []float64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -3008,6 +3174,7 @@ func testInt64x4ConvertToFloat64(t *testing.T, f func(x archsimd.Int64x4) archsi
 func testUint8x32ConvertToFloat64(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Float64x4, want func(x []uint8) []float64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -3026,6 +3193,7 @@ func testUint8x32ConvertToFloat64(t *testing.T, f func(x archsimd.Uint8x32) arch
 func testUint16x16ConvertToFloat64(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Float64x4, want func(x []uint16) []float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -3044,6 +3212,7 @@ func testUint16x16ConvertToFloat64(t *testing.T, f func(x archsimd.Uint16x16) ar
 func testUint32x8ConvertToFloat64(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Float64x4, want func(x []uint32) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -3062,6 +3231,7 @@ func testUint32x8ConvertToFloat64(t *testing.T, f func(x archsimd.Uint32x8) arch
 func testUint64x4ConvertToFloat64(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Float64x4, want func(x []uint64) []float64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -3080,6 +3250,7 @@ func testUint64x4ConvertToFloat64(t *testing.T, f func(x archsimd.Uint64x4) arch
 func testFloat32x8ConvertToFloat64(t *testing.T, f func(x archsimd.Float32x8) archsimd.Float64x4, want func(x []float32) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -3098,6 +3269,7 @@ func testFloat32x8ConvertToFloat64(t *testing.T, f func(x archsimd.Float32x8) ar
 func testInt8x64ConvertToFloat64(t *testing.T, f func(x archsimd.Int8x64) archsimd.Float64x8, want func(x []int8) []float64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -3116,6 +3288,7 @@ func testInt8x64ConvertToFloat64(t *testing.T, f func(x archsimd.Int8x64) archsi
 func testInt16x32ConvertToFloat64(t *testing.T, f func(x archsimd.Int16x32) archsimd.Float64x8, want func(x []int16) []float64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -3134,6 +3307,7 @@ func testInt16x32ConvertToFloat64(t *testing.T, f func(x archsimd.Int16x32) arch
 func testInt32x16ConvertToFloat64(t *testing.T, f func(x archsimd.Int32x16) archsimd.Float64x8, want func(x []int32) []float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -3152,6 +3326,7 @@ func testInt32x16ConvertToFloat64(t *testing.T, f func(x archsimd.Int32x16) arch
 func testInt64x8ConvertToFloat64(t *testing.T, f func(x archsimd.Int64x8) archsimd.Float64x8, want func(x []int64) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -3170,6 +3345,7 @@ func testInt64x8ConvertToFloat64(t *testing.T, f func(x archsimd.Int64x8) archsi
 func testUint8x64ConvertToFloat64(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Float64x8, want func(x []uint8) []float64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -3188,6 +3364,7 @@ func testUint8x64ConvertToFloat64(t *testing.T, f func(x archsimd.Uint8x64) arch
 func testUint16x32ConvertToFloat64(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Float64x8, want func(x []uint16) []float64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -3206,6 +3383,7 @@ func testUint16x32ConvertToFloat64(t *testing.T, f func(x archsimd.Uint16x32) ar
 func testUint32x16ConvertToFloat64(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Float64x8, want func(x []uint32) []float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -3224,6 +3402,7 @@ func testUint32x16ConvertToFloat64(t *testing.T, f func(x archsimd.Uint32x16) ar
 func testUint64x8ConvertToFloat64(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Float64x8, want func(x []uint64) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -3242,6 +3421,7 @@ func testUint64x8ConvertToFloat64(t *testing.T, f func(x archsimd.Uint64x8) arch
 func testFloat32x16ConvertToFloat64(t *testing.T, f func(x archsimd.Float32x16) archsimd.Float64x8, want func(x []float32) []float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -3258,6 +3438,7 @@ func testFloat32x16ConvertToFloat64(t *testing.T, f func(x archsimd.Float32x16) 
 func testInt8x32ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Int8x32) archsimd.Int64x2, want func(x []int8) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -3273,6 +3454,7 @@ func testInt8x32ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Int8x32) arch
 func testInt16x16ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Int16x16) archsimd.Int64x2, want func(x []int16) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -3288,6 +3470,7 @@ func testInt16x16ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Int16x16) ar
 func testInt32x8ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Int32x8) archsimd.Int64x2, want func(x []int32) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -3303,6 +3486,7 @@ func testInt32x8ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Int32x8) arch
 func testInt64x4ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Int64x4) archsimd.Int64x2, want func(x []int64) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -3318,6 +3502,7 @@ func testInt64x4ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Int64x4) arch
 func testUint8x32ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Int64x2, want func(x []uint8) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -3333,6 +3518,7 @@ func testUint8x32ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Uint8x32) ar
 func testUint16x16ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Int64x2, want func(x []uint16) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -3348,6 +3534,7 @@ func testUint16x16ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Uint16x16) 
 func testUint32x8ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Int64x2, want func(x []uint32) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -3363,6 +3550,7 @@ func testUint32x8ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Uint32x8) ar
 func testUint64x4ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Int64x2, want func(x []uint64) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -3378,6 +3566,7 @@ func testUint64x4ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Uint64x4) ar
 func testFloat32x8ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Float32x8) archsimd.Int64x2, want func(x []float32) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -3393,6 +3582,7 @@ func testFloat32x8ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Float32x8) 
 func testFloat64x4ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Float64x4) archsimd.Int64x2, want func(x []float64) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -3408,6 +3598,7 @@ func testFloat64x4ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Float64x4) 
 func testInt8x64ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Int8x64) archsimd.Int64x2, want func(x []int8) []int64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -3423,6 +3614,7 @@ func testInt8x64ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Int8x64) arch
 func testInt16x32ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Int16x32) archsimd.Int64x2, want func(x []int16) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -3438,6 +3630,7 @@ func testInt16x32ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Int16x32) ar
 func testInt32x16ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Int32x16) archsimd.Int64x2, want func(x []int32) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -3453,6 +3646,7 @@ func testInt32x16ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Int32x16) ar
 func testInt64x8ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Int64x8) archsimd.Int64x2, want func(x []int64) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -3468,6 +3662,7 @@ func testInt64x8ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Int64x8) arch
 func testUint8x64ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Int64x2, want func(x []uint8) []int64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -3483,6 +3678,7 @@ func testUint8x64ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Uint8x64) ar
 func testUint16x32ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Int64x2, want func(x []uint16) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -3498,6 +3694,7 @@ func testUint16x32ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Uint16x32) 
 func testUint32x16ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Int64x2, want func(x []uint32) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -3513,6 +3710,7 @@ func testUint32x16ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Uint32x16) 
 func testUint64x8ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Int64x2, want func(x []uint64) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -3528,6 +3726,7 @@ func testUint64x8ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Uint64x8) ar
 func testFloat32x16ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Float32x16) archsimd.Int64x2, want func(x []float32) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -3543,6 +3742,7 @@ func testFloat32x16ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Float32x16
 func testFloat64x8ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Float64x8) archsimd.Int64x2, want func(x []float64) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -3558,6 +3758,7 @@ func testFloat64x8ConvertLoToInt64x2(t *testing.T, f func(x archsimd.Float64x8) 
 func testInt8x16ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int8x16) archsimd.Int64x4, want func(x []int8) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x16(x)
@@ -3573,6 +3774,7 @@ func testInt8x16ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int8x16) arch
 func testInt16x8ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int16x8) archsimd.Int64x4, want func(x []int16) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x8(x)
@@ -3588,6 +3790,7 @@ func testInt16x8ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int16x8) arch
 func testInt32x4ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int32x4) archsimd.Int64x4, want func(x []int32) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x4(x)
@@ -3603,6 +3806,7 @@ func testInt32x4ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int32x4) arch
 func testInt64x2ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int64x2) archsimd.Int64x4, want func(x []int64) []int64) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x2(x)
@@ -3618,6 +3822,7 @@ func testInt64x2ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int64x2) arch
 func testUint8x16ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint8x16) archsimd.Int64x4, want func(x []uint8) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x16(x)
@@ -3633,6 +3838,7 @@ func testUint8x16ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint8x16) ar
 func testUint16x8ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint16x8) archsimd.Int64x4, want func(x []uint16) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x8(x)
@@ -3648,6 +3854,7 @@ func testUint16x8ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint16x8) ar
 func testUint32x4ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint32x4) archsimd.Int64x4, want func(x []uint32) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x4(x)
@@ -3663,6 +3870,7 @@ func testUint32x4ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint32x4) ar
 func testUint64x2ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint64x2) archsimd.Int64x4, want func(x []uint64) []int64) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x2(x)
@@ -3678,6 +3886,7 @@ func testUint64x2ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint64x2) ar
 func testFloat32x4ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Float32x4) archsimd.Int64x4, want func(x []float32) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x4(x)
@@ -3693,6 +3902,7 @@ func testFloat32x4ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Float32x4) 
 func testFloat64x2ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Float64x2) archsimd.Int64x4, want func(x []float64) []int64) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x2(x)
@@ -3708,6 +3918,7 @@ func testFloat64x2ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Float64x2) 
 func testInt8x32ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int8x32) archsimd.Int64x4, want func(x []int8) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -3723,6 +3934,7 @@ func testInt8x32ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int8x32) arch
 func testInt16x16ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int16x16) archsimd.Int64x4, want func(x []int16) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -3738,6 +3950,7 @@ func testInt16x16ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int16x16) ar
 func testInt32x8ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int32x8) archsimd.Int64x4, want func(x []int32) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -3753,6 +3966,7 @@ func testInt32x8ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int32x8) arch
 func testInt64x4ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int64x4) archsimd.Int64x4, want func(x []int64) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -3768,6 +3982,7 @@ func testInt64x4ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int64x4) arch
 func testUint8x32ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Int64x4, want func(x []uint8) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -3783,6 +3998,7 @@ func testUint8x32ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint8x32) ar
 func testUint16x16ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Int64x4, want func(x []uint16) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -3798,6 +4014,7 @@ func testUint16x16ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint16x16) 
 func testUint32x8ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Int64x4, want func(x []uint32) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -3813,6 +4030,7 @@ func testUint32x8ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint32x8) ar
 func testUint64x4ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Int64x4, want func(x []uint64) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -3828,6 +4046,7 @@ func testUint64x4ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint64x4) ar
 func testFloat32x8ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Float32x8) archsimd.Int64x4, want func(x []float32) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -3843,6 +4062,7 @@ func testFloat32x8ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Float32x8) 
 func testFloat64x4ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Float64x4) archsimd.Int64x4, want func(x []float64) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -3858,6 +4078,7 @@ func testFloat64x4ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Float64x4) 
 func testInt8x64ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int8x64) archsimd.Int64x4, want func(x []int8) []int64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -3873,6 +4094,7 @@ func testInt8x64ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int8x64) arch
 func testInt16x32ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int16x32) archsimd.Int64x4, want func(x []int16) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -3888,6 +4110,7 @@ func testInt16x32ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int16x32) ar
 func testInt32x16ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int32x16) archsimd.Int64x4, want func(x []int32) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -3903,6 +4126,7 @@ func testInt32x16ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int32x16) ar
 func testInt64x8ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int64x8) archsimd.Int64x4, want func(x []int64) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -3918,6 +4142,7 @@ func testInt64x8ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Int64x8) arch
 func testUint8x64ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Int64x4, want func(x []uint8) []int64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -3933,6 +4158,7 @@ func testUint8x64ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint8x64) ar
 func testUint16x32ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Int64x4, want func(x []uint16) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -3948,6 +4174,7 @@ func testUint16x32ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint16x32) 
 func testUint32x16ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Int64x4, want func(x []uint32) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -3963,6 +4190,7 @@ func testUint32x16ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint32x16) 
 func testUint64x8ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Int64x4, want func(x []uint64) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -3978,6 +4206,7 @@ func testUint64x8ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Uint64x8) ar
 func testFloat32x16ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Float32x16) archsimd.Int64x4, want func(x []float32) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -3993,6 +4222,7 @@ func testFloat32x16ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Float32x16
 func testFloat64x8ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Float64x8) archsimd.Int64x4, want func(x []float64) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -4008,6 +4238,7 @@ func testFloat64x8ConvertLoToInt64x4(t *testing.T, f func(x archsimd.Float64x8) 
 func testInt8x32ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Int8x32) archsimd.Uint64x2, want func(x []int8) []uint64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -4023,6 +4254,7 @@ func testInt8x32ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Int8x32) arc
 func testInt16x16ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Int16x16) archsimd.Uint64x2, want func(x []int16) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -4038,6 +4270,7 @@ func testInt16x16ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Int16x16) a
 func testInt32x8ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Int32x8) archsimd.Uint64x2, want func(x []int32) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -4053,6 +4286,7 @@ func testInt32x8ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Int32x8) arc
 func testInt64x4ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Int64x4) archsimd.Uint64x2, want func(x []int64) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -4068,6 +4302,7 @@ func testInt64x4ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Int64x4) arc
 func testUint8x32ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Uint64x2, want func(x []uint8) []uint64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -4083,6 +4318,7 @@ func testUint8x32ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Uint8x32) a
 func testUint16x16ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Uint64x2, want func(x []uint16) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -4098,6 +4334,7 @@ func testUint16x16ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Uint16x16)
 func testUint32x8ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Uint64x2, want func(x []uint32) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -4113,6 +4350,7 @@ func testUint32x8ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Uint32x8) a
 func testUint64x4ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Uint64x2, want func(x []uint64) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -4128,6 +4366,7 @@ func testUint64x4ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Uint64x4) a
 func testFloat32x8ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Float32x8) archsimd.Uint64x2, want func(x []float32) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -4143,6 +4382,7 @@ func testFloat32x8ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Float32x8)
 func testFloat64x4ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Float64x4) archsimd.Uint64x2, want func(x []float64) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -4158,6 +4398,7 @@ func testFloat64x4ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Float64x4)
 func testInt8x64ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Int8x64) archsimd.Uint64x2, want func(x []int8) []uint64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -4173,6 +4414,7 @@ func testInt8x64ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Int8x64) arc
 func testInt16x32ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Int16x32) archsimd.Uint64x2, want func(x []int16) []uint64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -4188,6 +4430,7 @@ func testInt16x32ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Int16x32) a
 func testInt32x16ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Int32x16) archsimd.Uint64x2, want func(x []int32) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -4203,6 +4446,7 @@ func testInt32x16ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Int32x16) a
 func testInt64x8ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Int64x8) archsimd.Uint64x2, want func(x []int64) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -4218,6 +4462,7 @@ func testInt64x8ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Int64x8) arc
 func testUint8x64ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Uint64x2, want func(x []uint8) []uint64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -4233,6 +4478,7 @@ func testUint8x64ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Uint8x64) a
 func testUint16x32ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Uint64x2, want func(x []uint16) []uint64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -4248,6 +4494,7 @@ func testUint16x32ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Uint16x32)
 func testUint32x16ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Uint64x2, want func(x []uint32) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -4263,6 +4510,7 @@ func testUint32x16ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Uint32x16)
 func testUint64x8ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Uint64x2, want func(x []uint64) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -4278,6 +4526,7 @@ func testUint64x8ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Uint64x8) a
 func testFloat32x16ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Float32x16) archsimd.Uint64x2, want func(x []float32) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -4293,6 +4542,7 @@ func testFloat32x16ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Float32x1
 func testFloat64x8ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Float64x8) archsimd.Uint64x2, want func(x []float64) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -4308,6 +4558,7 @@ func testFloat64x8ConvertLoToUint64x2(t *testing.T, f func(x archsimd.Float64x8)
 func testInt8x16ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int8x16) archsimd.Uint64x4, want func(x []int8) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x16(x)
@@ -4323,6 +4574,7 @@ func testInt8x16ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int8x16) arc
 func testInt16x8ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int16x8) archsimd.Uint64x4, want func(x []int16) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x8(x)
@@ -4338,6 +4590,7 @@ func testInt16x8ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int16x8) arc
 func testInt32x4ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int32x4) archsimd.Uint64x4, want func(x []int32) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x4(x)
@@ -4353,6 +4606,7 @@ func testInt32x4ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int32x4) arc
 func testInt64x2ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int64x2) archsimd.Uint64x4, want func(x []int64) []uint64) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x2(x)
@@ -4368,6 +4622,7 @@ func testInt64x2ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int64x2) arc
 func testUint8x16ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint8x16) archsimd.Uint64x4, want func(x []uint8) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x16(x)
@@ -4383,6 +4638,7 @@ func testUint8x16ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint8x16) a
 func testUint16x8ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint16x8) archsimd.Uint64x4, want func(x []uint16) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x8(x)
@@ -4398,6 +4654,7 @@ func testUint16x8ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint16x8) a
 func testUint32x4ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint32x4) archsimd.Uint64x4, want func(x []uint32) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x4(x)
@@ -4413,6 +4670,7 @@ func testUint32x4ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint32x4) a
 func testUint64x2ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint64x2) archsimd.Uint64x4, want func(x []uint64) []uint64) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x2(x)
@@ -4428,6 +4686,7 @@ func testUint64x2ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint64x2) a
 func testFloat32x4ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Float32x4) archsimd.Uint64x4, want func(x []float32) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x4(x)
@@ -4443,6 +4702,7 @@ func testFloat32x4ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Float32x4)
 func testFloat64x2ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Float64x2) archsimd.Uint64x4, want func(x []float64) []uint64) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x2(x)
@@ -4458,6 +4718,7 @@ func testFloat64x2ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Float64x2)
 func testInt8x32ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int8x32) archsimd.Uint64x4, want func(x []int8) []uint64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -4473,6 +4734,7 @@ func testInt8x32ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int8x32) arc
 func testInt16x16ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int16x16) archsimd.Uint64x4, want func(x []int16) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -4488,6 +4750,7 @@ func testInt16x16ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int16x16) a
 func testInt32x8ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int32x8) archsimd.Uint64x4, want func(x []int32) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -4503,6 +4766,7 @@ func testInt32x8ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int32x8) arc
 func testInt64x4ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int64x4) archsimd.Uint64x4, want func(x []int64) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -4518,6 +4782,7 @@ func testInt64x4ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int64x4) arc
 func testUint8x32ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Uint64x4, want func(x []uint8) []uint64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -4533,6 +4798,7 @@ func testUint8x32ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint8x32) a
 func testUint16x16ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Uint64x4, want func(x []uint16) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -4548,6 +4814,7 @@ func testUint16x16ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint16x16)
 func testUint32x8ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Uint64x4, want func(x []uint32) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -4563,6 +4830,7 @@ func testUint32x8ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint32x8) a
 func testUint64x4ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Uint64x4, want func(x []uint64) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -4578,6 +4846,7 @@ func testUint64x4ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint64x4) a
 func testFloat32x8ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Float32x8) archsimd.Uint64x4, want func(x []float32) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -4593,6 +4862,7 @@ func testFloat32x8ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Float32x8)
 func testFloat64x4ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Float64x4) archsimd.Uint64x4, want func(x []float64) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -4608,6 +4878,7 @@ func testFloat64x4ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Float64x4)
 func testInt8x64ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int8x64) archsimd.Uint64x4, want func(x []int8) []uint64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -4623,6 +4894,7 @@ func testInt8x64ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int8x64) arc
 func testInt16x32ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int16x32) archsimd.Uint64x4, want func(x []int16) []uint64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -4638,6 +4910,7 @@ func testInt16x32ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int16x32) a
 func testInt32x16ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int32x16) archsimd.Uint64x4, want func(x []int32) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -4653,6 +4926,7 @@ func testInt32x16ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int32x16) a
 func testInt64x8ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int64x8) archsimd.Uint64x4, want func(x []int64) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -4668,6 +4942,7 @@ func testInt64x8ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Int64x8) arc
 func testUint8x64ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Uint64x4, want func(x []uint8) []uint64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -4683,6 +4958,7 @@ func testUint8x64ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint8x64) a
 func testUint16x32ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Uint64x4, want func(x []uint16) []uint64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -4698,6 +4974,7 @@ func testUint16x32ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint16x32)
 func testUint32x16ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Uint64x4, want func(x []uint32) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -4713,6 +4990,7 @@ func testUint32x16ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint32x16)
 func testUint64x8ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Uint64x4, want func(x []uint64) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -4728,6 +5006,7 @@ func testUint64x8ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Uint64x8) a
 func testFloat32x16ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Float32x16) archsimd.Uint64x4, want func(x []float32) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -4743,6 +5022,7 @@ func testFloat32x16ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Float32x1
 func testFloat64x8ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Float64x8) archsimd.Uint64x4, want func(x []float64) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -4758,6 +5038,7 @@ func testFloat64x8ConvertLoToUint64x4(t *testing.T, f func(x archsimd.Float64x8)
 func testInt8x16ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int8x16) archsimd.Int64x8, want func(x []int8) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x16(x)
@@ -4773,6 +5054,7 @@ func testInt8x16ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int8x16) arch
 func testInt16x8ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int16x8) archsimd.Int64x8, want func(x []int16) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x8(x)
@@ -4788,6 +5070,7 @@ func testInt16x8ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int16x8) arch
 func testInt32x4ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int32x4) archsimd.Int64x8, want func(x []int32) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x4(x)
@@ -4803,6 +5086,7 @@ func testInt32x4ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int32x4) arch
 func testInt64x2ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int64x2) archsimd.Int64x8, want func(x []int64) []int64) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x2(x)
@@ -4818,6 +5102,7 @@ func testInt64x2ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int64x2) arch
 func testUint8x16ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint8x16) archsimd.Int64x8, want func(x []uint8) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x16(x)
@@ -4833,6 +5118,7 @@ func testUint8x16ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint8x16) ar
 func testUint16x8ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint16x8) archsimd.Int64x8, want func(x []uint16) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x8(x)
@@ -4848,6 +5134,7 @@ func testUint16x8ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint16x8) ar
 func testUint32x4ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint32x4) archsimd.Int64x8, want func(x []uint32) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x4(x)
@@ -4863,6 +5150,7 @@ func testUint32x4ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint32x4) ar
 func testUint64x2ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint64x2) archsimd.Int64x8, want func(x []uint64) []int64) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x2(x)
@@ -4878,6 +5166,7 @@ func testUint64x2ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint64x2) ar
 func testFloat32x4ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Float32x4) archsimd.Int64x8, want func(x []float32) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x4(x)
@@ -4893,6 +5182,7 @@ func testFloat32x4ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Float32x4) 
 func testFloat64x2ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Float64x2) archsimd.Int64x8, want func(x []float64) []int64) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x2(x)
@@ -4908,6 +5198,7 @@ func testFloat64x2ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Float64x2) 
 func testInt8x32ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int8x32) archsimd.Int64x8, want func(x []int8) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -4923,6 +5214,7 @@ func testInt8x32ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int8x32) arch
 func testInt16x16ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int16x16) archsimd.Int64x8, want func(x []int16) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -4938,6 +5230,7 @@ func testInt16x16ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int16x16) ar
 func testInt32x8ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int32x8) archsimd.Int64x8, want func(x []int32) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -4953,6 +5246,7 @@ func testInt32x8ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int32x8) arch
 func testInt64x4ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int64x4) archsimd.Int64x8, want func(x []int64) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -4968,6 +5262,7 @@ func testInt64x4ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int64x4) arch
 func testUint8x32ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Int64x8, want func(x []uint8) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -4983,6 +5278,7 @@ func testUint8x32ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint8x32) ar
 func testUint16x16ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Int64x8, want func(x []uint16) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -4998,6 +5294,7 @@ func testUint16x16ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint16x16) 
 func testUint32x8ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Int64x8, want func(x []uint32) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -5013,6 +5310,7 @@ func testUint32x8ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint32x8) ar
 func testUint64x4ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Int64x8, want func(x []uint64) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -5028,6 +5326,7 @@ func testUint64x4ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint64x4) ar
 func testFloat32x8ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Float32x8) archsimd.Int64x8, want func(x []float32) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -5043,6 +5342,7 @@ func testFloat32x8ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Float32x8) 
 func testFloat64x4ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Float64x4) archsimd.Int64x8, want func(x []float64) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -5058,6 +5358,7 @@ func testFloat64x4ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Float64x4) 
 func testInt8x64ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int8x64) archsimd.Int64x8, want func(x []int8) []int64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -5073,6 +5374,7 @@ func testInt8x64ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int8x64) arch
 func testInt16x32ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int16x32) archsimd.Int64x8, want func(x []int16) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -5088,6 +5390,7 @@ func testInt16x32ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int16x32) ar
 func testInt32x16ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int32x16) archsimd.Int64x8, want func(x []int32) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -5103,6 +5406,7 @@ func testInt32x16ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int32x16) ar
 func testInt64x8ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int64x8) archsimd.Int64x8, want func(x []int64) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -5118,6 +5422,7 @@ func testInt64x8ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Int64x8) arch
 func testUint8x64ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Int64x8, want func(x []uint8) []int64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -5133,6 +5438,7 @@ func testUint8x64ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint8x64) ar
 func testUint16x32ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Int64x8, want func(x []uint16) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -5148,6 +5454,7 @@ func testUint16x32ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint16x32) 
 func testUint32x16ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Int64x8, want func(x []uint32) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -5163,6 +5470,7 @@ func testUint32x16ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint32x16) 
 func testUint64x8ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Int64x8, want func(x []uint64) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -5178,6 +5486,7 @@ func testUint64x8ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Uint64x8) ar
 func testFloat32x16ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Float32x16) archsimd.Int64x8, want func(x []float32) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -5193,6 +5502,7 @@ func testFloat32x16ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Float32x16
 func testFloat64x8ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Float64x8) archsimd.Int64x8, want func(x []float64) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -5208,6 +5518,7 @@ func testFloat64x8ConvertLoToInt64x8(t *testing.T, f func(x archsimd.Float64x8) 
 func testInt8x16ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int8x16) archsimd.Uint64x8, want func(x []int8) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x16(x)
@@ -5223,6 +5534,7 @@ func testInt8x16ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int8x16) arc
 func testInt16x8ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int16x8) archsimd.Uint64x8, want func(x []int16) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x8(x)
@@ -5238,6 +5550,7 @@ func testInt16x8ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int16x8) arc
 func testInt32x4ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int32x4) archsimd.Uint64x8, want func(x []int32) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x4(x)
@@ -5253,6 +5566,7 @@ func testInt32x4ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int32x4) arc
 func testInt64x2ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int64x2) archsimd.Uint64x8, want func(x []int64) []uint64) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x2(x)
@@ -5268,6 +5582,7 @@ func testInt64x2ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int64x2) arc
 func testUint8x16ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint8x16) archsimd.Uint64x8, want func(x []uint8) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x16(x)
@@ -5283,6 +5598,7 @@ func testUint8x16ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint8x16) a
 func testUint16x8ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint16x8) archsimd.Uint64x8, want func(x []uint16) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x8(x)
@@ -5298,6 +5614,7 @@ func testUint16x8ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint16x8) a
 func testUint32x4ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint32x4) archsimd.Uint64x8, want func(x []uint32) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x4(x)
@@ -5313,6 +5630,7 @@ func testUint32x4ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint32x4) a
 func testUint64x2ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint64x2) archsimd.Uint64x8, want func(x []uint64) []uint64) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x2(x)
@@ -5328,6 +5646,7 @@ func testUint64x2ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint64x2) a
 func testFloat32x4ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Float32x4) archsimd.Uint64x8, want func(x []float32) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x4(x)
@@ -5343,6 +5662,7 @@ func testFloat32x4ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Float32x4)
 func testFloat64x2ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Float64x2) archsimd.Uint64x8, want func(x []float64) []uint64) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x2(x)
@@ -5358,6 +5678,7 @@ func testFloat64x2ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Float64x2)
 func testInt8x32ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int8x32) archsimd.Uint64x8, want func(x []int8) []uint64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -5373,6 +5694,7 @@ func testInt8x32ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int8x32) arc
 func testInt16x16ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int16x16) archsimd.Uint64x8, want func(x []int16) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -5388,6 +5710,7 @@ func testInt16x16ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int16x16) a
 func testInt32x8ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int32x8) archsimd.Uint64x8, want func(x []int32) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -5403,6 +5726,7 @@ func testInt32x8ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int32x8) arc
 func testInt64x4ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int64x4) archsimd.Uint64x8, want func(x []int64) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -5418,6 +5742,7 @@ func testInt64x4ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int64x4) arc
 func testUint8x32ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Uint64x8, want func(x []uint8) []uint64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -5433,6 +5758,7 @@ func testUint8x32ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint8x32) a
 func testUint16x16ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Uint64x8, want func(x []uint16) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -5448,6 +5774,7 @@ func testUint16x16ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint16x16)
 func testUint32x8ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Uint64x8, want func(x []uint32) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -5463,6 +5790,7 @@ func testUint32x8ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint32x8) a
 func testUint64x4ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Uint64x8, want func(x []uint64) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -5478,6 +5806,7 @@ func testUint64x4ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint64x4) a
 func testFloat32x8ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Float32x8) archsimd.Uint64x8, want func(x []float32) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -5493,6 +5822,7 @@ func testFloat32x8ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Float32x8)
 func testFloat64x4ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Float64x4) archsimd.Uint64x8, want func(x []float64) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -5508,6 +5838,7 @@ func testFloat64x4ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Float64x4)
 func testInt8x64ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int8x64) archsimd.Uint64x8, want func(x []int8) []uint64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -5523,6 +5854,7 @@ func testInt8x64ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int8x64) arc
 func testInt16x32ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int16x32) archsimd.Uint64x8, want func(x []int16) []uint64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -5538,6 +5870,7 @@ func testInt16x32ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int16x32) a
 func testInt32x16ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int32x16) archsimd.Uint64x8, want func(x []int32) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -5553,6 +5886,7 @@ func testInt32x16ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int32x16) a
 func testInt64x8ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int64x8) archsimd.Uint64x8, want func(x []int64) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -5568,6 +5902,7 @@ func testInt64x8ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Int64x8) arc
 func testUint8x64ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Uint64x8, want func(x []uint8) []uint64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -5583,6 +5918,7 @@ func testUint8x64ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint8x64) a
 func testUint16x32ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Uint64x8, want func(x []uint16) []uint64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -5598,6 +5934,7 @@ func testUint16x32ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint16x32)
 func testUint32x16ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Uint64x8, want func(x []uint32) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -5613,6 +5950,7 @@ func testUint32x16ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint32x16)
 func testUint64x8ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Uint64x8, want func(x []uint64) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -5628,6 +5966,7 @@ func testUint64x8ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Uint64x8) a
 func testFloat32x16ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Float32x16) archsimd.Uint64x8, want func(x []float32) []uint64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -5643,6 +5982,7 @@ func testFloat32x16ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Float32x1
 func testFloat64x8ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Float64x8) archsimd.Uint64x8, want func(x []float64) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -5658,6 +5998,7 @@ func testFloat64x8ConvertLoToUint64x8(t *testing.T, f func(x archsimd.Float64x8)
 func testInt8x32ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Int8x32) archsimd.Int32x4, want func(x []int8) []int32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -5673,6 +6014,7 @@ func testInt8x32ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Int8x32) arch
 func testInt16x16ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Int16x16) archsimd.Int32x4, want func(x []int16) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -5688,6 +6030,7 @@ func testInt16x16ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Int16x16) ar
 func testInt32x8ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Int32x8) archsimd.Int32x4, want func(x []int32) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -5703,6 +6046,7 @@ func testInt32x8ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Int32x8) arch
 func testInt64x4ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Int64x4) archsimd.Int32x4, want func(x []int64) []int32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -5718,6 +6062,7 @@ func testInt64x4ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Int64x4) arch
 func testUint8x32ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Int32x4, want func(x []uint8) []int32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -5733,6 +6078,7 @@ func testUint8x32ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Uint8x32) ar
 func testUint16x16ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Int32x4, want func(x []uint16) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -5748,6 +6094,7 @@ func testUint16x16ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Uint16x16) 
 func testUint32x8ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Int32x4, want func(x []uint32) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -5763,6 +6110,7 @@ func testUint32x8ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Uint32x8) ar
 func testUint64x4ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Int32x4, want func(x []uint64) []int32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -5778,6 +6126,7 @@ func testUint64x4ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Uint64x4) ar
 func testFloat32x8ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Float32x8) archsimd.Int32x4, want func(x []float32) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -5793,6 +6142,7 @@ func testFloat32x8ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Float32x8) 
 func testFloat64x4ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Float64x4) archsimd.Int32x4, want func(x []float64) []int32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -5808,6 +6158,7 @@ func testFloat64x4ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Float64x4) 
 func testInt8x64ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Int8x64) archsimd.Int32x4, want func(x []int8) []int32) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -5823,6 +6174,7 @@ func testInt8x64ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Int8x64) arch
 func testInt16x32ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Int16x32) archsimd.Int32x4, want func(x []int16) []int32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -5838,6 +6190,7 @@ func testInt16x32ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Int16x32) ar
 func testInt32x16ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Int32x16) archsimd.Int32x4, want func(x []int32) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -5853,6 +6206,7 @@ func testInt32x16ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Int32x16) ar
 func testInt64x8ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Int64x8) archsimd.Int32x4, want func(x []int64) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -5868,6 +6222,7 @@ func testInt64x8ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Int64x8) arch
 func testUint8x64ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Int32x4, want func(x []uint8) []int32) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -5883,6 +6238,7 @@ func testUint8x64ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Uint8x64) ar
 func testUint16x32ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Int32x4, want func(x []uint16) []int32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -5898,6 +6254,7 @@ func testUint16x32ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Uint16x32) 
 func testUint32x16ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Int32x4, want func(x []uint32) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -5913,6 +6270,7 @@ func testUint32x16ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Uint32x16) 
 func testUint64x8ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Int32x4, want func(x []uint64) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -5928,6 +6286,7 @@ func testUint64x8ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Uint64x8) ar
 func testFloat32x16ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Float32x16) archsimd.Int32x4, want func(x []float32) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -5943,6 +6302,7 @@ func testFloat32x16ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Float32x16
 func testFloat64x8ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Float64x8) archsimd.Int32x4, want func(x []float64) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -5958,6 +6318,7 @@ func testFloat64x8ConvertLoToInt32x4(t *testing.T, f func(x archsimd.Float64x8) 
 func testInt8x16ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int8x16) archsimd.Int32x8, want func(x []int8) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x16(x)
@@ -5973,6 +6334,7 @@ func testInt8x16ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int8x16) arch
 func testInt16x8ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int16x8) archsimd.Int32x8, want func(x []int16) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x8(x)
@@ -5988,6 +6350,7 @@ func testInt16x8ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int16x8) arch
 func testInt32x4ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int32x4) archsimd.Int32x8, want func(x []int32) []int32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x4(x)
@@ -6003,6 +6366,7 @@ func testInt32x4ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int32x4) arch
 func testInt64x2ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int64x2) archsimd.Int32x8, want func(x []int64) []int32) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x2(x)
@@ -6018,6 +6382,7 @@ func testInt64x2ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int64x2) arch
 func testUint8x16ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint8x16) archsimd.Int32x8, want func(x []uint8) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x16(x)
@@ -6033,6 +6398,7 @@ func testUint8x16ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint8x16) ar
 func testUint16x8ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint16x8) archsimd.Int32x8, want func(x []uint16) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x8(x)
@@ -6048,6 +6414,7 @@ func testUint16x8ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint16x8) ar
 func testUint32x4ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint32x4) archsimd.Int32x8, want func(x []uint32) []int32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x4(x)
@@ -6063,6 +6430,7 @@ func testUint32x4ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint32x4) ar
 func testUint64x2ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint64x2) archsimd.Int32x8, want func(x []uint64) []int32) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x2(x)
@@ -6078,6 +6446,7 @@ func testUint64x2ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint64x2) ar
 func testFloat32x4ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Float32x4) archsimd.Int32x8, want func(x []float32) []int32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x4(x)
@@ -6093,6 +6462,7 @@ func testFloat32x4ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Float32x4) 
 func testFloat64x2ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Float64x2) archsimd.Int32x8, want func(x []float64) []int32) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x2(x)
@@ -6108,6 +6478,7 @@ func testFloat64x2ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Float64x2) 
 func testInt8x32ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int8x32) archsimd.Int32x8, want func(x []int8) []int32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -6123,6 +6494,7 @@ func testInt8x32ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int8x32) arch
 func testInt16x16ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int16x16) archsimd.Int32x8, want func(x []int16) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -6138,6 +6510,7 @@ func testInt16x16ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int16x16) ar
 func testInt32x8ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int32x8) archsimd.Int32x8, want func(x []int32) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -6153,6 +6526,7 @@ func testInt32x8ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int32x8) arch
 func testInt64x4ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int64x4) archsimd.Int32x8, want func(x []int64) []int32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -6168,6 +6542,7 @@ func testInt64x4ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int64x4) arch
 func testUint8x32ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Int32x8, want func(x []uint8) []int32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -6183,6 +6558,7 @@ func testUint8x32ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint8x32) ar
 func testUint16x16ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Int32x8, want func(x []uint16) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -6198,6 +6574,7 @@ func testUint16x16ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint16x16) 
 func testUint32x8ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Int32x8, want func(x []uint32) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -6213,6 +6590,7 @@ func testUint32x8ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint32x8) ar
 func testUint64x4ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Int32x8, want func(x []uint64) []int32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -6228,6 +6606,7 @@ func testUint64x4ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint64x4) ar
 func testFloat32x8ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Float32x8) archsimd.Int32x8, want func(x []float32) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -6243,6 +6622,7 @@ func testFloat32x8ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Float32x8) 
 func testFloat64x4ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Float64x4) archsimd.Int32x8, want func(x []float64) []int32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -6258,6 +6638,7 @@ func testFloat64x4ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Float64x4) 
 func testInt8x64ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int8x64) archsimd.Int32x8, want func(x []int8) []int32) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -6273,6 +6654,7 @@ func testInt8x64ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int8x64) arch
 func testInt16x32ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int16x32) archsimd.Int32x8, want func(x []int16) []int32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -6288,6 +6670,7 @@ func testInt16x32ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int16x32) ar
 func testInt32x16ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int32x16) archsimd.Int32x8, want func(x []int32) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -6303,6 +6686,7 @@ func testInt32x16ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int32x16) ar
 func testInt64x8ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int64x8) archsimd.Int32x8, want func(x []int64) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -6318,6 +6702,7 @@ func testInt64x8ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Int64x8) arch
 func testUint8x64ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Int32x8, want func(x []uint8) []int32) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -6333,6 +6718,7 @@ func testUint8x64ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint8x64) ar
 func testUint16x32ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Int32x8, want func(x []uint16) []int32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -6348,6 +6734,7 @@ func testUint16x32ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint16x32) 
 func testUint32x16ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Int32x8, want func(x []uint32) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -6363,6 +6750,7 @@ func testUint32x16ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint32x16) 
 func testUint64x8ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Int32x8, want func(x []uint64) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -6378,6 +6766,7 @@ func testUint64x8ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Uint64x8) ar
 func testFloat32x16ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Float32x16) archsimd.Int32x8, want func(x []float32) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -6393,6 +6782,7 @@ func testFloat32x16ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Float32x16
 func testFloat64x8ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Float64x8) archsimd.Int32x8, want func(x []float64) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -6408,6 +6798,7 @@ func testFloat64x8ConvertLoToInt32x8(t *testing.T, f func(x archsimd.Float64x8) 
 func testInt8x32ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Int8x32) archsimd.Uint32x4, want func(x []int8) []uint32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -6423,6 +6814,7 @@ func testInt8x32ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Int8x32) arc
 func testInt16x16ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Int16x16) archsimd.Uint32x4, want func(x []int16) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -6438,6 +6830,7 @@ func testInt16x16ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Int16x16) a
 func testInt32x8ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Int32x8) archsimd.Uint32x4, want func(x []int32) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -6453,6 +6846,7 @@ func testInt32x8ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Int32x8) arc
 func testInt64x4ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Int64x4) archsimd.Uint32x4, want func(x []int64) []uint32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -6468,6 +6862,7 @@ func testInt64x4ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Int64x4) arc
 func testUint8x32ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Uint32x4, want func(x []uint8) []uint32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -6483,6 +6878,7 @@ func testUint8x32ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Uint8x32) a
 func testUint16x16ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Uint32x4, want func(x []uint16) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -6498,6 +6894,7 @@ func testUint16x16ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Uint16x16)
 func testUint32x8ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Uint32x4, want func(x []uint32) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -6513,6 +6910,7 @@ func testUint32x8ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Uint32x8) a
 func testUint64x4ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Uint32x4, want func(x []uint64) []uint32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -6528,6 +6926,7 @@ func testUint64x4ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Uint64x4) a
 func testFloat32x8ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Float32x8) archsimd.Uint32x4, want func(x []float32) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -6543,6 +6942,7 @@ func testFloat32x8ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Float32x8)
 func testFloat64x4ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Float64x4) archsimd.Uint32x4, want func(x []float64) []uint32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -6558,6 +6958,7 @@ func testFloat64x4ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Float64x4)
 func testInt8x64ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Int8x64) archsimd.Uint32x4, want func(x []int8) []uint32) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -6573,6 +6974,7 @@ func testInt8x64ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Int8x64) arc
 func testInt16x32ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Int16x32) archsimd.Uint32x4, want func(x []int16) []uint32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -6588,6 +6990,7 @@ func testInt16x32ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Int16x32) a
 func testInt32x16ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Int32x16) archsimd.Uint32x4, want func(x []int32) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -6603,6 +7006,7 @@ func testInt32x16ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Int32x16) a
 func testInt64x8ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Int64x8) archsimd.Uint32x4, want func(x []int64) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -6618,6 +7022,7 @@ func testInt64x8ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Int64x8) arc
 func testUint8x64ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Uint32x4, want func(x []uint8) []uint32) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -6633,6 +7038,7 @@ func testUint8x64ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Uint8x64) a
 func testUint16x32ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Uint32x4, want func(x []uint16) []uint32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -6648,6 +7054,7 @@ func testUint16x32ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Uint16x32)
 func testUint32x16ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Uint32x4, want func(x []uint32) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -6663,6 +7070,7 @@ func testUint32x16ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Uint32x16)
 func testUint64x8ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Uint32x4, want func(x []uint64) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -6678,6 +7086,7 @@ func testUint64x8ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Uint64x8) a
 func testFloat32x16ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Float32x16) archsimd.Uint32x4, want func(x []float32) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -6693,6 +7102,7 @@ func testFloat32x16ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Float32x1
 func testFloat64x8ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Float64x8) archsimd.Uint32x4, want func(x []float64) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -6708,6 +7118,7 @@ func testFloat64x8ConvertLoToUint32x4(t *testing.T, f func(x archsimd.Float64x8)
 func testInt8x16ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int8x16) archsimd.Uint32x8, want func(x []int8) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x16(x)
@@ -6723,6 +7134,7 @@ func testInt8x16ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int8x16) arc
 func testInt16x8ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int16x8) archsimd.Uint32x8, want func(x []int16) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x8(x)
@@ -6738,6 +7150,7 @@ func testInt16x8ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int16x8) arc
 func testInt32x4ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int32x4) archsimd.Uint32x8, want func(x []int32) []uint32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x4(x)
@@ -6753,6 +7166,7 @@ func testInt32x4ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int32x4) arc
 func testInt64x2ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int64x2) archsimd.Uint32x8, want func(x []int64) []uint32) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x2(x)
@@ -6768,6 +7182,7 @@ func testInt64x2ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int64x2) arc
 func testUint8x16ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint8x16) archsimd.Uint32x8, want func(x []uint8) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x16(x)
@@ -6783,6 +7198,7 @@ func testUint8x16ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint8x16) a
 func testUint16x8ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint16x8) archsimd.Uint32x8, want func(x []uint16) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x8(x)
@@ -6798,6 +7214,7 @@ func testUint16x8ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint16x8) a
 func testUint32x4ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint32x4) archsimd.Uint32x8, want func(x []uint32) []uint32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x4(x)
@@ -6813,6 +7230,7 @@ func testUint32x4ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint32x4) a
 func testUint64x2ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint64x2) archsimd.Uint32x8, want func(x []uint64) []uint32) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x2(x)
@@ -6828,6 +7246,7 @@ func testUint64x2ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint64x2) a
 func testFloat32x4ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Float32x4) archsimd.Uint32x8, want func(x []float32) []uint32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x4(x)
@@ -6843,6 +7262,7 @@ func testFloat32x4ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Float32x4)
 func testFloat64x2ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Float64x2) archsimd.Uint32x8, want func(x []float64) []uint32) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x2(x)
@@ -6858,6 +7278,7 @@ func testFloat64x2ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Float64x2)
 func testInt8x32ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int8x32) archsimd.Uint32x8, want func(x []int8) []uint32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -6873,6 +7294,7 @@ func testInt8x32ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int8x32) arc
 func testInt16x16ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int16x16) archsimd.Uint32x8, want func(x []int16) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -6888,6 +7310,7 @@ func testInt16x16ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int16x16) a
 func testInt32x8ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int32x8) archsimd.Uint32x8, want func(x []int32) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -6903,6 +7326,7 @@ func testInt32x8ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int32x8) arc
 func testInt64x4ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int64x4) archsimd.Uint32x8, want func(x []int64) []uint32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -6918,6 +7342,7 @@ func testInt64x4ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int64x4) arc
 func testUint8x32ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Uint32x8, want func(x []uint8) []uint32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -6933,6 +7358,7 @@ func testUint8x32ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint8x32) a
 func testUint16x16ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Uint32x8, want func(x []uint16) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -6948,6 +7374,7 @@ func testUint16x16ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint16x16)
 func testUint32x8ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Uint32x8, want func(x []uint32) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -6963,6 +7390,7 @@ func testUint32x8ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint32x8) a
 func testUint64x4ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Uint32x8, want func(x []uint64) []uint32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -6978,6 +7406,7 @@ func testUint64x4ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint64x4) a
 func testFloat32x8ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Float32x8) archsimd.Uint32x8, want func(x []float32) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -6993,6 +7422,7 @@ func testFloat32x8ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Float32x8)
 func testFloat64x4ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Float64x4) archsimd.Uint32x8, want func(x []float64) []uint32) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -7008,6 +7438,7 @@ func testFloat64x4ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Float64x4)
 func testInt8x64ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int8x64) archsimd.Uint32x8, want func(x []int8) []uint32) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -7023,6 +7454,7 @@ func testInt8x64ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int8x64) arc
 func testInt16x32ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int16x32) archsimd.Uint32x8, want func(x []int16) []uint32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -7038,6 +7470,7 @@ func testInt16x32ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int16x32) a
 func testInt32x16ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int32x16) archsimd.Uint32x8, want func(x []int32) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -7053,6 +7486,7 @@ func testInt32x16ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int32x16) a
 func testInt64x8ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int64x8) archsimd.Uint32x8, want func(x []int64) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -7068,6 +7502,7 @@ func testInt64x8ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Int64x8) arc
 func testUint8x64ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Uint32x8, want func(x []uint8) []uint32) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -7083,6 +7518,7 @@ func testUint8x64ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint8x64) a
 func testUint16x32ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Uint32x8, want func(x []uint16) []uint32) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -7098,6 +7534,7 @@ func testUint16x32ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint16x32)
 func testUint32x16ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Uint32x8, want func(x []uint32) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -7113,6 +7550,7 @@ func testUint32x16ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint32x16)
 func testUint64x8ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Uint32x8, want func(x []uint64) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -7128,6 +7566,7 @@ func testUint64x8ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Uint64x8) a
 func testFloat32x16ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Float32x16) archsimd.Uint32x8, want func(x []float32) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -7143,6 +7582,7 @@ func testFloat32x16ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Float32x1
 func testFloat64x8ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Float64x8) archsimd.Uint32x8, want func(x []float64) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -7158,6 +7598,7 @@ func testFloat64x8ConvertLoToUint32x8(t *testing.T, f func(x archsimd.Float64x8)
 func testInt8x32ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Int8x32) archsimd.Int16x8, want func(x []int8) []int16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -7173,6 +7614,7 @@ func testInt8x32ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Int8x32) arch
 func testInt16x16ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Int16x16) archsimd.Int16x8, want func(x []int16) []int16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -7188,6 +7630,7 @@ func testInt16x16ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Int16x16) ar
 func testInt32x8ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Int32x8) archsimd.Int16x8, want func(x []int32) []int16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -7203,6 +7646,7 @@ func testInt32x8ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Int32x8) arch
 func testInt64x4ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Int64x4) archsimd.Int16x8, want func(x []int64) []int16) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -7218,6 +7662,7 @@ func testInt64x4ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Int64x4) arch
 func testUint8x32ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Int16x8, want func(x []uint8) []int16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -7233,6 +7678,7 @@ func testUint8x32ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Uint8x32) ar
 func testUint16x16ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Int16x8, want func(x []uint16) []int16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -7248,6 +7694,7 @@ func testUint16x16ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Uint16x16) 
 func testUint32x8ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Int16x8, want func(x []uint32) []int16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -7263,6 +7710,7 @@ func testUint32x8ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Uint32x8) ar
 func testUint64x4ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Int16x8, want func(x []uint64) []int16) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -7278,6 +7726,7 @@ func testUint64x4ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Uint64x4) ar
 func testFloat32x8ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Float32x8) archsimd.Int16x8, want func(x []float32) []int16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -7293,6 +7742,7 @@ func testFloat32x8ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Float32x8) 
 func testFloat64x4ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Float64x4) archsimd.Int16x8, want func(x []float64) []int16) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -7308,6 +7758,7 @@ func testFloat64x4ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Float64x4) 
 func testInt8x64ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Int8x64) archsimd.Int16x8, want func(x []int8) []int16) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -7323,6 +7774,7 @@ func testInt8x64ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Int8x64) arch
 func testInt16x32ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Int16x32) archsimd.Int16x8, want func(x []int16) []int16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -7338,6 +7790,7 @@ func testInt16x32ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Int16x32) ar
 func testInt32x16ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Int32x16) archsimd.Int16x8, want func(x []int32) []int16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -7353,6 +7806,7 @@ func testInt32x16ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Int32x16) ar
 func testInt64x8ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Int64x8) archsimd.Int16x8, want func(x []int64) []int16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -7368,6 +7822,7 @@ func testInt64x8ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Int64x8) arch
 func testUint8x64ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Int16x8, want func(x []uint8) []int16) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -7383,6 +7838,7 @@ func testUint8x64ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Uint8x64) ar
 func testUint16x32ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Int16x8, want func(x []uint16) []int16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -7398,6 +7854,7 @@ func testUint16x32ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Uint16x32) 
 func testUint32x16ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Int16x8, want func(x []uint32) []int16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -7413,6 +7870,7 @@ func testUint32x16ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Uint32x16) 
 func testUint64x8ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Int16x8, want func(x []uint64) []int16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -7428,6 +7886,7 @@ func testUint64x8ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Uint64x8) ar
 func testFloat32x16ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Float32x16) archsimd.Int16x8, want func(x []float32) []int16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -7443,6 +7902,7 @@ func testFloat32x16ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Float32x16
 func testFloat64x8ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Float64x8) archsimd.Int16x8, want func(x []float64) []int16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -7458,6 +7918,7 @@ func testFloat64x8ConvertLoToInt16x8(t *testing.T, f func(x archsimd.Float64x8) 
 func testInt8x32ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Int8x32) archsimd.Uint16x8, want func(x []int8) []uint16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -7473,6 +7934,7 @@ func testInt8x32ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Int8x32) arc
 func testInt16x16ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Int16x16) archsimd.Uint16x8, want func(x []int16) []uint16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -7488,6 +7950,7 @@ func testInt16x16ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Int16x16) a
 func testInt32x8ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Int32x8) archsimd.Uint16x8, want func(x []int32) []uint16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -7503,6 +7966,7 @@ func testInt32x8ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Int32x8) arc
 func testInt64x4ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Int64x4) archsimd.Uint16x8, want func(x []int64) []uint16) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -7518,6 +7982,7 @@ func testInt64x4ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Int64x4) arc
 func testUint8x32ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Uint16x8, want func(x []uint8) []uint16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -7533,6 +7998,7 @@ func testUint8x32ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Uint8x32) a
 func testUint16x16ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Uint16x8, want func(x []uint16) []uint16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -7548,6 +8014,7 @@ func testUint16x16ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Uint16x16)
 func testUint32x8ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Uint16x8, want func(x []uint32) []uint16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -7563,6 +8030,7 @@ func testUint32x8ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Uint32x8) a
 func testUint64x4ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Uint16x8, want func(x []uint64) []uint16) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -7578,6 +8046,7 @@ func testUint64x4ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Uint64x4) a
 func testFloat32x8ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Float32x8) archsimd.Uint16x8, want func(x []float32) []uint16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -7593,6 +8062,7 @@ func testFloat32x8ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Float32x8)
 func testFloat64x4ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Float64x4) archsimd.Uint16x8, want func(x []float64) []uint16) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -7608,6 +8078,7 @@ func testFloat64x4ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Float64x4)
 func testInt8x64ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Int8x64) archsimd.Uint16x8, want func(x []int8) []uint16) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -7623,6 +8094,7 @@ func testInt8x64ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Int8x64) arc
 func testInt16x32ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Int16x32) archsimd.Uint16x8, want func(x []int16) []uint16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -7638,6 +8110,7 @@ func testInt16x32ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Int16x32) a
 func testInt32x16ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Int32x16) archsimd.Uint16x8, want func(x []int32) []uint16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -7653,6 +8126,7 @@ func testInt32x16ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Int32x16) a
 func testInt64x8ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Int64x8) archsimd.Uint16x8, want func(x []int64) []uint16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -7668,6 +8142,7 @@ func testInt64x8ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Int64x8) arc
 func testUint8x64ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Uint16x8, want func(x []uint8) []uint16) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -7683,6 +8158,7 @@ func testUint8x64ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Uint8x64) a
 func testUint16x32ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Uint16x8, want func(x []uint16) []uint16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -7698,6 +8174,7 @@ func testUint16x32ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Uint16x32)
 func testUint32x16ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Uint16x8, want func(x []uint32) []uint16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -7713,6 +8190,7 @@ func testUint32x16ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Uint32x16)
 func testUint64x8ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Uint16x8, want func(x []uint64) []uint16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -7728,6 +8206,7 @@ func testUint64x8ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Uint64x8) a
 func testFloat32x16ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Float32x16) archsimd.Uint16x8, want func(x []float32) []uint16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -7743,6 +8222,7 @@ func testFloat32x16ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Float32x1
 func testFloat64x8ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Float64x8) archsimd.Uint16x8, want func(x []float64) []uint16) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -7758,6 +8238,7 @@ func testFloat64x8ConvertLoToUint16x8(t *testing.T, f func(x archsimd.Float64x8)
 func testInt8x32ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Int8x32) archsimd.Float64x2, want func(x []int8) []float64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -7773,6 +8254,7 @@ func testInt8x32ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Int8x32) ar
 func testInt16x16ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Int16x16) archsimd.Float64x2, want func(x []int16) []float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -7788,6 +8270,7 @@ func testInt16x16ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Int16x16) 
 func testInt32x8ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Int32x8) archsimd.Float64x2, want func(x []int32) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -7803,6 +8286,7 @@ func testInt32x8ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Int32x8) ar
 func testInt64x4ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Int64x4) archsimd.Float64x2, want func(x []int64) []float64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -7818,6 +8302,7 @@ func testInt64x4ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Int64x4) ar
 func testUint8x32ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Float64x2, want func(x []uint8) []float64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -7833,6 +8318,7 @@ func testUint8x32ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Uint8x32) 
 func testUint16x16ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Float64x2, want func(x []uint16) []float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -7848,6 +8334,7 @@ func testUint16x16ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Uint16x16
 func testUint32x8ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Float64x2, want func(x []uint32) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -7863,6 +8350,7 @@ func testUint32x8ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Uint32x8) 
 func testUint64x4ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Float64x2, want func(x []uint64) []float64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -7878,6 +8366,7 @@ func testUint64x4ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Uint64x4) 
 func testFloat32x8ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Float32x8) archsimd.Float64x2, want func(x []float32) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -7893,6 +8382,7 @@ func testFloat32x8ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Float32x8
 func testFloat64x4ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Float64x4) archsimd.Float64x2, want func(x []float64) []float64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -7908,6 +8398,7 @@ func testFloat64x4ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Float64x4
 func testInt8x64ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Int8x64) archsimd.Float64x2, want func(x []int8) []float64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -7923,6 +8414,7 @@ func testInt8x64ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Int8x64) ar
 func testInt16x32ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Int16x32) archsimd.Float64x2, want func(x []int16) []float64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -7938,6 +8430,7 @@ func testInt16x32ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Int16x32) 
 func testInt32x16ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Int32x16) archsimd.Float64x2, want func(x []int32) []float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -7953,6 +8446,7 @@ func testInt32x16ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Int32x16) 
 func testInt64x8ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Int64x8) archsimd.Float64x2, want func(x []int64) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -7968,6 +8462,7 @@ func testInt64x8ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Int64x8) ar
 func testUint8x64ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Float64x2, want func(x []uint8) []float64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -7983,6 +8478,7 @@ func testUint8x64ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Uint8x64) 
 func testUint16x32ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Float64x2, want func(x []uint16) []float64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -7998,6 +8494,7 @@ func testUint16x32ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Uint16x32
 func testUint32x16ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Float64x2, want func(x []uint32) []float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -8013,6 +8510,7 @@ func testUint32x16ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Uint32x16
 func testUint64x8ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Float64x2, want func(x []uint64) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -8028,6 +8526,7 @@ func testUint64x8ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Uint64x8) 
 func testFloat32x16ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Float32x16) archsimd.Float64x2, want func(x []float32) []float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -8043,6 +8542,7 @@ func testFloat32x16ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Float32x
 func testFloat64x8ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Float64x8) archsimd.Float64x2, want func(x []float64) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -8058,6 +8558,7 @@ func testFloat64x8ConvertLoToFloat64x2(t *testing.T, f func(x archsimd.Float64x8
 func testInt8x16ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int8x16) archsimd.Float64x4, want func(x []int8) []float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x16(x)
@@ -8073,6 +8574,7 @@ func testInt8x16ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int8x16) ar
 func testInt16x8ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int16x8) archsimd.Float64x4, want func(x []int16) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x8(x)
@@ -8088,6 +8590,7 @@ func testInt16x8ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int16x8) ar
 func testInt32x4ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int32x4) archsimd.Float64x4, want func(x []int32) []float64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x4(x)
@@ -8103,6 +8606,7 @@ func testInt32x4ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int32x4) ar
 func testInt64x2ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int64x2) archsimd.Float64x4, want func(x []int64) []float64) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x2(x)
@@ -8118,6 +8622,7 @@ func testInt64x2ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int64x2) ar
 func testUint8x16ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint8x16) archsimd.Float64x4, want func(x []uint8) []float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x16(x)
@@ -8133,6 +8638,7 @@ func testUint8x16ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint8x16) 
 func testUint16x8ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint16x8) archsimd.Float64x4, want func(x []uint16) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x8(x)
@@ -8148,6 +8654,7 @@ func testUint16x8ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint16x8) 
 func testUint32x4ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint32x4) archsimd.Float64x4, want func(x []uint32) []float64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x4(x)
@@ -8163,6 +8670,7 @@ func testUint32x4ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint32x4) 
 func testUint64x2ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint64x2) archsimd.Float64x4, want func(x []uint64) []float64) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x2(x)
@@ -8178,6 +8686,7 @@ func testUint64x2ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint64x2) 
 func testFloat32x4ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Float32x4) archsimd.Float64x4, want func(x []float32) []float64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x4(x)
@@ -8193,6 +8702,7 @@ func testFloat32x4ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Float32x4
 func testFloat64x2ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Float64x2) archsimd.Float64x4, want func(x []float64) []float64) {
 	n := 2
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x2(x)
@@ -8208,6 +8718,7 @@ func testFloat64x2ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Float64x2
 func testInt8x32ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int8x32) archsimd.Float64x4, want func(x []int8) []float64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -8223,6 +8734,7 @@ func testInt8x32ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int8x32) ar
 func testInt16x16ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int16x16) archsimd.Float64x4, want func(x []int16) []float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -8238,6 +8750,7 @@ func testInt16x16ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int16x16) 
 func testInt32x8ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int32x8) archsimd.Float64x4, want func(x []int32) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -8253,6 +8766,7 @@ func testInt32x8ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int32x8) ar
 func testInt64x4ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int64x4) archsimd.Float64x4, want func(x []int64) []float64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -8268,6 +8782,7 @@ func testInt64x4ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int64x4) ar
 func testUint8x32ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint8x32) archsimd.Float64x4, want func(x []uint8) []float64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -8283,6 +8798,7 @@ func testUint8x32ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint8x32) 
 func testUint16x16ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint16x16) archsimd.Float64x4, want func(x []uint16) []float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -8298,6 +8814,7 @@ func testUint16x16ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint16x16
 func testUint32x8ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint32x8) archsimd.Float64x4, want func(x []uint32) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -8313,6 +8830,7 @@ func testUint32x8ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint32x8) 
 func testUint64x4ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint64x4) archsimd.Float64x4, want func(x []uint64) []float64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -8328,6 +8846,7 @@ func testUint64x4ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint64x4) 
 func testFloat32x8ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Float32x8) archsimd.Float64x4, want func(x []float32) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -8343,6 +8862,7 @@ func testFloat32x8ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Float32x8
 func testFloat64x4ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Float64x4) archsimd.Float64x4, want func(x []float64) []float64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -8358,6 +8878,7 @@ func testFloat64x4ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Float64x4
 func testInt8x64ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int8x64) archsimd.Float64x4, want func(x []int8) []float64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -8373,6 +8894,7 @@ func testInt8x64ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int8x64) ar
 func testInt16x32ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int16x32) archsimd.Float64x4, want func(x []int16) []float64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -8388,6 +8910,7 @@ func testInt16x32ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int16x32) 
 func testInt32x16ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int32x16) archsimd.Float64x4, want func(x []int32) []float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -8403,6 +8926,7 @@ func testInt32x16ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int32x16) 
 func testInt64x8ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int64x8) archsimd.Float64x4, want func(x []int64) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -8418,6 +8942,7 @@ func testInt64x8ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Int64x8) ar
 func testUint8x64ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint8x64) archsimd.Float64x4, want func(x []uint8) []float64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -8433,6 +8958,7 @@ func testUint8x64ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint8x64) 
 func testUint16x32ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint16x32) archsimd.Float64x4, want func(x []uint16) []float64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -8448,6 +8974,7 @@ func testUint16x32ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint16x32
 func testUint32x16ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint32x16) archsimd.Float64x4, want func(x []uint32) []float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -8463,6 +8990,7 @@ func testUint32x16ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint32x16
 func testUint64x8ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint64x8) archsimd.Float64x4, want func(x []uint64) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -8478,6 +9006,7 @@ func testUint64x8ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Uint64x8) 
 func testFloat32x16ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Float32x16) archsimd.Float64x4, want func(x []float32) []float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -8493,6 +9022,7 @@ func testFloat32x16ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Float32x
 func testFloat64x8ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Float64x8) archsimd.Float64x4, want func(x []float64) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -8508,6 +9038,7 @@ func testFloat64x8ConvertLoToFloat64x4(t *testing.T, f func(x archsimd.Float64x8
 func testFloat32x8UnaryFlaky(t *testing.T, f func(x archsimd.Float32x8) archsimd.Float32x8, want func(x []float32) []float32, flakiness float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -8523,6 +9054,7 @@ func testFloat32x8UnaryFlaky(t *testing.T, f func(x archsimd.Float32x8) archsimd
 func testFloat64x4UnaryFlaky(t *testing.T, f func(x archsimd.Float64x4) archsimd.Float64x4, want func(x []float64) []float64, flakiness float64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -8538,6 +9070,7 @@ func testFloat64x4UnaryFlaky(t *testing.T, f func(x archsimd.Float64x4) archsimd
 func testFloat32x16UnaryFlaky(t *testing.T, f func(x archsimd.Float32x16) archsimd.Float32x16, want func(x []float32) []float32, flakiness float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -8553,6 +9086,7 @@ func testFloat32x16UnaryFlaky(t *testing.T, f func(x archsimd.Float32x16) archsi
 func testFloat64x8UnaryFlaky(t *testing.T, f func(x archsimd.Float64x8) archsimd.Float64x8, want func(x []float64) []float64, flakiness float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)

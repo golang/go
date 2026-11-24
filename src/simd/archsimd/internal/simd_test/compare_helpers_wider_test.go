@@ -17,6 +17,7 @@ import (
 func testInt8x32Compare(t *testing.T, f func(_, _ archsimd.Int8x32) archsimd.Mask8x32, want func(_, _ []int8) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlicePair(t, int8s, n, func(x, y []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -32,6 +33,7 @@ func testInt8x32Compare(t *testing.T, f func(_, _ archsimd.Int8x32) archsimd.Mas
 func testInt16x16Compare(t *testing.T, f func(_, _ archsimd.Int16x16) archsimd.Mask16x16, want func(_, _ []int16) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlicePair(t, int16s, n, func(x, y []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -47,6 +49,7 @@ func testInt16x16Compare(t *testing.T, f func(_, _ archsimd.Int16x16) archsimd.M
 func testInt32x8Compare(t *testing.T, f func(_, _ archsimd.Int32x8) archsimd.Mask32x8, want func(_, _ []int32) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlicePair(t, int32s, n, func(x, y []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -62,6 +65,7 @@ func testInt32x8Compare(t *testing.T, f func(_, _ archsimd.Int32x8) archsimd.Mas
 func testInt64x4Compare(t *testing.T, f func(_, _ archsimd.Int64x4) archsimd.Mask64x4, want func(_, _ []int64) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlicePair(t, int64s, n, func(x, y []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -77,6 +81,7 @@ func testInt64x4Compare(t *testing.T, f func(_, _ archsimd.Int64x4) archsimd.Mas
 func testUint8x32Compare(t *testing.T, f func(_, _ archsimd.Uint8x32) archsimd.Mask8x32, want func(_, _ []uint8) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlicePair(t, uint8s, n, func(x, y []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -92,6 +97,7 @@ func testUint8x32Compare(t *testing.T, f func(_, _ archsimd.Uint8x32) archsimd.M
 func testUint16x16Compare(t *testing.T, f func(_, _ archsimd.Uint16x16) archsimd.Mask16x16, want func(_, _ []uint16) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlicePair(t, uint16s, n, func(x, y []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -107,6 +113,7 @@ func testUint16x16Compare(t *testing.T, f func(_, _ archsimd.Uint16x16) archsimd
 func testUint32x8Compare(t *testing.T, f func(_, _ archsimd.Uint32x8) archsimd.Mask32x8, want func(_, _ []uint32) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlicePair(t, uint32s, n, func(x, y []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -122,6 +129,7 @@ func testUint32x8Compare(t *testing.T, f func(_, _ archsimd.Uint32x8) archsimd.M
 func testUint64x4Compare(t *testing.T, f func(_, _ archsimd.Uint64x4) archsimd.Mask64x4, want func(_, _ []uint64) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlicePair(t, uint64s, n, func(x, y []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -137,6 +145,7 @@ func testUint64x4Compare(t *testing.T, f func(_, _ archsimd.Uint64x4) archsimd.M
 func testFloat32x8Compare(t *testing.T, f func(_, _ archsimd.Float32x8) archsimd.Mask32x8, want func(_, _ []float32) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlicePair(t, float32s, n, func(x, y []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -152,6 +161,7 @@ func testFloat32x8Compare(t *testing.T, f func(_, _ archsimd.Float32x8) archsimd
 func testFloat64x4Compare(t *testing.T, f func(_, _ archsimd.Float64x4) archsimd.Mask64x4, want func(_, _ []float64) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlicePair(t, float64s, n, func(x, y []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -167,6 +177,7 @@ func testFloat64x4Compare(t *testing.T, f func(_, _ archsimd.Float64x4) archsimd
 func testInt8x64Compare(t *testing.T, f func(_, _ archsimd.Int8x64) archsimd.Mask8x64, want func(_, _ []int8) []int64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlicePair(t, int8s, n, func(x, y []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -182,6 +193,7 @@ func testInt8x64Compare(t *testing.T, f func(_, _ archsimd.Int8x64) archsimd.Mas
 func testInt16x32Compare(t *testing.T, f func(_, _ archsimd.Int16x32) archsimd.Mask16x32, want func(_, _ []int16) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlicePair(t, int16s, n, func(x, y []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -197,6 +209,7 @@ func testInt16x32Compare(t *testing.T, f func(_, _ archsimd.Int16x32) archsimd.M
 func testInt32x16Compare(t *testing.T, f func(_, _ archsimd.Int32x16) archsimd.Mask32x16, want func(_, _ []int32) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlicePair(t, int32s, n, func(x, y []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -212,6 +225,7 @@ func testInt32x16Compare(t *testing.T, f func(_, _ archsimd.Int32x16) archsimd.M
 func testInt64x8Compare(t *testing.T, f func(_, _ archsimd.Int64x8) archsimd.Mask64x8, want func(_, _ []int64) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlicePair(t, int64s, n, func(x, y []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -227,6 +241,7 @@ func testInt64x8Compare(t *testing.T, f func(_, _ archsimd.Int64x8) archsimd.Mas
 func testUint8x64Compare(t *testing.T, f func(_, _ archsimd.Uint8x64) archsimd.Mask8x64, want func(_, _ []uint8) []int64) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlicePair(t, uint8s, n, func(x, y []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -242,6 +257,7 @@ func testUint8x64Compare(t *testing.T, f func(_, _ archsimd.Uint8x64) archsimd.M
 func testUint16x32Compare(t *testing.T, f func(_, _ archsimd.Uint16x32) archsimd.Mask16x32, want func(_, _ []uint16) []int64) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlicePair(t, uint16s, n, func(x, y []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -257,6 +273,7 @@ func testUint16x32Compare(t *testing.T, f func(_, _ archsimd.Uint16x32) archsimd
 func testUint32x16Compare(t *testing.T, f func(_, _ archsimd.Uint32x16) archsimd.Mask32x16, want func(_, _ []uint32) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlicePair(t, uint32s, n, func(x, y []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -272,6 +289,7 @@ func testUint32x16Compare(t *testing.T, f func(_, _ archsimd.Uint32x16) archsimd
 func testUint64x8Compare(t *testing.T, f func(_, _ archsimd.Uint64x8) archsimd.Mask64x8, want func(_, _ []uint64) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlicePair(t, uint64s, n, func(x, y []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -287,6 +305,7 @@ func testUint64x8Compare(t *testing.T, f func(_, _ archsimd.Uint64x8) archsimd.M
 func testFloat32x16Compare(t *testing.T, f func(_, _ archsimd.Float32x16) archsimd.Mask32x16, want func(_, _ []float32) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlicePair(t, float32s, n, func(x, y []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -302,6 +321,7 @@ func testFloat32x16Compare(t *testing.T, f func(_, _ archsimd.Float32x16) archsi
 func testFloat64x8Compare(t *testing.T, f func(_, _ archsimd.Float64x8) archsimd.Mask64x8, want func(_, _ []float64) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlicePair(t, float64s, n, func(x, y []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -317,6 +337,7 @@ func testFloat64x8Compare(t *testing.T, f func(_, _ archsimd.Float64x8) archsimd
 func testFloat32x8UnaryCompare(t *testing.T, f func(x archsimd.Float32x8) archsimd.Mask32x8, want func(x []float32) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -331,6 +352,7 @@ func testFloat32x8UnaryCompare(t *testing.T, f func(x archsimd.Float32x8) archsi
 func testFloat64x4UnaryCompare(t *testing.T, f func(x archsimd.Float64x4) archsimd.Mask64x4, want func(x []float64) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -345,6 +367,7 @@ func testFloat64x4UnaryCompare(t *testing.T, f func(x archsimd.Float64x4) archsi
 func testFloat32x16UnaryCompare(t *testing.T, f func(x archsimd.Float32x16) archsimd.Mask32x16, want func(x []float32) []int64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -359,6 +382,7 @@ func testFloat32x16UnaryCompare(t *testing.T, f func(x archsimd.Float32x16) arch
 func testFloat64x8UnaryCompare(t *testing.T, f func(x archsimd.Float64x8) archsimd.Mask64x8, want func(x []float64) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, float64s, n, func(x []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)

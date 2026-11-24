@@ -291,10 +291,15 @@ type templateData struct {
 	Etype  string // the element type, e.g. "float32"
 	OxFF   string // a mask for the lowest 'count' bits
 
+	Owidth int    // output vector bit width
 	OVType string // type of output vector
 	OEtype string // output element type
 	OEType string // output element type, title-case
 	OCount int    // output element count
+}
+
+func (t templateData) TestVectorBits() int {
+	return max(t.Vwidth, t.Owidth)
 }
 
 func (t templateData) As128BitVec() string {
@@ -361,6 +366,7 @@ func oneTemplate(t *template.Template, baseType string, width, count int, out io
 		Base:   BaseType,
 		Etype:  eType,
 		OxFF:   oxFF,
+		Owidth: ob,
 		OVType: ovType,
 		OEtype: oeType,
 		OCount: oc,
@@ -607,7 +613,8 @@ const unaryTestTemplate = `
 func test{{.VType}}Unary(t *testing.T, f func(_ archsimd.{{.VType}}) archsimd.{{.VType}}, want func(_ []{{.Etype}}) []{{.Etype}}) {
 	n := {{.Count}}
 	t.Helper()
-	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
+{{if gt .TestVectorBits 128}}	requireVectorBits(t, {{.TestVectorBits}})
+{{end}}	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
 	 	t.Helper()
 		a := archsimd.Load{{.VType}}(x)
 		g := make([]{{.Etype}}, n)
@@ -627,7 +634,8 @@ var unaryFlakyTemplate = shapedTemplateOf(unaryFlaky, "unary_flaky_helpers", `
 func test{{.VType}}UnaryFlaky(t *testing.T, f func(x archsimd.{{.VType}}) archsimd.{{.VType}}, want func(x []{{.Etype}}) []{{.Etype}}, flakiness float64) {
 	n := {{.Count}}
 	t.Helper()
-	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
+{{if gt .TestVectorBits 128}}	requireVectorBits(t, {{.TestVectorBits}})
+{{end}}	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
 	 	t.Helper()
 		a := archsimd.Load{{.VType}}(x)
 		g := make([]{{.Etype}}, n)
@@ -646,7 +654,8 @@ var convertTemplate = templateOf("convert_helpers", `
 func test{{.VType}}ConvertTo{{.OEType}}(t *testing.T, f func(x archsimd.{{.VType}}) archsimd.{{.OVType}}, want func(x []{{.Etype}}) []{{.OEtype}}) {
 	n := {{.Count}}
 	t.Helper()
-	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
+{{if gt .TestVectorBits 128}}	requireVectorBits(t, {{.TestVectorBits}})
+{{end}}	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
 	 	t.Helper()
 		a := archsimd.Load{{.VType}}(x)
 		g := make([]{{.OEtype}}, {{.OCount}})
@@ -680,7 +689,8 @@ var convertLoTemplate = shapedTemplateOf(allShapes, "convert_lo_helpers", `
 func test{{.VType}}ConvertLoTo{{.OVType}}(t *testing.T, f func(x archsimd.{{.VType}}) archsimd.{{.OVType}}, want func(x []{{.Etype}}) []{{.OEtype}}) {
 	n := {{.Count}}
 	t.Helper()
-	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
+{{if gt .TestVectorBits 128}}	requireVectorBits(t, {{.TestVectorBits}})
+{{end}}	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
 	 	t.Helper()
 		a := archsimd.Load{{.VType}}(x)
 		g := make([]{{.OEtype}}, {{.OCount}})
@@ -717,7 +727,8 @@ const binaryTestTemplate = `
 func test{{.VType}}Binary(t *testing.T, f func(_, _ archsimd.{{.VType}}) archsimd.{{.VType}}, want func(_, _ []{{.Etype}}) []{{.Etype}}) {
 	n := {{.Count}}
 	t.Helper()
-	forSlicePair(t, {{.Etype}}s, n, func(x, y []{{.Etype}}) bool {
+{{if gt .TestVectorBits 128}}	requireVectorBits(t, {{.TestVectorBits}})
+{{end}}	forSlicePair(t, {{.Etype}}s, n, func(x, y []{{.Etype}}) bool {
 	 	t.Helper()
 		a := archsimd.Load{{.VType}}(x)
 		b := archsimd.Load{{.VType}}(y)
@@ -739,7 +750,8 @@ var shiftAllTestTemplate = shapedTemplateOf(integerShapes, "shift_all_helpers", 
 func test{{.VType}}ShiftAll(t *testing.T, f func(_ archsimd.{{.VType}}, _ uint64) archsimd.{{.VType}}, want func(_ []{{.Etype}}, _ uint64) []{{.Etype}}) {
 	n := {{.Count}}
 	t.Helper()
-	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
+{{if gt .TestVectorBits 128}}	requireVectorBits(t, {{.TestVectorBits}})
+{{end}}	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
 		t.Helper()
 		for _, amt := range testShiftAllAmts {
 			a := archsimd.Load{{.VType}}(x)
@@ -761,7 +773,8 @@ var shiftMixedTestTemplateArm64 = shapedTemplateOf(arm64UintToIntShapes, "arm64_
 func test{{.VType}}Shift(t *testing.T, f func(_ archsimd.{{.VType}}, _ archsimd.{{.OVType}}) archsimd.{{.VType}}, want func(_ []{{.Etype}}, _ []{{.OEtype}}) []{{.Etype}}) {
 	n := {{.Count}}
 	t.Helper()
-	forSliceMixed(t, {{.Etype}}s, {{.OEtype}}s, n, func(x []{{.Etype}}, y []{{.OEtype}}) bool {
+{{if gt .TestVectorBits 128}}	requireVectorBits(t, {{.TestVectorBits}})
+{{end}}	forSliceMixed(t, {{.Etype}}s, {{.OEtype}}s, n, func(x []{{.Etype}}, y []{{.OEtype}}) bool {
 		t.Helper()
 		a := archsimd.Load{{.VType}}(x)
 		b := archsimd.Load{{.OVType}}(y)
@@ -778,7 +791,8 @@ const ternaryTestTemplateText = `
 func test{{.VType}}Ternary(t *testing.T, f func(_, _, _ archsimd.{{.VType}}) archsimd.{{.VType}}, want func(_, _, _ []{{.Etype}}) []{{.Etype}}) {
 	n := {{.Count}}
 	t.Helper()
-	forSliceTriple(t, {{.Etype}}s, n, func(x, y, z []{{.Etype}}) bool {
+{{if gt .TestVectorBits 128}}	requireVectorBits(t, {{.TestVectorBits}})
+{{end}}	forSliceTriple(t, {{.Etype}}s, n, func(x, y, z []{{.Etype}}) bool {
 	 	t.Helper()
 		a := archsimd.Load{{.VType}}(x)
 		b := archsimd.Load{{.VType}}(y)
@@ -797,7 +811,8 @@ const ternaryFlakyTestTemplateText = `
 func test{{.VType}}TernaryFlaky(t *testing.T, f func(x, y, z archsimd.{{.VType}}) archsimd.{{.VType}}, want func(x, y, z []{{.Etype}}) []{{.Etype}}, flakiness float64) {
 	n := {{.Count}}
 	t.Helper()
-	forSliceTriple(t, {{.Etype}}s, n, func(x, y, z []{{.Etype}}) bool {
+{{if gt .TestVectorBits 128}}	requireVectorBits(t, {{.TestVectorBits}})
+{{end}}	forSliceTriple(t, {{.Etype}}s, n, func(x, y, z []{{.Etype}}) bool {
 	 	t.Helper()
 		a := archsimd.Load{{.VType}}(x)
 		b := archsimd.Load{{.VType}}(y)
@@ -817,7 +832,8 @@ const reduceTestTemplateText = `
 func test{{.VType}}Reduce(t *testing.T, f func(_ archsimd.{{.VType}}) {{.Etype}}, want func(_ []{{.Etype}}) {{.Etype}}) {
 	n := {{.Count}}
 	t.Helper()
-	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
+{{if gt .TestVectorBits 128}}	requireVectorBits(t, {{.TestVectorBits}})
+{{end}}	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
 	 	t.Helper()
 		a := archsimd.Load{{.VType}}(x)
 		g := f(a)
@@ -870,7 +886,8 @@ var compareTemplate = templateOf("compare_helpers", `
 func test{{.VType}}Compare(t *testing.T, f func(_, _ archsimd.{{.VType}}) archsimd.Mask{{.WxC}}, want func(_, _ []{{.Etype}}) []int64) {
 	n := {{.Count}}
 	t.Helper()
-	forSlicePair(t, {{.Etype}}s, n, func(x, y []{{.Etype}}) bool {
+{{if gt .TestVectorBits 128}}	requireVectorBits(t, {{.TestVectorBits}})
+{{end}}	forSlicePair(t, {{.Etype}}s, n, func(x, y []{{.Etype}}) bool {
 	 	t.Helper()
 		a := archsimd.Load{{.VType}}(x)
 		b := archsimd.Load{{.VType}}(y)
@@ -887,7 +904,8 @@ var compareUnaryTemplate = shapedTemplateOf(floatShapes, "compare_unary_helpers"
 func test{{.VType}}UnaryCompare(t *testing.T, f func(x archsimd.{{.VType}}) archsimd.Mask{{.WxC}}, want func(x []{{.Etype}}) []int64) {
 	n := {{.Count}}
 	t.Helper()
-	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
+{{if gt .TestVectorBits 128}}	requireVectorBits(t, {{.TestVectorBits}})
+{{end}}	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
 	 	t.Helper()
 		a := archsimd.Load{{.VType}}(x)
 		g := make([]int{{.EWidth}}, n)
@@ -907,7 +925,8 @@ func test{{.VType}}CompareMasked(t *testing.T,
 	want func(_, _ []{{.Etype}}) []int64) {
 	n := {{.Count}}
 	t.Helper()
-	forSlicePairMasked(t, {{.Etype}}s, n, func(x, y []{{.Etype}}, m []bool) bool {
+{{if gt .TestVectorBits 128}}	requireVectorBits(t, {{.TestVectorBits}})
+{{end}}	forSlicePairMasked(t, {{.Etype}}s, n, func(x, y []{{.Etype}}, m []bool) bool {
 	 	t.Helper()
 		a := archsimd.Load{{.VType}}(x)
 		b := archsimd.Load{{.VType}}(y)
@@ -1516,7 +1535,8 @@ var compareTemplateArm64 = shapedTemplateOf(arm64Shapes, "arm64_compare_helpers"
 func test{{.VType}}Compare(t *testing.T, f func(_, _ archsimd.{{.VType}}) archsimd.Mask{{.WxC}}, want func(_, _ []{{.Etype}}) []int64) {
 	n := {{.Count}}
 	t.Helper()
-	forSlicePair(t, {{.Etype}}s, n, func(x, y []{{.Etype}}) bool {
+{{if gt .TestVectorBits 128}}	requireVectorBits(t, {{.TestVectorBits}})
+{{end}}	forSlicePair(t, {{.Etype}}s, n, func(x, y []{{.Etype}}) bool {
 	 	t.Helper()
 		a := archsimd.Load{{.VType}}(x)
 		b := archsimd.Load{{.VType}}(y)

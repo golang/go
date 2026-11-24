@@ -17,6 +17,7 @@ import (
 func testInt8x32ShiftAll(t *testing.T, f func(_ archsimd.Int8x32, _ uint64) archsimd.Int8x32, want func(_ []int8, _ uint64) []int8) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		for _, amt := range testShiftAllAmts {
@@ -36,6 +37,7 @@ func testInt8x32ShiftAll(t *testing.T, f func(_ archsimd.Int8x32, _ uint64) arch
 func testInt16x16ShiftAll(t *testing.T, f func(_ archsimd.Int16x16, _ uint64) archsimd.Int16x16, want func(_ []int16, _ uint64) []int16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		for _, amt := range testShiftAllAmts {
@@ -55,6 +57,7 @@ func testInt16x16ShiftAll(t *testing.T, f func(_ archsimd.Int16x16, _ uint64) ar
 func testInt32x8ShiftAll(t *testing.T, f func(_ archsimd.Int32x8, _ uint64) archsimd.Int32x8, want func(_ []int32, _ uint64) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		for _, amt := range testShiftAllAmts {
@@ -74,6 +77,7 @@ func testInt32x8ShiftAll(t *testing.T, f func(_ archsimd.Int32x8, _ uint64) arch
 func testInt64x4ShiftAll(t *testing.T, f func(_ archsimd.Int64x4, _ uint64) archsimd.Int64x4, want func(_ []int64, _ uint64) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		for _, amt := range testShiftAllAmts {
@@ -93,6 +97,7 @@ func testInt64x4ShiftAll(t *testing.T, f func(_ archsimd.Int64x4, _ uint64) arch
 func testUint8x32ShiftAll(t *testing.T, f func(_ archsimd.Uint8x32, _ uint64) archsimd.Uint8x32, want func(_ []uint8, _ uint64) []uint8) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		for _, amt := range testShiftAllAmts {
@@ -112,6 +117,7 @@ func testUint8x32ShiftAll(t *testing.T, f func(_ archsimd.Uint8x32, _ uint64) ar
 func testUint16x16ShiftAll(t *testing.T, f func(_ archsimd.Uint16x16, _ uint64) archsimd.Uint16x16, want func(_ []uint16, _ uint64) []uint16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		for _, amt := range testShiftAllAmts {
@@ -131,6 +137,7 @@ func testUint16x16ShiftAll(t *testing.T, f func(_ archsimd.Uint16x16, _ uint64) 
 func testUint32x8ShiftAll(t *testing.T, f func(_ archsimd.Uint32x8, _ uint64) archsimd.Uint32x8, want func(_ []uint32, _ uint64) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		for _, amt := range testShiftAllAmts {
@@ -150,6 +157,7 @@ func testUint32x8ShiftAll(t *testing.T, f func(_ archsimd.Uint32x8, _ uint64) ar
 func testUint64x4ShiftAll(t *testing.T, f func(_ archsimd.Uint64x4, _ uint64) archsimd.Uint64x4, want func(_ []uint64, _ uint64) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		for _, amt := range testShiftAllAmts {
@@ -169,6 +177,7 @@ func testUint64x4ShiftAll(t *testing.T, f func(_ archsimd.Uint64x4, _ uint64) ar
 func testInt8x64ShiftAll(t *testing.T, f func(_ archsimd.Int8x64, _ uint64) archsimd.Int8x64, want func(_ []int8, _ uint64) []int8) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
 		for _, amt := range testShiftAllAmts {
@@ -188,6 +197,7 @@ func testInt8x64ShiftAll(t *testing.T, f func(_ archsimd.Int8x64, _ uint64) arch
 func testInt16x32ShiftAll(t *testing.T, f func(_ archsimd.Int16x32, _ uint64) archsimd.Int16x32, want func(_ []int16, _ uint64) []int16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
 		for _, amt := range testShiftAllAmts {
@@ -207,6 +217,7 @@ func testInt16x32ShiftAll(t *testing.T, f func(_ archsimd.Int16x32, _ uint64) ar
 func testInt32x16ShiftAll(t *testing.T, f func(_ archsimd.Int32x16, _ uint64) archsimd.Int32x16, want func(_ []int32, _ uint64) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
 		for _, amt := range testShiftAllAmts {
@@ -226,6 +237,7 @@ func testInt32x16ShiftAll(t *testing.T, f func(_ archsimd.Int32x16, _ uint64) ar
 func testInt64x8ShiftAll(t *testing.T, f func(_ archsimd.Int64x8, _ uint64) archsimd.Int64x8, want func(_ []int64, _ uint64) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
 		for _, amt := range testShiftAllAmts {
@@ -245,6 +257,7 @@ func testInt64x8ShiftAll(t *testing.T, f func(_ archsimd.Int64x8, _ uint64) arch
 func testUint8x64ShiftAll(t *testing.T, f func(_ archsimd.Uint8x64, _ uint64) archsimd.Uint8x64, want func(_ []uint8, _ uint64) []uint8) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
 		for _, amt := range testShiftAllAmts {
@@ -264,6 +277,7 @@ func testUint8x64ShiftAll(t *testing.T, f func(_ archsimd.Uint8x64, _ uint64) ar
 func testUint16x32ShiftAll(t *testing.T, f func(_ archsimd.Uint16x32, _ uint64) archsimd.Uint16x32, want func(_ []uint16, _ uint64) []uint16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
 		for _, amt := range testShiftAllAmts {
@@ -283,6 +297,7 @@ func testUint16x32ShiftAll(t *testing.T, f func(_ archsimd.Uint16x32, _ uint64) 
 func testUint32x16ShiftAll(t *testing.T, f func(_ archsimd.Uint32x16, _ uint64) archsimd.Uint32x16, want func(_ []uint32, _ uint64) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
 		for _, amt := range testShiftAllAmts {
@@ -302,6 +317,7 @@ func testUint32x16ShiftAll(t *testing.T, f func(_ archsimd.Uint32x16, _ uint64) 
 func testUint64x8ShiftAll(t *testing.T, f func(_ archsimd.Uint64x8, _ uint64) archsimd.Uint64x8, want func(_ []uint64, _ uint64) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
 		for _, amt := range testShiftAllAmts {

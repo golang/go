@@ -11,11 +11,26 @@ import (
 	"math"
 	"os"
 	"reflect"
+	"simd/archsimd"
 	"simd/internal/test_helpers"
 	"slices"
 	"testing"
 	"unsafe"
 )
+
+func requireVectorBits(t *testing.T, bits int) {
+	t.Helper()
+	switch bits {
+	case 256:
+		if !archsimd.X86.AVX2() {
+			t.Skip("256-bit tests require AVX2")
+		}
+	case 512:
+		if !archsimd.X86.AVX512() {
+			t.Skip("512-bit tests require AVX512")
+		}
+	}
+}
 
 // inQEMU reports whether the tests are running under QEMU user-mode
 // emulation, which has bugs in a few SIMD instructions that would otherwise
