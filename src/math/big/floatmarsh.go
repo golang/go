@@ -16,8 +16,7 @@ import (
 const floatGobVersion byte = 1
 
 // GobEncode implements the [encoding/gob.GobEncoder] interface.
-// The [Float] value and all its attributes (precision,
-// rounding mode, accuracy) are marshaled.
+// The [Float] value and all its attributes (precision, rounding mode, accuracy) are marshaled.
 func (x *Float) GobEncode() ([]byte, error) {
 	if x == nil {
 		return nil, nil
@@ -28,7 +27,8 @@ func (x *Float) GobEncode() ([]byte, error) {
 	n := 0          // number of mantissa words
 	if x.form == finite {
 		// add space for mantissa and exponent
-		n = int((x.prec + (_W - 1)) / _W) // required mantissa length in words for given precision
+		// (widen x.prec to uint64 before rounding up to avoid uint32 overflow near MaxPrec)
+		n = int((uint64(x.prec) + (_W - 1)) / _W) // required mantissa length in words for given precision
 		// actual mantissa slice could be shorter (trailing 0's) or longer (unused bits):
 		// - if shorter, only encode the words present
 		// - if longer, cut off unused words when encoding in bytes

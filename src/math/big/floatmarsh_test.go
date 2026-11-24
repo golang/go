@@ -83,6 +83,43 @@ func TestFloatGobEncoding(t *testing.T) {
 	}
 }
 
+func TestFloatGobEncodingNearPrecLimit(t *testing.T) {
+	for _, prec := range []uint{MaxPrec - (_W - 1), MaxPrec - (_W - 2), MaxPrec} {
+		const f = -1.5 // can be represented exactly with one mantissa word
+		x := new(Float).SetPrec(prec).SetFloat64(f)
+		res, err := x.GobEncode()
+		if err != nil {
+			t.Fatalf("%v (prec = %d)", err, prec)
+		}
+
+		z := new(Float)
+		err = z.GobDecode(res)
+		if err != nil {
+			t.Errorf("%v (prec = %d)", err, prec)
+			continue
+		}
+
+		// sanity check
+		if z.Cmp(x) != 0 {
+			// reduce precision so x, z print quickly
+			x.SetPrec(10)
+			z.SetPrec(10)
+			t.Errorf("GobEncode/GobDecode round trip: %v != %v", x, z)
+		}
+	}
+
+	// example from go.dev/issue/83040
+	var buf bytes.Buffer
+	x := new(Float).SetPrec(MaxPrec).SetFloat64(1.5)
+	if err := gob.NewEncoder(&buf).Encode(x); err != nil {
+		t.Fatalf("%v (prec = %d, via gob.Encoder.Encode)", err, uint(MaxPrec))
+	}
+	var z Float
+	if err := gob.NewDecoder(&buf).Decode(&z); err != nil {
+		t.Errorf("%v (prec = %d, via gob.Decoder.Decode)", err, uint(MaxPrec))
+	}
+}
+
 func TestFloatCorruptGob(t *testing.T) {
 	var buf bytes.Buffer
 	tx := NewFloat(4 / 3).SetPrec(1000).SetMode(ToPositiveInf)
