@@ -25,7 +25,8 @@ func simdCarrylessMulUint64x2(x, y archsimd.Uint64x2) archsimd.Uint64x2 {
 
 func simdCarrylessMulUint64x4(x, y archsimd.Uint64x4) archsimd.Uint64x4 {
 	// amd64:`VPCLMULQDQ \$17, Y[0-9]+, Y[0-9]+, Y[0-9]+` `VPCLMULQDQ \$17, X[0-9]+, X[0-9]+, X[0-9]+`
-	// amd64:`VEXTRACTF128` `VINSERTF128` -`CALL .*\.CarrylessMul` `CALL .*\.carrylessMultiplySoft`
+	// amd64:-`CALL .*\.CarrylessMul` `CALL .*\.carrylessMultiplySoft`
+	// amd64/v1,amd64/v2:`VEXTRACTF128` `VINSERTF128` amd64/v3,amd64/v4:`VEXTRACTI128` `VINSERTI128`
 	return x.CarrylessMulOdd(y)
 }
 

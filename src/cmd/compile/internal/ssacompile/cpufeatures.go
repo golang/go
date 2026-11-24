@@ -9,6 +9,7 @@ import (
 	"internal/buildcfg"
 	"internal/goarch"
 	"strings"
+	"sync"
 
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
@@ -93,7 +94,17 @@ func ifEffect(b *ssa.Block) (features ssa.CPUfeatures, taken int) {
 	if load == nil {
 		return
 	}
+	features = fieldFeatures(match)
+	if b.Func.Pass.Debug > 2 {
+		b.Func.Warnl(b.Pos, "%s, block b%v has features %s, features is %v", b.Func.Name, b.ID, match, features)
+	}
+	return
+}
 
+// fieldFeatures returns the features that the compiler can assume when the
+// field of internal/cpu.X86 or internal/cpu.ARM64 named by match (for example,
+// "X86.HasAVX2") is true.
+func fieldFeatures(match string) (features ssa.CPUfeatures) {
 	switch match {
 
 	case "X86.HasAVX":
@@ -133,11 +144,21 @@ func ifEffect(b *ssa.Block) (features ssa.CPUfeatures, taken int) {
 		"X86.HasSSE3", "X86.HasSSSE3", "X86.HasSSE41", "X86.HasSSE42":
 
 	}
-	if b.Func.Pass.Debug > 2 {
-		b.Func.Warnl(b.Pos, "%s, block b%v has features %s, features is %v", b.Func.Name, b.ID, match, features)
-	}
 	return
 }
+
+// goamd64Features returns the features that the GOAMD64 level guarantees
+// everywhere: those of the internal/cpu.X86 fields that internal/cpu/mkoptions.go
+// lists for the level.
+var goamd64Features = sync.OnceValue(func() ssa.CPUfeatures {
+	var features ssa.CPUfeatures
+	for match, level := range x86FeatureLevels {
+		if buildcfg.GOAMD64 >= level {
+			features |= fieldFeatures(match)
+		}
+	}
+	return features
+})
 
 // noCodeValue reports whether v is known to emit no machine code, so
 // that even a SIMD type does not imply the presence of any CPU feature.
@@ -314,6 +335,17 @@ func propagateCPUFeatures(f *ssa.Func, ifEffect func(b *ssa.Block) (features ssa
 			}
 			change = true
 		}
+	}
+	// The GOAMD64 level guarantees some features everywhere. Add them only to
+	// functions that use SIMD, so the passes that check MaxCPUFeatures still
+	// skip the others. Since these features hold on every path, adding them
+	// after the analysis is the same as including them in it.
+	if f.MaxCPUFeatures != ssa.CPUNone && arch == goarch.AMD64 {
+		baseline := goamd64Features()
+		for _, b := range f.Blocks {
+			b.CPUfeatures |= baseline
+		}
+		f.MaxCPUFeatures |= baseline
 	}
 }
 
