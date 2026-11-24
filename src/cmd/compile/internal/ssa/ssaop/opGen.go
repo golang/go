@@ -8351,22 +8351,6 @@ const (
 	OpInterleaveEvenUint32x4
 	OpInterleaveEvenUint64x2
 	OpInterleaveEvenUint8x16
-	OpInterleaveHiGroupedInt16x16
-	OpInterleaveHiGroupedInt16x32
-	OpInterleaveHiGroupedInt32x16
-	OpInterleaveHiGroupedInt32x8
-	OpInterleaveHiGroupedInt64x4
-	OpInterleaveHiGroupedInt64x8
-	OpInterleaveHiGroupedInt8x32
-	OpInterleaveHiGroupedInt8x64
-	OpInterleaveHiGroupedUint16x16
-	OpInterleaveHiGroupedUint16x32
-	OpInterleaveHiGroupedUint32x16
-	OpInterleaveHiGroupedUint32x8
-	OpInterleaveHiGroupedUint64x4
-	OpInterleaveHiGroupedUint64x8
-	OpInterleaveHiGroupedUint8x32
-	OpInterleaveHiGroupedUint8x64
 	OpInterleaveHiInt16s
 	OpInterleaveHiInt16x8
 	OpInterleaveHiInt32s
@@ -8383,22 +8367,6 @@ const (
 	OpInterleaveHiUint64x2
 	OpInterleaveHiUint8s
 	OpInterleaveHiUint8x16
-	OpInterleaveLoGroupedInt16x16
-	OpInterleaveLoGroupedInt16x32
-	OpInterleaveLoGroupedInt32x16
-	OpInterleaveLoGroupedInt32x8
-	OpInterleaveLoGroupedInt64x4
-	OpInterleaveLoGroupedInt64x8
-	OpInterleaveLoGroupedInt8x32
-	OpInterleaveLoGroupedInt8x64
-	OpInterleaveLoGroupedUint16x16
-	OpInterleaveLoGroupedUint16x32
-	OpInterleaveLoGroupedUint32x16
-	OpInterleaveLoGroupedUint32x8
-	OpInterleaveLoGroupedUint64x4
-	OpInterleaveLoGroupedUint64x8
-	OpInterleaveLoGroupedUint8x32
-	OpInterleaveLoGroupedUint8x64
 	OpInterleaveLoInt16s
 	OpInterleaveLoInt16x8
 	OpInterleaveLoInt32s
@@ -9443,6 +9411,38 @@ const (
 	OpconcatSelectedConstantInt64x2
 	OpconcatSelectedConstantUint32x4
 	OpconcatSelectedConstantUint64x2
+	OpinterleaveHiGroupedInt16x16
+	OpinterleaveHiGroupedInt16x32
+	OpinterleaveHiGroupedInt32x16
+	OpinterleaveHiGroupedInt32x8
+	OpinterleaveHiGroupedInt64x4
+	OpinterleaveHiGroupedInt64x8
+	OpinterleaveHiGroupedInt8x32
+	OpinterleaveHiGroupedInt8x64
+	OpinterleaveHiGroupedUint16x16
+	OpinterleaveHiGroupedUint16x32
+	OpinterleaveHiGroupedUint32x16
+	OpinterleaveHiGroupedUint32x8
+	OpinterleaveHiGroupedUint64x4
+	OpinterleaveHiGroupedUint64x8
+	OpinterleaveHiGroupedUint8x32
+	OpinterleaveHiGroupedUint8x64
+	OpinterleaveLoGroupedInt16x16
+	OpinterleaveLoGroupedInt16x32
+	OpinterleaveLoGroupedInt32x16
+	OpinterleaveLoGroupedInt32x8
+	OpinterleaveLoGroupedInt64x4
+	OpinterleaveLoGroupedInt64x8
+	OpinterleaveLoGroupedInt8x32
+	OpinterleaveLoGroupedInt8x64
+	OpinterleaveLoGroupedUint16x16
+	OpinterleaveLoGroupedUint16x32
+	OpinterleaveLoGroupedUint32x16
+	OpinterleaveLoGroupedUint32x8
+	OpinterleaveLoGroupedUint64x4
+	OpinterleaveLoGroupedUint64x8
+	OpinterleaveLoGroupedUint8x32
+	OpinterleaveLoGroupedUint8x64
 	OponesCountInt8x16
 	OponesCountInt8x32
 	OponesCountInt8x64
@@ -126537,86 +126537,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "InterleaveHiGroupedInt16x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveHiGroupedInt16x32",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveHiGroupedInt32x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveHiGroupedInt32x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveHiGroupedInt64x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveHiGroupedInt64x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveHiGroupedInt8x32",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveHiGroupedInt8x64",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveHiGroupedUint16x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveHiGroupedUint16x32",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveHiGroupedUint32x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveHiGroupedUint32x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveHiGroupedUint64x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveHiGroupedUint64x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveHiGroupedUint8x32",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveHiGroupedUint8x64",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
 		Name:    "InterleaveHiInt16s",
 		ArgLen:  2,
 		Generic: true,
@@ -126693,86 +126613,6 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "InterleaveHiUint8x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveLoGroupedInt16x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveLoGroupedInt16x32",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveLoGroupedInt32x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveLoGroupedInt32x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveLoGroupedInt64x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveLoGroupedInt64x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveLoGroupedInt8x32",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveLoGroupedInt8x64",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveLoGroupedUint16x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveLoGroupedUint16x32",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveLoGroupedUint32x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveLoGroupedUint32x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveLoGroupedUint64x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveLoGroupedUint64x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveLoGroupedUint8x32",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "InterleaveLoGroupedUint8x64",
 		ArgLen:  2,
 		Generic: true,
 	},
@@ -132299,6 +132139,166 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "concatSelectedConstantUint64x2",
 		AuxType: AuxTypeUInt8,
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveHiGroupedInt16x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveHiGroupedInt16x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveHiGroupedInt32x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveHiGroupedInt32x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveHiGroupedInt64x4",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveHiGroupedInt64x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveHiGroupedInt8x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveHiGroupedInt8x64",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveHiGroupedUint16x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveHiGroupedUint16x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveHiGroupedUint32x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveHiGroupedUint32x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveHiGroupedUint64x4",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveHiGroupedUint64x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveHiGroupedUint8x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveHiGroupedUint8x64",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveLoGroupedInt16x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveLoGroupedInt16x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveLoGroupedInt32x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveLoGroupedInt32x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveLoGroupedInt64x4",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveLoGroupedInt64x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveLoGroupedInt8x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveLoGroupedInt8x64",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveLoGroupedUint16x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveLoGroupedUint16x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveLoGroupedUint32x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveLoGroupedUint32x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveLoGroupedUint64x4",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveLoGroupedUint64x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveLoGroupedUint8x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "interleaveLoGroupedUint8x64",
 		ArgLen:  2,
 		Generic: true,
 	},

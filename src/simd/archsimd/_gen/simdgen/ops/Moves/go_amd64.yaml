@@ -818,7 +818,7 @@
   out:
   - *128any
 
-- go: InterleaveHiGrouped
+- go: interleaveHiGrouped
   asm: VPUNPCKH(QDQ|DQ|WD|BW)
   in:
   - *256Or512any
@@ -827,7 +827,7 @@
   out:
   - *256Or512any
 
-- go: InterleaveLoGrouped
+- go: interleaveLoGrouped
   asm: VPUNPCKL(QDQ|DQ|WD|BW)
   in:
   - *256Or512any

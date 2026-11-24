@@ -4995,54 +4995,6 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpInterCall:
 		v.Op = ssaop.OpAMD64CALLinter
 		return true
-	case ssaop.OpInterleaveHiGroupedInt16x16:
-		v.Op = ssaop.OpAMD64VPUNPCKHWD256
-		return true
-	case ssaop.OpInterleaveHiGroupedInt16x32:
-		v.Op = ssaop.OpAMD64VPUNPCKHWD512
-		return true
-	case ssaop.OpInterleaveHiGroupedInt32x16:
-		v.Op = ssaop.OpAMD64VPUNPCKHDQ512
-		return true
-	case ssaop.OpInterleaveHiGroupedInt32x8:
-		v.Op = ssaop.OpAMD64VPUNPCKHDQ256
-		return true
-	case ssaop.OpInterleaveHiGroupedInt64x4:
-		v.Op = ssaop.OpAMD64VPUNPCKHQDQ256
-		return true
-	case ssaop.OpInterleaveHiGroupedInt64x8:
-		v.Op = ssaop.OpAMD64VPUNPCKHQDQ512
-		return true
-	case ssaop.OpInterleaveHiGroupedInt8x32:
-		v.Op = ssaop.OpAMD64VPUNPCKHBW256
-		return true
-	case ssaop.OpInterleaveHiGroupedInt8x64:
-		v.Op = ssaop.OpAMD64VPUNPCKHBW512
-		return true
-	case ssaop.OpInterleaveHiGroupedUint16x16:
-		v.Op = ssaop.OpAMD64VPUNPCKHWD256
-		return true
-	case ssaop.OpInterleaveHiGroupedUint16x32:
-		v.Op = ssaop.OpAMD64VPUNPCKHWD512
-		return true
-	case ssaop.OpInterleaveHiGroupedUint32x16:
-		v.Op = ssaop.OpAMD64VPUNPCKHDQ512
-		return true
-	case ssaop.OpInterleaveHiGroupedUint32x8:
-		v.Op = ssaop.OpAMD64VPUNPCKHDQ256
-		return true
-	case ssaop.OpInterleaveHiGroupedUint64x4:
-		v.Op = ssaop.OpAMD64VPUNPCKHQDQ256
-		return true
-	case ssaop.OpInterleaveHiGroupedUint64x8:
-		v.Op = ssaop.OpAMD64VPUNPCKHQDQ512
-		return true
-	case ssaop.OpInterleaveHiGroupedUint8x32:
-		v.Op = ssaop.OpAMD64VPUNPCKHBW256
-		return true
-	case ssaop.OpInterleaveHiGroupedUint8x64:
-		v.Op = ssaop.OpAMD64VPUNPCKHBW512
-		return true
 	case ssaop.OpInterleaveHiInt16x8:
 		v.Op = ssaop.OpAMD64VPUNPCKHWD128
 		return true
@@ -5066,54 +5018,6 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpInterleaveHiUint8x16:
 		v.Op = ssaop.OpAMD64VPUNPCKHBW128
-		return true
-	case ssaop.OpInterleaveLoGroupedInt16x16:
-		v.Op = ssaop.OpAMD64VPUNPCKLWD256
-		return true
-	case ssaop.OpInterleaveLoGroupedInt16x32:
-		v.Op = ssaop.OpAMD64VPUNPCKLWD512
-		return true
-	case ssaop.OpInterleaveLoGroupedInt32x16:
-		v.Op = ssaop.OpAMD64VPUNPCKLDQ512
-		return true
-	case ssaop.OpInterleaveLoGroupedInt32x8:
-		v.Op = ssaop.OpAMD64VPUNPCKLDQ256
-		return true
-	case ssaop.OpInterleaveLoGroupedInt64x4:
-		v.Op = ssaop.OpAMD64VPUNPCKLQDQ256
-		return true
-	case ssaop.OpInterleaveLoGroupedInt64x8:
-		v.Op = ssaop.OpAMD64VPUNPCKLQDQ512
-		return true
-	case ssaop.OpInterleaveLoGroupedInt8x32:
-		v.Op = ssaop.OpAMD64VPUNPCKLBW256
-		return true
-	case ssaop.OpInterleaveLoGroupedInt8x64:
-		v.Op = ssaop.OpAMD64VPUNPCKLBW512
-		return true
-	case ssaop.OpInterleaveLoGroupedUint16x16:
-		v.Op = ssaop.OpAMD64VPUNPCKLWD256
-		return true
-	case ssaop.OpInterleaveLoGroupedUint16x32:
-		v.Op = ssaop.OpAMD64VPUNPCKLWD512
-		return true
-	case ssaop.OpInterleaveLoGroupedUint32x16:
-		v.Op = ssaop.OpAMD64VPUNPCKLDQ512
-		return true
-	case ssaop.OpInterleaveLoGroupedUint32x8:
-		v.Op = ssaop.OpAMD64VPUNPCKLDQ256
-		return true
-	case ssaop.OpInterleaveLoGroupedUint64x4:
-		v.Op = ssaop.OpAMD64VPUNPCKLQDQ256
-		return true
-	case ssaop.OpInterleaveLoGroupedUint64x8:
-		v.Op = ssaop.OpAMD64VPUNPCKLQDQ512
-		return true
-	case ssaop.OpInterleaveLoGroupedUint8x32:
-		v.Op = ssaop.OpAMD64VPUNPCKLBW256
-		return true
-	case ssaop.OpInterleaveLoGroupedUint8x64:
-		v.Op = ssaop.OpAMD64VPUNPCKLBW512
 		return true
 	case ssaop.OpInterleaveLoInt16x8:
 		v.Op = ssaop.OpAMD64VPUNPCKLWD128
@@ -7567,6 +7471,102 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpconcatSelectedConstantUint64x2:
 		v.Op = ssaop.OpAMD64VSHUFPD128
+		return true
+	case ssaop.OpinterleaveHiGroupedInt16x16:
+		v.Op = ssaop.OpAMD64VPUNPCKHWD256
+		return true
+	case ssaop.OpinterleaveHiGroupedInt16x32:
+		v.Op = ssaop.OpAMD64VPUNPCKHWD512
+		return true
+	case ssaop.OpinterleaveHiGroupedInt32x16:
+		v.Op = ssaop.OpAMD64VPUNPCKHDQ512
+		return true
+	case ssaop.OpinterleaveHiGroupedInt32x8:
+		v.Op = ssaop.OpAMD64VPUNPCKHDQ256
+		return true
+	case ssaop.OpinterleaveHiGroupedInt64x4:
+		v.Op = ssaop.OpAMD64VPUNPCKHQDQ256
+		return true
+	case ssaop.OpinterleaveHiGroupedInt64x8:
+		v.Op = ssaop.OpAMD64VPUNPCKHQDQ512
+		return true
+	case ssaop.OpinterleaveHiGroupedInt8x32:
+		v.Op = ssaop.OpAMD64VPUNPCKHBW256
+		return true
+	case ssaop.OpinterleaveHiGroupedInt8x64:
+		v.Op = ssaop.OpAMD64VPUNPCKHBW512
+		return true
+	case ssaop.OpinterleaveHiGroupedUint16x16:
+		v.Op = ssaop.OpAMD64VPUNPCKHWD256
+		return true
+	case ssaop.OpinterleaveHiGroupedUint16x32:
+		v.Op = ssaop.OpAMD64VPUNPCKHWD512
+		return true
+	case ssaop.OpinterleaveHiGroupedUint32x16:
+		v.Op = ssaop.OpAMD64VPUNPCKHDQ512
+		return true
+	case ssaop.OpinterleaveHiGroupedUint32x8:
+		v.Op = ssaop.OpAMD64VPUNPCKHDQ256
+		return true
+	case ssaop.OpinterleaveHiGroupedUint64x4:
+		v.Op = ssaop.OpAMD64VPUNPCKHQDQ256
+		return true
+	case ssaop.OpinterleaveHiGroupedUint64x8:
+		v.Op = ssaop.OpAMD64VPUNPCKHQDQ512
+		return true
+	case ssaop.OpinterleaveHiGroupedUint8x32:
+		v.Op = ssaop.OpAMD64VPUNPCKHBW256
+		return true
+	case ssaop.OpinterleaveHiGroupedUint8x64:
+		v.Op = ssaop.OpAMD64VPUNPCKHBW512
+		return true
+	case ssaop.OpinterleaveLoGroupedInt16x16:
+		v.Op = ssaop.OpAMD64VPUNPCKLWD256
+		return true
+	case ssaop.OpinterleaveLoGroupedInt16x32:
+		v.Op = ssaop.OpAMD64VPUNPCKLWD512
+		return true
+	case ssaop.OpinterleaveLoGroupedInt32x16:
+		v.Op = ssaop.OpAMD64VPUNPCKLDQ512
+		return true
+	case ssaop.OpinterleaveLoGroupedInt32x8:
+		v.Op = ssaop.OpAMD64VPUNPCKLDQ256
+		return true
+	case ssaop.OpinterleaveLoGroupedInt64x4:
+		v.Op = ssaop.OpAMD64VPUNPCKLQDQ256
+		return true
+	case ssaop.OpinterleaveLoGroupedInt64x8:
+		v.Op = ssaop.OpAMD64VPUNPCKLQDQ512
+		return true
+	case ssaop.OpinterleaveLoGroupedInt8x32:
+		v.Op = ssaop.OpAMD64VPUNPCKLBW256
+		return true
+	case ssaop.OpinterleaveLoGroupedInt8x64:
+		v.Op = ssaop.OpAMD64VPUNPCKLBW512
+		return true
+	case ssaop.OpinterleaveLoGroupedUint16x16:
+		v.Op = ssaop.OpAMD64VPUNPCKLWD256
+		return true
+	case ssaop.OpinterleaveLoGroupedUint16x32:
+		v.Op = ssaop.OpAMD64VPUNPCKLWD512
+		return true
+	case ssaop.OpinterleaveLoGroupedUint32x16:
+		v.Op = ssaop.OpAMD64VPUNPCKLDQ512
+		return true
+	case ssaop.OpinterleaveLoGroupedUint32x8:
+		v.Op = ssaop.OpAMD64VPUNPCKLDQ256
+		return true
+	case ssaop.OpinterleaveLoGroupedUint64x4:
+		v.Op = ssaop.OpAMD64VPUNPCKLQDQ256
+		return true
+	case ssaop.OpinterleaveLoGroupedUint64x8:
+		v.Op = ssaop.OpAMD64VPUNPCKLQDQ512
+		return true
+	case ssaop.OpinterleaveLoGroupedUint8x32:
+		v.Op = ssaop.OpAMD64VPUNPCKLBW256
+		return true
+	case ssaop.OpinterleaveLoGroupedUint8x64:
+		v.Op = ssaop.OpAMD64VPUNPCKLBW512
 		return true
 	case ssaop.OponesCountInt8x16:
 		v.Op = ssaop.OpAMD64VPOPCNTB128

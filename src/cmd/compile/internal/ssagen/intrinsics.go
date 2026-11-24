@@ -1770,6 +1770,62 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		} {
 			addF(simdPackage, t.name+".IsNaN", opLen1(t.op, t.typ), sys.AMD64)
 		}
+
+		// sfp4 is intrinsic-if-constant, but otherwise it's complicated enough to just implement in Go.
+		sfp4 := func(method string, hwop ssaop.Op, vectype *types.Type) {
+			addF(simdPackage, method,
+				func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+					x, a, b, c, d, y := args[0], args[1], args[2], args[3], args[4], args[5]
+					if a.Op == ssaop.OpConst8 && b.Op == ssaop.OpConst8 && c.Op == ssaop.OpConst8 && d.Op == ssaop.OpConst8 {
+						z := select4FromPair(x, a, b, c, d, y, s, hwop, vectype)
+						if z != nil {
+							return z
+						}
+					}
+					return s.callResult(n, callNormal)
+				},
+				sys.AMD64)
+		}
+
+		sfp4("Int32x4.concatPermuteScalars", ssaop.OpconcatSelectedConstantInt32x4, types.TypeVec128)
+		sfp4("Uint32x4.concatPermuteScalars", ssaop.OpconcatSelectedConstantUint32x4, types.TypeVec128)
+		sfp4("Float32x4.concatPermuteScalars", ssaop.OpconcatSelectedConstantFloat32x4, types.TypeVec128)
+
+		sfp4("Int32x8.concatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedInt32x8, types.TypeVec256)
+		sfp4("Uint32x8.concatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedUint32x8, types.TypeVec256)
+		sfp4("Float32x8.concatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedFloat32x8, types.TypeVec256)
+
+		sfp4("Int32x16.concatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedInt32x16, types.TypeVec512)
+		sfp4("Uint32x16.concatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedUint32x16, types.TypeVec512)
+		sfp4("Float32x16.concatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedFloat32x16, types.TypeVec512)
+
+		// sfp2 is intrinsic-if-constant, but otherwise it's complicated enough to just implement in Go.
+		sfp2 := func(method string, hwop ssaop.Op, vectype *types.Type, cscimm func(i, j uint8) int64) {
+			addF(simdPackage, method,
+				func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+					x, a, b, y := args[0], args[1], args[2], args[3]
+					if a.Op == ssaop.OpConst8 && b.Op == ssaop.OpConst8 {
+						z := select2FromPair(x, a, b, y, s, hwop, vectype, cscimm)
+						if z != nil {
+							return z
+						}
+					}
+					return s.callResult(n, callNormal)
+				},
+				sys.AMD64)
+		}
+
+		sfp2("Uint64x2.concatPermuteScalars", ssaop.OpconcatSelectedConstantUint64x2, types.TypeVec128, cscimm2)
+		sfp2("Int64x2.concatPermuteScalars", ssaop.OpconcatSelectedConstantInt64x2, types.TypeVec128, cscimm2)
+		sfp2("Float64x2.concatPermuteScalars", ssaop.OpconcatSelectedConstantFloat64x2, types.TypeVec128, cscimm2)
+
+		sfp2("Uint64x4.concatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedUint64x4, types.TypeVec256, cscimm2g2)
+		sfp2("Int64x4.concatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedInt64x4, types.TypeVec256, cscimm2g2)
+		sfp2("Float64x4.concatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedFloat64x4, types.TypeVec256, cscimm2g2)
+
+		sfp2("Uint64x8.concatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedUint64x8, types.TypeVec512, cscimm2g4)
+		sfp2("Int64x8.concatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedInt64x8, types.TypeVec512, cscimm2g4)
+		sfp2("Float64x8.concatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedFloat64x8, types.TypeVec512, cscimm2g4)
 	}
 
 	if buildcfg.Experiment.SIMD {
@@ -1859,63 +1915,6 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 				return nil
 			},
 			sys.AMD64)
-
-		// sfp4 is intrinsic-if-constant, but otherwise it's complicated enough to just implement in Go.
-		sfp4 := func(method string, hwop ssaop.Op, vectype *types.Type) {
-			addF(simdPackage, method,
-				func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-					x, a, b, c, d, y := args[0], args[1], args[2], args[3], args[4], args[5]
-					if a.Op == ssaop.OpConst8 && b.Op == ssaop.OpConst8 && c.Op == ssaop.OpConst8 && d.Op == ssaop.OpConst8 {
-						z := select4FromPair(x, a, b, c, d, y, s, hwop, vectype)
-						if z != nil {
-							return z
-						}
-					}
-					return s.callResult(n, callNormal)
-				},
-				sys.AMD64)
-		}
-
-		sfp4("Int32x4.ConcatPermuteScalars", ssaop.OpconcatSelectedConstantInt32x4, types.TypeVec128)
-		sfp4("Uint32x4.ConcatPermuteScalars", ssaop.OpconcatSelectedConstantUint32x4, types.TypeVec128)
-		sfp4("Float32x4.ConcatPermuteScalars", ssaop.OpconcatSelectedConstantFloat32x4, types.TypeVec128)
-
-		sfp4("Int32x8.ConcatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedInt32x8, types.TypeVec256)
-		sfp4("Uint32x8.ConcatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedUint32x8, types.TypeVec256)
-		sfp4("Float32x8.ConcatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedFloat32x8, types.TypeVec256)
-
-		sfp4("Int32x16.ConcatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedInt32x16, types.TypeVec512)
-		sfp4("Uint32x16.ConcatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedUint32x16, types.TypeVec512)
-		sfp4("Float32x16.ConcatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedFloat32x16, types.TypeVec512)
-
-		// sfp2 is intrinsic-if-constant, but otherwise it's complicated enough to just implement in Go.
-		sfp2 := func(method string, hwop ssaop.Op, vectype *types.Type, cscimm func(i, j uint8) int64) {
-			addF(simdPackage, method,
-				func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-					x, a, b, y := args[0], args[1], args[2], args[3]
-					if a.Op == ssaop.OpConst8 && b.Op == ssaop.OpConst8 {
-						z := select2FromPair(x, a, b, y, s, hwop, vectype, cscimm)
-						if z != nil {
-							return z
-						}
-					}
-					return s.callResult(n, callNormal)
-				},
-				sys.AMD64)
-		}
-
-		sfp2("Uint64x2.ConcatPermuteScalars", ssaop.OpconcatSelectedConstantUint64x2, types.TypeVec128, cscimm2)
-		sfp2("Int64x2.ConcatPermuteScalars", ssaop.OpconcatSelectedConstantInt64x2, types.TypeVec128, cscimm2)
-		sfp2("Float64x2.ConcatPermuteScalars", ssaop.OpconcatSelectedConstantFloat64x2, types.TypeVec128, cscimm2)
-
-		sfp2("Uint64x4.ConcatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedUint64x4, types.TypeVec256, cscimm2g2)
-		sfp2("Int64x4.ConcatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedInt64x4, types.TypeVec256, cscimm2g2)
-		sfp2("Float64x4.ConcatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedFloat64x4, types.TypeVec256, cscimm2g2)
-
-		sfp2("Uint64x8.ConcatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedUint64x8, types.TypeVec512, cscimm2g4)
-		sfp2("Int64x8.ConcatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedInt64x8, types.TypeVec512, cscimm2g4)
-		sfp2("Float64x8.ConcatPermuteScalarsGrouped", ssaop.OpconcatSelectedConstantGroupedFloat64x8, types.TypeVec512, cscimm2g4)
-
 	}
 }
 

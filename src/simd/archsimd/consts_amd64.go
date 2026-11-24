@@ -41,3 +41,35 @@ const (
 func cscimm4(a, b, c, d uint8) uint8 {
 	return uint8(a + b<<2 + c<<4 + d<<6)
 }
+
+// These constants represent the source pattern for the two parameters
+// (a, b) passed to ConcatPermuteScalars and ConcatPermuteScalarsGrouped for
+// two-element vectors.
+const (
+	_LL = iota
+	_HL
+	_LH
+	_HH
+)
+
+// cscimm2 converts the 2 vector element indices into a single
+// uint8 for use as an immediate.
+func cscimm2(a, b uint8) uint8 {
+	return uint8(a + b<<1)
+}
+
+// cscimm2g2 converts the 2 vector element indices into a single
+// uint8 for use as an immediate, but duplicated for VSHUFPD
+// to emulate grouped behavior of VSHUFPS.
+func cscimm2g2(a, b uint8) uint8 {
+	g := cscimm2(a, b)
+	return g + g<<2
+}
+
+// cscimm2g4 converts the 2 vector element indices into a single
+// uint8 for use as an immediate, but with four copies for VSHUFPD
+// to emulate grouped behavior of VSHUFPS.
+func cscimm2g4(a, b uint8) uint8 {
+	g := cscimm2g2(a, b)
+	return g + g<<4
+}
