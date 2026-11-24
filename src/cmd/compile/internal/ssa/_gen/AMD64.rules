@@ -1831,6 +1831,15 @@
 (XorMask256 x y) => (VXORPS256 x y)
 (AndNotMask256 x y) => (VANDNPS256 y x)
 
+// Lo, Hi, SetLo, and SetHi on 256-bit integer vectors require only AVX, so the
+// generated rules use VEXTRACTF128 and VINSERTF128. If AVX2 is available, use
+// VEXTRACTI128 and VINSERTI128 instead, which keep integer data in the integer
+// domain. These come before the generated rules, so they take precedence.
+(Lo(Int8x32|Int16x16|Int32x8|Int64x4|Uint8x32|Uint16x16|Uint32x8|Uint64x4) x) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx2) => (VEXTRACTI128128 [0] x)
+(Hi(Int8x32|Int16x16|Int32x8|Int64x4|Uint8x32|Uint16x16|Uint32x8|Uint64x4) x) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx2) => (VEXTRACTI128128 [1] x)
+(SetLo(Int8x32|Int16x16|Int32x8|Int64x4|Uint8x32|Uint16x16|Uint32x8|Uint64x4) x y) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx2) => (VINSERTI128256 [0] x y)
+(SetHi(Int8x32|Int16x16|Int32x8|Int64x4|Uint8x32|Uint16x16|Uint32x8|Uint64x4) x y) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx2) => (VINSERTI128256 [1] x y)
+
 (ZeroSIMD <t>) && t.Size() == 16 => (Zero128 <t>)
 (ZeroSIMD <t>) && t.Size() == 32 => (Zero256 <t>)
 (ZeroSIMD <t>) && t.Size() == 64 => (Zero512 <t>)

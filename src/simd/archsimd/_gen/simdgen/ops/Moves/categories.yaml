@@ -100,6 +100,17 @@
   commutative: false
   noTypes: "true"
   noGenericOps: "true"
+# insertInt128 and extractInt128 generate the VINSERTI128 and VEXTRACTI128
+# machine ops, which the AMD64 rules use for 256-bit integer SetLo, SetHi, Lo,
+# and Hi when AVX2 is available.
+- go: insertInt128
+  commutative: false
+  noTypes: "true"
+  noGenericOps: "true"
+- go: extractInt128
+  commutative: false
+  noTypes: "true"
+  noGenericOps: "true"
 - go: Expand
   commutative: false
   documentation: !string |-

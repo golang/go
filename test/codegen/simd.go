@@ -167,6 +167,30 @@ func simdMaskLogic256(a, b, c, d archsimd.Float32x8) archsimd.Mask32x8 {
 	return x.AndNot(y).Or(x.And(y).Xor(y))
 }
 
+func simdHiInt32x8(x archsimd.Int32x8) archsimd.Int32x4 {
+	if archsimd.X86.AVX2() {
+		// Check that with AVX2, Hi on a 256-bit integer vector uses the
+		// integer extract.
+		// amd64:`VEXTRACTI128` -`VEXTRACTF128`
+		return x.Hi()
+	}
+	// Check that without AVX2, it uses the AVX1 floating-point extract.
+	// amd64/v1:`VEXTRACTF128` -`VEXTRACTI128`
+	return x.Hi()
+}
+
+func simdSetHiInt32x8(x archsimd.Int32x8, y archsimd.Int32x4) archsimd.Int32x8 {
+	if archsimd.X86.AVX2() {
+		// Check that with AVX2, SetHi on a 256-bit integer vector uses the
+		// integer insert.
+		// amd64:`VINSERTI128` -`VINSERTF128`
+		return x.SetHi(y)
+	}
+	// Check that without AVX2, it uses the AVX1 floating-point insert.
+	// amd64/v1:`VINSERTF128` -`VINSERTI128`
+	return x.SetHi(y)
+}
+
 func simdCompareToKMaskAndIfElse(x, y, a, b, c, d archsimd.Float64x4) archsimd.Float64x4 {
 	if !archsimd.X86.AVX512() {
 		return y

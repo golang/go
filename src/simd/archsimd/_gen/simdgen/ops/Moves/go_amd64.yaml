@@ -195,7 +195,7 @@
 
 - go: "SetHi|SetLo"
   regexpTag: "move"
-  asm: "VINSERTI128|VINSERTI64X4"
+  asm: "VINSERTI64X4"
   inVariant: []
   in:
   - &imm01 # This immediate should be only 0 or 1
@@ -214,7 +214,7 @@
   - *i8x2N
 
 - go: "Hi|Lo"
-  asm: "VEXTRACTI128|VEXTRACTI64X4"
+  asm: "VEXTRACTI64X4"
   regexpTag: "move"
   inVariant: []
   in:
@@ -224,7 +224,7 @@
   - *i8xN
 
 - go: "SetHi|SetLo"
-  asm: "VINSERTI128|VINSERTI64X4"
+  asm: "VINSERTI64X4"
   regexpTag: "move"
   inVariant: []
   in:
@@ -242,7 +242,7 @@
 
 - go: "Hi|Lo"
   regexpTag: "move"
-  asm: "VEXTRACTI128|VEXTRACTI64X4"
+  asm: "VEXTRACTI64X4"
   inVariant: []
   in:
   - *imm01
@@ -252,7 +252,7 @@
 
 - go: "SetHi|SetLo"
   regexpTag: "move"
-  asm: "VINSERTI128|VINSERTI64X4"
+  asm: "VINSERTI64X4"
   inVariant: []
   in:
   - *imm01
@@ -269,7 +269,7 @@
 
 - go: "Hi|Lo"
   regexpTag: "move"
-  asm: "VEXTRACTI128|VEXTRACTI64X4"
+  asm: "VEXTRACTI64X4"
   inVariant: []
   in:
   - *imm01
@@ -279,7 +279,7 @@
 
 - go: "SetHi|SetLo"
   regexpTag: "move"
-  asm: "VINSERTI128|VINSERTI64X4"
+  asm: "VINSERTI64X4"
   inVariant: []
   in:
   - *imm01
@@ -296,13 +296,284 @@
 
 - go: "Hi|Lo"
   regexpTag: "move"
-  asm: "VEXTRACTI128|VEXTRACTI64X4"
+  asm: "VEXTRACTI64X4"
   inVariant: []
   in:
   - *imm01
   - *i64x2N
   out:
   - *i64xN
+
+# For 256-bit integer vectors, use VINSERTF128 and VEXTRACTF128, which move the
+# same bits as VINSERTI128 and VEXTRACTI128, but require only AVX. The XED
+# operands are floating-point, so override them to each integer type.
+- go: "SetHi|SetLo"
+  regexpTag: "move"
+  asm: "VINSERTF128"
+  inVariant: []
+  in:
+  - *imm01
+  - &avxint8x2N
+    class: vreg
+    base: $t
+    overwriteElementBits: 8
+    overwriteBase: int
+  - &avxint8xN
+    class: vreg
+    base: $t
+    overwriteElementBits: 8
+    overwriteBase: int
+  out:
+  - *avxint8x2N
+
+- go: "Hi|Lo"
+  regexpTag: "move"
+  asm: "VEXTRACTF128"
+  inVariant: []
+  in:
+  - *imm01
+  - *avxint8x2N
+  out:
+  - *avxint8xN
+
+- go: "SetHi|SetLo"
+  regexpTag: "move"
+  asm: "VINSERTF128"
+  inVariant: []
+  in:
+  - *imm01
+  - &avxuint8x2N
+    class: vreg
+    base: $t
+    overwriteElementBits: 8
+    overwriteBase: uint
+  - &avxuint8xN
+    class: vreg
+    base: $t
+    overwriteElementBits: 8
+    overwriteBase: uint
+  out:
+  - *avxuint8x2N
+
+- go: "Hi|Lo"
+  regexpTag: "move"
+  asm: "VEXTRACTF128"
+  inVariant: []
+  in:
+  - *imm01
+  - *avxuint8x2N
+  out:
+  - *avxuint8xN
+
+- go: "SetHi|SetLo"
+  regexpTag: "move"
+  asm: "VINSERTF128"
+  inVariant: []
+  in:
+  - *imm01
+  - &avxint16x2N
+    class: vreg
+    base: $t
+    overwriteElementBits: 16
+    overwriteBase: int
+  - &avxint16xN
+    class: vreg
+    base: $t
+    overwriteElementBits: 16
+    overwriteBase: int
+  out:
+  - *avxint16x2N
+
+- go: "Hi|Lo"
+  regexpTag: "move"
+  asm: "VEXTRACTF128"
+  inVariant: []
+  in:
+  - *imm01
+  - *avxint16x2N
+  out:
+  - *avxint16xN
+
+- go: "SetHi|SetLo"
+  regexpTag: "move"
+  asm: "VINSERTF128"
+  inVariant: []
+  in:
+  - *imm01
+  - &avxuint16x2N
+    class: vreg
+    base: $t
+    overwriteElementBits: 16
+    overwriteBase: uint
+  - &avxuint16xN
+    class: vreg
+    base: $t
+    overwriteElementBits: 16
+    overwriteBase: uint
+  out:
+  - *avxuint16x2N
+
+- go: "Hi|Lo"
+  regexpTag: "move"
+  asm: "VEXTRACTF128"
+  inVariant: []
+  in:
+  - *imm01
+  - *avxuint16x2N
+  out:
+  - *avxuint16xN
+
+- go: "SetHi|SetLo"
+  regexpTag: "move"
+  asm: "VINSERTF128"
+  inVariant: []
+  in:
+  - *imm01
+  - &avxint32x2N
+    class: vreg
+    base: $t
+    overwriteElementBits: 32
+    overwriteBase: int
+  - &avxint32xN
+    class: vreg
+    base: $t
+    overwriteElementBits: 32
+    overwriteBase: int
+  out:
+  - *avxint32x2N
+
+- go: "Hi|Lo"
+  regexpTag: "move"
+  asm: "VEXTRACTF128"
+  inVariant: []
+  in:
+  - *imm01
+  - *avxint32x2N
+  out:
+  - *avxint32xN
+
+- go: "SetHi|SetLo"
+  regexpTag: "move"
+  asm: "VINSERTF128"
+  inVariant: []
+  in:
+  - *imm01
+  - &avxuint32x2N
+    class: vreg
+    base: $t
+    overwriteElementBits: 32
+    overwriteBase: uint
+  - &avxuint32xN
+    class: vreg
+    base: $t
+    overwriteElementBits: 32
+    overwriteBase: uint
+  out:
+  - *avxuint32x2N
+
+- go: "Hi|Lo"
+  regexpTag: "move"
+  asm: "VEXTRACTF128"
+  inVariant: []
+  in:
+  - *imm01
+  - *avxuint32x2N
+  out:
+  - *avxuint32xN
+
+- go: "SetHi|SetLo"
+  regexpTag: "move"
+  asm: "VINSERTF128"
+  inVariant: []
+  in:
+  - *imm01
+  - &avxint64x2N
+    class: vreg
+    base: $t
+    overwriteElementBits: 64
+    overwriteBase: int
+  - &avxint64xN
+    class: vreg
+    base: $t
+    overwriteElementBits: 64
+    overwriteBase: int
+  out:
+  - *avxint64x2N
+
+- go: "Hi|Lo"
+  regexpTag: "move"
+  asm: "VEXTRACTF128"
+  inVariant: []
+  in:
+  - *imm01
+  - *avxint64x2N
+  out:
+  - *avxint64xN
+
+- go: "SetHi|SetLo"
+  regexpTag: "move"
+  asm: "VINSERTF128"
+  inVariant: []
+  in:
+  - *imm01
+  - &avxuint64x2N
+    class: vreg
+    base: $t
+    overwriteElementBits: 64
+    overwriteBase: uint
+  - &avxuint64xN
+    class: vreg
+    base: $t
+    overwriteElementBits: 64
+    overwriteBase: uint
+  out:
+  - *avxuint64x2N
+
+- go: "Hi|Lo"
+  regexpTag: "move"
+  asm: "VEXTRACTF128"
+  inVariant: []
+  in:
+  - *imm01
+  - *avxuint64x2N
+  out:
+  - *avxuint64xN
+
+# VINSERTI128 and VEXTRACTI128 move the same bits as VINSERTF128 and
+# VEXTRACTF128, but require AVX2. They keep integer data in the integer domain,
+# so the AMD64 rules use them for 256-bit integer vectors when AVX2 is
+# available.
+- go: insertInt128
+  asm: "VINSERTI128"
+  inVariant: []
+  in:
+  - class: immediate
+    immOffset: 0
+    name: i
+  - &avx2int256
+    class: vreg
+    base: int
+    bits: 256
+  - class: vreg
+    base: int
+    bits: 128
+  out:
+  - *avx2int256
+
+- go: extractInt128
+  asm: "VEXTRACTI128"
+  inVariant: []
+  in:
+  - class: immediate
+    immOffset: 0
+    name: i
+  - class: vreg
+    base: int
+    bits: 256
+  out:
+  - class: vreg
+    base: int
+    bits: 128
 
 - go: "SetHi|SetLo"
   regexpTag: "move"
