@@ -264,11 +264,18 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		ngroups, groups           uintptr
 		c                         uintptr
 		rlim                      *Rlimit
+		expectedCur               uint64
 		lim                       Rlimit
 	)
 	pidfd = -1
 
 	rlim = origRlimitNofile.Load()
+	if rlim != nil {
+		expectedCur = setRlimitNofile
+		if expectedCur == 0 {
+			expectedCur = rlim.Max - 1
+		}
+	}
 
 	if sys.UidMappings != nil {
 		puid = []byte("/proc/self/uid_map\000")
@@ -676,11 +683,12 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		//
 		// Note that this test is imperfect, since it won't catch
 		// the case in which some other process used prlimit to
-		// set our rlimits to max-1/max. In that case we will fall
+		// set our rlimits to the exact Cur/Max we chose in init
+		// (normally max-1/max). In that case we will fall
 		// back to the original cur/max when starting the child.
 		// We hope that setting to max-1/max is unlikely.
 		_, _, err1 = RawSyscall6(SYS_PRLIMIT64, 0, RLIMIT_NOFILE, 0, uintptr(unsafe.Pointer(&lim)), 0, 0)
-		if err1 != 0 || (lim.Cur == rlim.Max-1 && lim.Max == rlim.Max) {
+		if err1 != 0 || (lim.Cur == expectedCur && lim.Max == rlim.Max) {
 			RawSyscall6(SYS_PRLIMIT64, 0, RLIMIT_NOFILE, uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
 		}
 	}

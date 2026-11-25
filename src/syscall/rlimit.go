@@ -13,6 +13,9 @@ import (
 // origRlimitNofile, if non-nil, is the original soft RLIMIT_NOFILE.
 var origRlimitNofile atomic.Pointer[Rlimit]
 
+// setRlimitNofile, if non-zero, is the soft RLIMIT_NOFILE value set by init.
+var setRlimitNofile uint64
+
 // Some systems set an artificially low soft limit on open file count, for compatibility
 // with code that uses select and its hard-coded maximum file descriptor
 // (limited by the size of fd_set).
@@ -30,7 +33,6 @@ var origRlimitNofile atomic.Pointer[Rlimit]
 func init() {
 	var lim Rlimit
 	if err := Getrlimit(RLIMIT_NOFILE, &lim); err == nil && lim.Max > 0 && lim.Cur < lim.Max-1 {
-		origRlimitNofile.Store(&lim)
 		nlim := lim
 
 		// We set Cur to Max - 1 so that we are more likely to
@@ -42,7 +44,11 @@ func init() {
 		nlim.Cur = nlim.Max - 1
 
 		adjustFileLimit(&nlim)
-		setrlimit(RLIMIT_NOFILE, &nlim)
+		if nlim.Cur > lim.Cur {
+			setRlimitNofile = uint64(nlim.Cur)
+			origRlimitNofile.Store(&lim)
+			setrlimit(RLIMIT_NOFILE, &nlim)
+		}
 	}
 }
 
