@@ -1827,6 +1827,11 @@ const (
 	sloNot
 )
 func classifyBooleanSIMD(v *ssa.Value) SIMDLogicalOP {
+	// 128-bit mask logic uses the integer vector ops, and 256-bit mask logic
+	// has its own ops, which are listed here too. 512-bit mask logic
+	// (OpAndMask512 and so on) is deliberately left out: those masks are in
+	// K registers, and moving them to vectors for a ternary logic op and back
+	// costs more than doing the logic on the K registers.
 	switch v.Op {
 		case `)
 	intShapes.forAllShapes(func(seq int, t, upperT string, w, c int, out io.Writer) {

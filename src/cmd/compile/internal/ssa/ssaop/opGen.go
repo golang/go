@@ -7381,6 +7381,10 @@ const (
 	OpOrMask256
 	OpXorMask256
 	OpAndNotMask256
+	OpAndMask512
+	OpOrMask512
+	OpXorMask512
+	OpAndNotMask512
 	OpMove
 	OpZero
 	OpStoreWB
@@ -121656,6 +121660,29 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "AndNotMask256",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:        "AndMask512",
+		ArgLen:      2,
+		Commutative: true,
+		Generic:     true,
+	},
+	{
+		Name:        "OrMask512",
+		ArgLen:      2,
+		Commutative: true,
+		Generic:     true,
+	},
+	{
+		Name:        "XorMask512",
+		ArgLen:      2,
+		Commutative: true,
+		Generic:     true,
+	},
+	{
+		Name:    "AndNotMask512",
 		ArgLen:  2,
 		Generic: true,
 	},

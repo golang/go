@@ -3559,6 +3559,9 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpAndMask256:
 		return rewriteValue_OpAndMask256(v)
+	case ssaop.OpAndMask512:
+		v.Op = ssaop.OpAMD64VPANDD512
+		return true
 	case ssaop.OpAndNotInt16x16:
 		return rewriteValue_OpAndNotInt16x16(v)
 	case ssaop.OpAndNotInt16x32:
@@ -3585,6 +3588,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpAndNotInt8x64(v)
 	case ssaop.OpAndNotMask256:
 		return rewriteValue_OpAndNotMask256(v)
+	case ssaop.OpAndNotMask512:
+		return rewriteValue_OpAndNotMask512(v)
 	case ssaop.OpAndNotUint16x16:
 		return rewriteValue_OpAndNotUint16x16(v)
 	case ssaop.OpAndNotUint16x32:
@@ -5997,6 +6002,9 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpOrMask256:
 		return rewriteValue_OpOrMask256(v)
+	case ssaop.OpOrMask512:
+		v.Op = ssaop.OpAMD64VPORD512
+		return true
 	case ssaop.OpOrUint16x16:
 		v.Op = ssaop.OpAMD64VPOR256
 		return true
@@ -7193,6 +7201,9 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpXorMask256:
 		return rewriteValue_OpXorMask256(v)
+	case ssaop.OpXorMask512:
+		v.Op = ssaop.OpAMD64VPXORD512
+		return true
 	case ssaop.OpXorUint16x16:
 		v.Op = ssaop.OpAMD64VPXOR256
 		return true
@@ -99514,6 +99525,19 @@ func rewriteValue_OpAndNotMask256(v *ssa.Value) bool {
 		x := v_0
 		y := v_1
 		v.Reset(ssaop.OpAMD64VANDNPS256)
+		v.AddArg2(y, x)
+		return true
+	}
+}
+func rewriteValue_OpAndNotMask512(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (AndNotMask512 x y)
+	// result: (VPANDND512 y x)
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpAMD64VPANDND512)
 		v.AddArg2(y, x)
 		return true
 	}

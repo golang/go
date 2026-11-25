@@ -191,6 +191,14 @@ func simdSetHiInt32x8(x archsimd.Int32x8, y archsimd.Int32x4) archsimd.Int32x8 {
 	return x.SetHi(y)
 }
 
+func simdKMaskLogic512(x, y, a, b, c, d, e, f archsimd.Int32x16) archsimd.Int32x16 {
+	// Check that logic on three 512-bit comparison masks stays in K registers,
+	// rather than moving them to vectors for a ternary logic operation and
+	// back.
+	// amd64:`KANDW` `KORW` `VPBLENDMD` -`VPTERNLOGD` -`VPMOVM2D` -`VPMOVD2M`
+	return x.IfElse(a.Less(b).And(c.Less(d)).Or(e.Less(f)), y)
+}
+
 func simdCompareToKMaskAndIfElse(x, y, a, b, c, d archsimd.Float64x4) archsimd.Float64x4 {
 	if !archsimd.X86.AVX512() {
 		return y

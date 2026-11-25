@@ -98,15 +98,17 @@ func ternTricky3(x, y, z archsimd.Int32x8) archsimd.Int32x8 {
 }
 
 func vpternlogdPanic() {
-	resultsMask := archsimd.Mask64x8{}
+	// This uses vectors rather than masks because the ternary-logic rewrite
+	// leaves 512-bit mask logic alone.
+	results := archsimd.Int64x8{}
 
 	// The loop header holds only rematerializable SIMD zeros, which emit
 	// no code, so it claims no features.
 	for {
-		resultsMask = archsimd.Mask64x8FromBits(0).Or( // ERROR "has features avx[+]avx2[+]avx512"
+		results = archsimd.Mask64x8FromBits(0).ToInt64x8().Or( // ERROR "has features avx[+]avx2[+]avx512"
 			archsimd.Float64x8{}.Less(
-				archsimd.BroadcastFloat64x8(0))).Or(resultsMask) // ERROR "Rewriting.*ternInt"
-		fmt.Print(resultsMask.And(resultsMask.And(archsimd.Mask64x8{})))
+				archsimd.BroadcastFloat64x8(0)).ToInt64x8()).Or(results) // ERROR "Rewriting.*ternInt"
+		fmt.Print(results.And(results.And(archsimd.Int64x8{})))
 	}
 }
 

@@ -1828,6 +1828,14 @@
 (IfElseFloat(32|64) <t> x mask y) && t.Size() == 32 => (VBLENDVP(S|D)256 y x mask)
 (IfElseFloat(32|64) <t> x mask y) && t.Size() == 64 => (VPBLENDM(D|Q)Masked512 y x (VPMOVVec(32x16|64x8)ToM <types.TypeMask> mask))
 
+// 512-bit mask logic uses the same instructions as integer vector logic. The
+// mask rules below turn it into logic on K registers.
+// (VPANDND x y) computes ^x & y.
+(AndMask512 ...) => (VPANDD512 ...)
+(OrMask512 ...) => (VPORD512 ...)
+(XorMask512 ...) => (VPXORD512 ...)
+(AndNotMask512 x y) => (VPANDND512 y x)
+
 // 256-bit mask logic. If AVX2 is available, use the integer instructions, which
 // the mask rules below can optimize further. Otherwise, use the floating-point
 // instructions, which require only AVX and do the same thing to masks.

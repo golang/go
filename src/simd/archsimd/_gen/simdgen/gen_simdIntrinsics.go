@@ -106,11 +106,11 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 
 	var mask = templateNamed("mask", `	addF(simdPackage, "{{.Name}}.To{{.VectorCounterpart}}", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, {{GetSysArch}})
 	addF(simdPackage, "{{.VectorCounterpart}}.asMask", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, {{GetSysArch}})
-{{- if and (eq GetSysArch "sys.AMD64") (eq .Size 256)}}
-	addF(simdPackage, "{{.Name}}.And", opLen2(ssaop.OpAndMask256, types.TypeVec256), {{GetSysArch}})
-	addF(simdPackage, "{{.Name}}.Or", opLen2(ssaop.OpOrMask256, types.TypeVec256), {{GetSysArch}})
-	addF(simdPackage, "{{.Name}}.AndNot", opLen2(ssaop.OpAndNotMask256, types.TypeVec256), {{GetSysArch}})
-	addF(simdPackage, "{{.Name}}.Xor", opLen2(ssaop.OpXorMask256, types.TypeVec256), {{GetSysArch}})
+{{- if and (eq GetSysArch "sys.AMD64") (or (eq .Size 256) (eq .Size 512))}}
+	addF(simdPackage, "{{.Name}}.And", opLen2(ssaop.OpAndMask{{.Size}}, types.TypeVec{{.Size}}), {{GetSysArch}})
+	addF(simdPackage, "{{.Name}}.Or", opLen2(ssaop.OpOrMask{{.Size}}, types.TypeVec{{.Size}}), {{GetSysArch}})
+	addF(simdPackage, "{{.Name}}.AndNot", opLen2(ssaop.OpAndNotMask{{.Size}}, types.TypeVec{{.Size}}), {{GetSysArch}})
+	addF(simdPackage, "{{.Name}}.Xor", opLen2(ssaop.OpXorMask{{.Size}}, types.TypeVec{{.Size}}), {{GetSysArch}})
 {{- else}}
 	addF(simdPackage, "{{.Name}}.And", opLen2(ssaop.OpAnd{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.Or", opLen2(ssaop.OpOr{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
