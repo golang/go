@@ -289,8 +289,8 @@ func mergeWithNotMask(x, y archsimd.Int8x16, mask archsimd.Mask8x16, f1, f2 arch
 	sinkI8 = x.IfElse(mask.Not(), y)
 	// arm64: `VFCMEQ`
 	eq := f1.Equal(f2)
-	// The next line `ne` should be CSEd with `eq` above
-	ne := f1.NotEqual(f2)    // arm64: -`.*`
+	// ne is CSEd with eq above, so its line has only a DWARF anchor NOP.
+	ne := f1.NotEqual(f2)    // arm64: -`V[A-Z]`
 	feq := f1.IfElse(eq, f2) // arm64:`VBIF`
 	fne := f1.IfElse(ne, f2) // arm64:`VBIT`
 	sinkF32 = fne.Add(feq)
