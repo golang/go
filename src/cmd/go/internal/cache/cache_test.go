@@ -6,6 +6,7 @@ package cache
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -1355,5 +1356,92 @@ func TestCacheTrimParallel(t *testing.T) {
 	wantFile(t, dir, "size.txt", "base 51200\nestimated 51200\n")
 	if log, err := os.ReadFile(filepath.Join(dir, "cache.log")); err != nil || !strings.Contains(string(log), " removed 512 of 1024 files,") {
 		t.Errorf("cache.log = %q, %v; want removed 512 of 1024 files", log, err)
+	}
+}
+
+func TestPutOptionalLowDisk(t *testing.T) {
+	t.Parallel()
+
+	c := newTestCache(t, t.TempDir(), 100, 0)
+	low := true
+	statfsCalls := 0
+	c.statfs = func(string) (avail, total, bsize uint64) {
+		statfsCalls++
+		if low {
+			return 1, 100, 1 << 20 // 1 MiB of 100 MiB available
+		}
+		return 50, 100, 1 << 20
+	}
+
+	// On a nearly full disk, PutOptional returns the output ID but stores nothing.
+	out, size, err := PutOptional(c, dummyID(1), bytes.NewReader([]byte("abc")))
+	if err != nil || size != 3 || out != OutputID(sha256.Sum256([]byte("abc"))) {
+		t.Fatalf("PutOptional = %x, %d, %v", out, size, err)
+	}
+	if _, err := os.Stat(c.fileName(dummyID(1), "a")); err == nil {
+		t.Errorf("PutOptional stored an index entry on a nearly full disk")
+	}
+	if _, err := os.Stat(c.fileName(out, "d")); err == nil {
+		t.Errorf("PutOptional stored an output on a nearly full disk")
+	}
+	if got := c.sampleAcc.Load(); got != 0 {
+		t.Errorf("sampleAcc = %d, want 0", got)
+	}
+
+	// Put and PutExecutable still store their outputs.
+	out, _, err = c.Put(dummyID(2), bytes.NewReader([]byte("def")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(c.OutputFile(out)); err != nil {
+		t.Errorf("Put did not store output: %v", err)
+	}
+	if _, err := c.Get(dummyID(2)); err != nil {
+		t.Errorf("Get after Put failed: %v", err)
+	}
+	out, _, err = c.PutExecutable(dummyID(3), "prog", bytes.NewReader([]byte("ghi")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(c.OutputFile(out)); err != nil {
+		t.Errorf("PutExecutable did not store output: %v", err)
+	}
+
+	// The check runs once, so PutOptional keeps skipping even if space is freed later.
+	low = false
+	if _, _, err := PutOptional(c, dummyID(4), bytes.NewReader([]byte("jkl"))); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(c.fileName(dummyID(4), "a")); err == nil {
+		t.Errorf("PutOptional stored an index entry after the disk was nearly full")
+	}
+	if statfsCalls != 1 {
+		t.Errorf("statfs called %d times, want 1", statfsCalls)
+	}
+
+	// With enough free space, PutOptional stores its output.
+	ok := newTestCache(t, t.TempDir(), 100, 0)
+	ok.statfs = func(string) (avail, total, bsize uint64) { return 50, 100, 1 << 20 }
+	out, _, err = PutOptional(ok, dummyID(5), bytes.NewReader([]byte("mno")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(ok.OutputFile(out)); err != nil {
+		t.Errorf("PutOptional with free space did not store output: %v", err)
+	}
+
+	// With trimBuildCache disabled, PutOptional writes without calling statfs.
+	off := newTestCache(t, t.TempDir(), 100, 0)
+	off.trimBuildCache = false
+	off.statfs = func(string) (avail, total, bsize uint64) {
+		t.Errorf("statfs called with trimBuildCache disabled")
+		return 1, 100, 1 << 20
+	}
+	out, _, err = PutOptional(off, dummyID(6), bytes.NewReader([]byte("pqr")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(off.OutputFile(out)); err != nil {
+		t.Errorf("PutOptional with trimBuildCache disabled did not store output: %v", err)
 	}
 }

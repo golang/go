@@ -772,7 +772,13 @@ func (b *Builder) updateBuildID(a *Action, target string) error {
 			if a.output == nil {
 				panic("internal error: a.output not set")
 			}
-			outputID, _, err := c.Put(a.actionID, r)
+			var outputID cache.OutputID
+			if b.NeedExport {
+				// a.Package.Export below points into the cache.
+				outputID, _, err = c.Put(a.actionID, r)
+			} else {
+				outputID, _, err = cache.PutOptional(c, a.actionID, r)
+			}
 			r.Close()
 			if err == nil && cfg.BuildX {
 				sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList("cp", target, c.OutputFile(outputID))))
