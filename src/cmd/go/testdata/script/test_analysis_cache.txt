@@ -94,14 +94,18 @@ stderr 'extra.go:7:39: fmt.Sprintf format %s has arg 1 of wrong type int'
 # the target and runs on the host, so this requires a host that can
 # run 386 executables. The package also has a printf diagnostic, so
 # that the analysis fails and the test binary does not run.)
+# Both GOARCH values are set explicitly, as the default GOARCH may be
+# 32-bit (e.g. on the linux-386 builders, which set GOARCH=386).
+[GOOS:linux] [GOARCH:amd64] env oldGOARCH=$GOARCH
 [GOOS:linux] [GOARCH:amd64] env GOARCH=386
 [GOOS:linux] [GOARCH:amd64] ! go test -vet=printf,shift ./shift
 [GOOS:linux] [GOARCH:amd64] stderr 'shift.go:7:24: x \(32 bits\) too small for shift of 40'
 [GOOS:linux] [GOARCH:amd64] stderr 'shift.go:9:39: fmt.Sprintf format %d has arg "x" of wrong type string'
-env GOARCH=
-! go test -vet=printf,shift ./shift
-! stderr 'too small for shift'
-stderr 'shift.go:9:39: fmt.Sprintf format %d has arg "x" of wrong type string'
+[GOOS:linux] [GOARCH:amd64] env GOARCH=amd64
+[GOOS:linux] [GOARCH:amd64] ! go test -vet=printf,shift ./shift
+[GOOS:linux] [GOARCH:amd64] ! stderr 'too small for shift'
+[GOOS:linux] [GOARCH:amd64] stderr 'shift.go:9:39: fmt.Sprintf format %d has arg "x" of wrong type string'
+[GOOS:linux] [GOARCH:amd64] env GOARCH=$oldGOARCH
 
 # The key of a pass includes the facts of every analyzer in the
 # Requires closure, not just those of the analyzer itself. lostcancel
