@@ -50,7 +50,7 @@ func runWorker(trials int, cfgPath, outPath, lockPath string, std bool) error {
 	write := func(out *output) error {
 		data, err := json.Marshal(out)
 		if err != nil {
-			return fmt.Errorf("couldn't marshal output: %v", err)
+			return fmt.Errorf("couldn't encode output: %v", err)
 		}
 		// Hold the lock while writing so the driver never observes a partial write.
 		if err := syscall.Flock(fd, syscall.LOCK_EX); err != nil {
