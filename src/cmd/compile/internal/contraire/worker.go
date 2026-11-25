@@ -76,8 +76,7 @@ func runWorker(trials int, cfgPath, outPath, lockPath string, std bool) error {
 
 	// Populate the WAL to signal to the driver that startup is complete.
 	// We are about to enter the main loop and the driver can begin to
-	// monitor the worker's progress. The driver should have ensured
-	// that outPath doesn't exist yet.
+	// monitor the worker's progress.
 	if err := write(&output{Next: next}); err != nil {
 		return err
 	}
