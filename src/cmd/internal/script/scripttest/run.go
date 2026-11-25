@@ -139,6 +139,9 @@ func NewEngine(t *testing.T, repls []ToolReplacement) (*script.Engine, []string)
 	// GOOS and GOARCH are expected to be set by the toolchain script conditions.
 	env = setenv(env, "GOOS", runtime.GOOS)
 	env = setenv(env, "GOARCH", runtime.GOARCH)
+	// Cap per-subprocess GOMAXPROCS so concurrent script subtests do not
+	// oversubscribe high-core-count machines.
+	env = setenv(env, "GOMAXPROCS", fmt.Sprint(min(runtime.GOMAXPROCS(0), 4)))
 	for _, repl := range repls {
 		// consistency check
 		chunks := strings.Split(repl.EnvVar, "=")
