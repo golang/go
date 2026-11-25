@@ -461,7 +461,21 @@ func (q *cleanupQueue) tryTakeWork() bool {
 // Called by the sweeper, and only the sweeper.
 func (q *cleanupQueue) enqueue(c cleanupFn) {
 	mp := acquirem()
-	pp := mp.p.ptr()
+	q.enqueueOn(mp.p.ptr(), c)
+	releasem(mp)
+}
+
+// enqueueOn is like enqueue, but queues c in pp's cleanup block instead
+// of the current P's.
+//
+// Don't use this unless the caller is pinned to pp (running on pp and
+// non-preemptible) or the world is stopped. Nothing else synchronizes
+// access to pp's block. Like enqueue, it also must only be called during
+// the sweep phase (gcphase == _GCoff), and a stopped world alone doesn't
+// guarantee that.
+func (q *cleanupQueue) enqueueOn(pp *p, c cleanupFn) {
+	assertWorldStoppedOrPinnedTo(pp)
+
 	b := pp.cleanups
 	if b == nil {
 		if q.flushed.Load() {
@@ -486,7 +500,6 @@ func (q *cleanupQueue) enqueue(c cleanupFn) {
 		q.addWork(1)
 	}
 	pp.cleanupsQueued++
-	releasem(mp)
 }
 
 // dequeue pops a block of cleanups from the queue. Blocks until one is available

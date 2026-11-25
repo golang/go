@@ -398,3 +398,28 @@ func assertWorldStoppedOrLockHeld(l *mutex) {
 		throw("no world stop or required lock!")
 	})
 }
+
+// assertWorldStoppedOrPinnedTo throws if the world is not stopped and the
+// caller is not pinned to pp, that is, not running on pp with preemption
+// disabled.
+//
+// nosplit to ensure it can be called in as many contexts as possible.
+//
+//go:nosplit
+func assertWorldStoppedOrPinnedTo(pp *p) {
+	if checkWorldStopped() {
+		return
+	}
+
+	mp := getg().m
+	if mp.locks > 0 && mp.p.ptr() == pp {
+		return
+	}
+
+	// Crash from system stack to avoid splits that may cause
+	// additional issues.
+	systemstack(func() {
+		print("caller requires world stop or to be pinned to P ", pp.id, "\n")
+		throw("no world stop and not pinned to P")
+	})
+}

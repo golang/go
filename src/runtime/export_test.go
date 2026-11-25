@@ -1923,8 +1923,7 @@ func BlockUntilEmptyCleanupQueue(timeout int64) bool {
 	return gcCleanups.blockUntilEmpty(timeout)
 }
 
-// QueueCleanupOnP queues f in the cleanup block of P id, like the
-// sweeper does when it runs on that P.
+// QueueCleanupOnP queues f in the cleanup block of P id.
 func QueueCleanupOnP(id int, f func()) {
 	// Make sure there's a cleanup goroutine, like AddCleanup does.
 	if gcCleanups.needG() {
@@ -1941,13 +1940,7 @@ func QueueCleanupOnP(id int, f func()) {
 	if id < 0 || id >= len(allp) {
 		throw("QueueCleanupOnP: invalid P id")
 	}
-	// Pretend we're running on allp[id]. Fine since we're the only
-	// thread running.
-	mp := getg().m
-	phold := mp.p
-	mp.p.set(allp[id])
-	gcCleanups.enqueue(c)
-	mp.p = phold
+	gcCleanups.enqueueOn(allp[id], c)
 	startTheWorldGC(stw)
 }
 

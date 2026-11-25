@@ -74,3 +74,7 @@ func assertWorldStopped() {
 //go:nosplit
 func assertWorldStoppedOrLockHeld(l *mutex) {
 }
+
+//go:nosplit
+func assertWorldStoppedOrPinnedTo(pp *p) {
+}
