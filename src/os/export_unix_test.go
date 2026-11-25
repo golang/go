@@ -7,3 +7,11 @@
 package os
 
 var SplitPath = splitPath
+
+// LockSignal blocks calls to p.Signal that use the PID, rather than a
+// process handle, after they have checked the PID and before they send
+// the signal. It returns a function that unblocks them.
+func (p *Process) LockSignal() (unlock func()) {
+	p.sigMu.Lock()
+	return p.sigMu.Unlock
+}

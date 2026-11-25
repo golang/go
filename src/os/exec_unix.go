@@ -91,10 +91,14 @@ func (p *Process) signal(sig Signal) error {
 }
 
 func (p *Process) pidSignal(s syscall.Signal) error {
-	if p.Pid == pidReleased {
+	// Read p.Pid only once. A concurrent Release sets it to pidReleased,
+	// and passing that value to kill would signal every process
+	// that we have permission to signal.
+	pid := p.Pid
+	if pid == pidReleased {
 		return errProcessReleased
 	}
-	if p.Pid == pidUnset {
+	if pid == pidUnset {
 		return errors.New("os: process not initialized")
 	}
 
@@ -108,7 +112,7 @@ func (p *Process) pidSignal(s syscall.Signal) error {
 		return errProcessReleased
 	}
 
-	return convertESRCH(syscall.Kill(p.Pid, s))
+	return convertESRCH(syscall.Kill(pid, s))
 }
 
 func convertESRCH(err error) error {
