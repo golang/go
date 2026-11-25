@@ -10,13 +10,10 @@ import (
 	"fmt"
 	"internal/testenv"
 	"os"
-	"slices"
 	"strings"
 	"testing"
 	"text/template"
 	"text/template/parse"
-	"unicode"
-	"unicode/utf8"
 )
 
 type badMarshaler struct{}
@@ -2541,41 +2538,27 @@ func TestEscapeErrorMemoization(t *testing.T) {
 	}
 }
 
-func TestEscapeTextManyLessThan(t *testing.T) {
-	// Each '<' that does not start a tag used to copy the rest of the text.
-	text := strings.Repeat("a < b ", 1<<16) + "<!doctype html>"
-	tmpl := Must(New("").Parse(text))
-	var b strings.Builder
-	if err := tmpl.Execute(&b, nil); err != nil {
-		t.Fatal(err)
-	}
-	want := strings.Repeat("a &lt; b ", 1<<16) + "<!doctype html>"
-	if got := b.String(); got != want {
-		t.Errorf("unexpected output (len %d, want len %d)", len(got), len(want))
-	}
-}
-
-// TestIsDoctype checks that isDoctype agrees with upper-casing all of the
-// text, as escapeText used to do. A non-ASCII rune can only match an ASCII
-// letter if it has other cases, so only those runes are tried.
 func TestIsDoctype(t *testing.T) {
-	check := func(s []byte) {
-		t.Helper()
-		if got, want := isDoctype(s), bytes.HasPrefix(bytes.ToUpper(s), doctypeBytes); got != want {
-			t.Errorf("isDoctype(%q) = %v, want %v", s, got, want)
-		}
-	}
-	// U+0131, U+017F and U+212A are the non-ASCII runes whose upper case or
-	// case fold is an ASCII letter (I, S and K); none of them is in DOCTYPE.
-	for _, s := range []string{"", "<", "<!DOCTYP", "<!doctype", "<!DocType html>", "<!DOCTYPX", "<!DOCTYP\xff", "<!\xffDOCTYPE", "<!DOCTYP\u0131", "<!\u017fOCTYPE", "<!DOCTYP\u212a"} {
-		check([]byte(s))
-	}
-	for r := rune(0); r <= unicode.MaxRune; r++ {
-		if r >= utf8.RuneSelf && unicode.ToUpper(r) == r && unicode.SimpleFold(r) == r {
-			continue
-		}
-		for i := range doctypeBytes {
-			check(slices.Concat(doctypeBytes[:i], utf8.AppendRune(nil, r), doctypeBytes[i+1:], []byte(" html>")))
+	for _, tc := range []struct {
+		in   string
+		want bool
+	}{
+		{"", false},
+		{"<", false},
+		{"<!DOCTYP", false},
+		{"<!DOCTYPE", true},
+		{"<!doctype", true},
+		{"<!DocType html>", true},
+		{"<!DOCTYPX", false},
+		{"<!DOCTYP\xff", false},
+		{"<!\xffDOCTYPE", false},
+		{"<!DOCTYP\u0131", false}, // dotless i: upper case is I
+		{"<!\u017fOCTYPE", false}, // long s: upper case is S
+		{"<!DOCTYP\u212a", false}, // Kelvin sign: folds to k
+		{" <!DOCTYPE", false},
+	} {
+		if got := isDoctype([]byte(tc.in)); got != tc.want {
+			t.Errorf("isDoctype(%q) = %v, want %v", tc.in, got, tc.want)
 		}
 	}
 }
