@@ -10,7 +10,7 @@ env GOEXPERIMENT=vetfiles
 ! go test -x ./bad
 stderr 'bad.go:5:39: fmt.Sprintf format %d has arg "x" of wrong type string'
 stdout '^FAIL\s+example.com/m/bad \[build failed\]$'
-! stderr '[/\\]vet(\.exe)? .*vet\.cfg'
+! stderr '[/\\]vet(\.exe)?"? .*vet\.cfg'
 
 # A package with no problems passes.
 go test ./good
@@ -40,7 +40,7 @@ exists $WORK/bad.test
 # whatever their build flags: here, -tags, -cover (whose generated
 # files are in the build directory), and -race.
 ! go test -x -tags=x ./bad
-stderr 'analysistool .*analysis\.cfg'
+stderr 'analysistool(\.exe)?"? .*analysis\.cfg'
 stderr 'bad.go:5:39: fmt.Sprintf format %d has arg "x" of wrong type string'
 ! go test -cover ./bad
 stderr 'bad.go:5:\d+: fmt.Sprintf format %d has arg "x" of wrong type string'
@@ -58,7 +58,7 @@ cd ..
 # Under an exec wrapper, which may run the tests in an emulator or a
 # sandbox, go test does not run the tool on the host: it uses cmd/vet.
 ! go test -x -exec=echo ./bad
-stderr '[/\\]vet(\.exe)? .*vet\.cfg'
+stderr '[/\\]vet(\.exe)?"? .*vet\.cfg'
 ! stderr 'analysistool'
 stderr 'bad.go:5:39: fmt.Sprintf format %d has arg "x" of wrong type string'
 
@@ -82,8 +82,8 @@ env GOARCH=
 # package, a placeholder for its analysis (which cannot be planned
 # without the metadata).
 go test -n ./good
-stderr 'analysistool -describe='
-stderr 'analysistool \$WORK[/\\]b\d+[/\\]analysis\.cfg # analyzers determined by -describe$'
+stderr 'analysistool(\.exe)?"? "?-describe='
+stderr 'analysistool(\.exe)? \$WORK[/\\]b\d+[/\\]analysis\.cfg # analyzers determined by -describe$'
 
 # -vet accepts the legacy analyzer names that cmd/vet accepts.
 go test -vet=bool,buildtags,methods,rangeloops ./good
