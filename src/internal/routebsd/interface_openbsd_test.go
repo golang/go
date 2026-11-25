@@ -10,6 +10,52 @@ import (
 	"testing"
 )
 
+func TestFetchRIBInterfaceAddrFlags(t *testing.T) {
+	// Parse one kernel snapshot with both decoders so changes to the
+	// interface list cannot affect the comparison.
+	b, err := fetchRIB(syscall.NET_RT_IFLIST, 0)
+	if err != nil {
+		t.Fatalf("fetchRIB(NET_RT_IFLIST): %v", err)
+	}
+	ms, err := parseRIB(b)
+	if err != nil {
+		t.Fatalf("parseRIB: %v", err)
+	}
+	refs, err := syscall.ParseRoutingMessage(b)
+	if err != nil {
+		t.Fatalf("syscall.ParseRoutingMessage: %v", err)
+	}
+
+	var got []*InterfaceAddrMessage
+	for _, m := range ms {
+		if m, ok := m.(*InterfaceAddrMessage); ok {
+			got = append(got, m)
+		}
+	}
+	var want []syscall.IfaMsghdr
+	for _, m := range refs {
+		if m, ok := m.(*syscall.InterfaceAddrMessage); ok {
+			want = append(want, m.Header)
+		}
+	}
+	if len(got) != len(want) {
+		t.Fatalf("parseRIB returned %d interface address messages, want %d", len(got), len(want))
+	}
+	if len(want) == 0 {
+		t.Skip("kernel returned no interface address messages")
+	}
+	for i, m := range got {
+		h := want[i]
+		if m.Index != int(h.Index) || m.Type != int(h.Type) {
+			t.Fatalf("message %d has index/type %d/%d, want %d/%d", i, m.Index, m.Type, h.Index, h.Type)
+		}
+		if m.Flags != int(h.Flags) {
+			t.Errorf("message %d (interface %d): Flags = %#x, want %#x (address bitmap %#x)", i, m.Index, m.Flags, h.Flags, h.Addrs)
+		}
+	}
+	t.Logf("compared flags for %d interface address messages", len(got))
+}
+
 func TestInterfaceAddrMessageFlags(t *testing.T) {
 	for _, tt := range []struct {
 		name string
