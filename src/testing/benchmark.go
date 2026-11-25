@@ -362,16 +362,16 @@ func (b *B) launch() {
 // It signals that b is done whether the benchmark returned or stopped with
 // FailNow or SkipNow. A panic is re-raised instead of signaled: the waiting
 // goroutine would go on as if b had finished and could exit the process
-// before the panic is reported. Like tRunner, it also treats a stop that is
-// neither a return, a FailNow or SkipNow, nor a panic as a panic: a
-// panic(nil) under GODEBUG=panicnil=1, or a direct call to runtime.Goexit.
+// before the panic is reported. Like tRunner, it also fails a stop that is
+// neither a return, a FailNow or SkipNow, nor a panic: a direct call to
+// runtime.Goexit, or panic(nil) under the legacy GODEBUG=panicnil=1.
 func (b *B) signalDone(returned *bool) {
-	err := recover()
-	if err == nil && !*returned && !b.stopped() {
-		err = errNilPanicOrGoexit
+	x := recover()
+	if x == nil && !*returned && !b.stopped() {
+		x = errNilPanicOrGoexit
 	}
-	if err != nil {
-		panic(err)
+	if x != nil {
+		panic(x)
 	}
 	b.signal <- true
 }
