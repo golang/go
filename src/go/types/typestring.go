@@ -114,6 +114,16 @@ func (w *typeWriter) error(msg string) {
 
 func (w *typeWriter) typ(typ Type) {
 	if w.seen[typ] {
+		// A hash revisits a type literal only through an anonymous
+		// interface cycle (go.dev/issue/56103).
+		if w.ctxt != nil {
+			switch typ.(type) {
+			case *Named, *Alias:
+			default:
+				w.string("<cycle>")
+				return
+			}
+		}
 		w.error("cycle to " + goTypeName(typ))
 		return
 	}
