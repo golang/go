@@ -9,6 +9,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"text/template"
@@ -209,5 +210,157 @@ func main() {
 
 	if err := tmpl.Execute(os.Stdout, params); err != nil {
 		panic(err)
+	}
+
+	fmt.Print(bulkComment)
+	genBulk(os.Stdout, "ctrBlocksBulkAsm", false)
+	genBulk(os.Stdout, "ctrBlocksBulkEOR3Asm", true)
+}
+
+const bulkComment = `
+// The bulk functions below keep everything in registers:
+// V0.B16 - V11.B16 are for blocks (<=12).
+// V12.B16 - V26.B16 are for round keys (<=15), ending at V26 for every key size.
+// V27.B16 - V28.B16 are for plaintext, two blocks at a time.
+// V29 is the counter as two 64-bit lanes [hi, lo]; V30 is [0, 1]; V31 is [0, 2].
+// R13 counts groups of 12 blocks; R15 is the number of remaining blocks.
+`
+
+// Register allocation of the bulk functions.
+const (
+	bulkBlocks = 12              // blocks per loop iteration
+	bulkKeyEnd = bulkBlocks + 14 // the last round key is in V26; shorter schedules end there too
+	bulkStage  = bulkKeyEnd + 1  // V27, V28: plaintext, two blocks at a time
+	bulkCtr    = bulkStage + 2   // V29: counter as [hi, lo] 64-bit lanes
+	bulkOne    = bulkCtr + 1     // V30: [0, 1]
+	bulkTwo    = bulkOne + 1     // V31: [0, 2]
+)
+
+// genBulk writes
+//
+//	func name(nr int, xk *[60]uint32, dst, src *byte, n, r int, ivlo, ivhi uint64)
+//
+// which XORs n groups of 12 blocks and then r < 12 more blocks (in steps of
+// 8, 4, 2 and 1) of keystream into dst. The round keys stay in registers. The
+// counter is a vector of two 64-bit lanes [hi, lo]; adding to the low lane
+// never carries into the high lane, so the low 64 bits of the counter must
+// not wrap within a call. With eor3, the last round key and the plaintext are
+// XORed in with one EOR3 (FEAT_SHA3).
+func genBulk(w io.Writer, name string, eor3 bool) {
+	p := func(format string, args ...any) { fmt.Fprintf(w, format+"\n", args...) }
+	v := func(i int) string { return fmt.Sprintf("V%d.B16", i) }
+	key := func(nr, k int) int { return bulkKeyEnd - nr + k }
+
+	// counters puts counter blocks into V0..V(b-1) and advances the counter by b.
+	// Two chains (+1, then +2 steps; and +2 steps) keep dependencies short.
+	counters := func(b int) {
+		if b < 3 {
+			for i := range b {
+				p("\tVREV64 V%d.B16, %s", bulkCtr, v(i))
+				p("\tVADD V%d.D2, V%d.D2, V%d.D2", bulkOne, bulkCtr, bulkCtr)
+			}
+			return
+		}
+		p("\tVADD V%d.D2, V%d.D2, V1.D2", bulkOne, bulkCtr)
+		p("\tVADD V%d.D2, V%d.D2, V2.D2", bulkTwo, bulkCtr)
+		p("\tVREV64 V%d.B16, V0.B16", bulkCtr)
+		for k := 3; k < b; k++ {
+			p("\tVADD V%d.D2, V%d.D2, V%d.D2", bulkTwo, k-2, k)
+		}
+		p("\tVADD V%d.D2, V%d.D2, V%d.D2", bulkTwo, b-2, bulkCtr)
+		for k := 1; k < b; k++ {
+			p("\tVREV64 %s, %s", v(k), v(k))
+		}
+	}
+
+	// blocks encrypts V0..V(b-1), XORs in the plaintext and stores the result.
+	blocks := func(nr, b int) {
+		for k := range nr - 1 {
+			for i := range b {
+				p("\tAESE %s, %s", v(key(nr, k)), v(i))
+				p("\tAESMC %s, %s", v(i), v(i))
+			}
+		}
+		for i := range b {
+			p("\tAESE %s, %s", v(key(nr, nr-1)), v(i))
+		}
+		last := key(nr, nr)
+		var pending []int
+		for g := 0; g < b; g += 2 {
+			n := min(2, b-g)
+			regs := []string{v(bulkStage), v(bulkStage + 1)}[:n]
+			p("\tVLD1.P %d(SRC), [%s]", 16*n, strings.Join(regs, ", "))
+			for j := range n {
+				i := g + j
+				if eor3 {
+					p("\tVEOR3 %s, %s, %s, %s", v(last), v(bulkStage+j), v(i), v(i))
+				} else {
+					p("\tVEOR %s, %s, %s", v(i), v(last), v(i))
+					p("\tVEOR %s, %s, %s", v(i), v(bulkStage+j), v(i))
+				}
+				pending = append(pending, i)
+			}
+			for len(pending) >= 4 || (g+n == b && len(pending) > 0) {
+				k := min(4, len(pending))
+				var regs []string
+				for _, i := range pending[:k] {
+					regs = append(regs, v(i))
+				}
+				p("\tVST1.P [%s], %d(DST)", strings.Join(regs, ", "), 16*k)
+				pending = pending[k:]
+			}
+		}
+	}
+
+	p("")
+	p("// func %s(nr int, xk *[60]uint32, dst, src *byte, n, r int, ivlo, ivhi uint64)", name)
+	p("TEXT ·%s(SB), NOSPLIT, $0", name)
+	p("\tMOVD nr+0(FP), NR")
+	p("\tMOVD xk+8(FP), XK")
+	p("\tMOVD dst+16(FP), DST")
+	p("\tMOVD src+24(FP), SRC")
+	p("\tMOVD n+32(FP), R13")
+	p("\tMOVD r+40(FP), R15")
+	p("\tMOVD ivlo+48(FP), IV_LOW_LE")
+	p("\tMOVD ivhi+56(FP), IV_HIGH_LE")
+	p("\tVMOV IV_HIGH_LE, V%d.D[0]", bulkCtr)
+	p("\tVMOV IV_LOW_LE, V%d.D[1]", bulkCtr)
+	p("\tVEOR V%d.B16, V%d.B16, V%d.B16", bulkOne, bulkOne, bulkOne)
+	p("\tMOVD $1, R14")
+	p("\tVMOV R14, V%d.D[1]", bulkOne)
+	p("\tVADD V%d.D2, V%d.D2, V%d.D2", bulkOne, bulkOne, bulkTwo)
+	p("\tCMP $12, NR")
+	p("\tBLT Lnr10")
+	p("\tBEQ Lnr12")
+	for _, nr := range []int{14, 12, 10} {
+		p("Lnr%d:", nr)
+		regs := make([]int, 0, nr+1)
+		for k := range nr + 1 {
+			regs = append(regs, key(nr, k))
+		}
+		for len(regs) > 0 {
+			k := min(4, len(regs))
+			var names []string
+			for _, r := range regs[:k] {
+				names = append(names, v(r))
+			}
+			p("\tVLD1.P %d(XK), [%s]", 16*k, strings.Join(names, ", "))
+			regs = regs[k:]
+		}
+		p("\tCBZ R13, Ltail%d", nr)
+		p("Lloop%d:", nr)
+		counters(bulkBlocks)
+		blocks(nr, bulkBlocks)
+		p("\tSUB $1, R13, R13")
+		p("\tCBNZ R13, Lloop%d", nr)
+		p("Ltail%d:", nr)
+		for _, b := range []int{8, 4, 2, 1} {
+			p("\tAND $%d, R15, R16", b)
+			p("\tCBZ R16, Lskip%d_%d", nr, b)
+			counters(b)
+			blocks(nr, b)
+			p("Lskip%d_%d:", nr, b)
+		}
+		p("\tRET")
 	}
 }
