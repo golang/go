@@ -62,18 +62,24 @@ func BenchmarkLookupFieldOrMethod(b *testing.B) {
 func TestLookupManyMethods(t *testing.T) {
 	const n = 200
 
+	// The package declares an interface I with methods M0 to M199, a struct
+	// type T and a generic type G that each implement them, and a struct S
+	// that gets them by embedding T. The two var declarations check that S
+	// and G[int] implement I.
 	var src strings.Builder
-	src.WriteString("package p\n\ntype I interface {\n")
+	src.WriteString("package p; type I interface { ")
 	for i := range n {
-		fmt.Fprintf(&src, "\tM%d()\n", i)
+		fmt.Fprintf(&src, "M%d(); ", i)
 	}
-	src.WriteString("}\n\ntype T struct{}\n\ntype G[P any] struct{}\n\n")
+	src.WriteString("}; type T struct{}; type G[P any] struct{}; ")
 	for i := range n {
-		fmt.Fprintf(&src, "func (T) M%d() {}\nfunc (G[P]) M%d() {}\n", i, i)
+		fmt.Fprintf(&src, "func (T) M%d() {}; func (G[P]) M%d() {}; ", i, i)
 	}
-	src.WriteString("\ntype S struct{ T }\n\nvar _ I = S{}\nvar _ I = G[int]{}\n")
+	src.WriteString("type S struct{ T }; var _ I = S{}; var _ I = G[int]{}")
 	pkg := mustTypecheck(src.String(), nil, nil)
 
+	// S finds its methods through the embedded T (index length 2); G[string]
+	// is an instance whose methods are created lazily.
 	iface := pkg.Scope().Lookup("I").Type().Underlying().(*Interface)
 	S := pkg.Scope().Lookup("S").Type()
 	G, err := Instantiate(nil, pkg.Scope().Lookup("G").Type(), []Type{Typ[String]}, true)
@@ -81,6 +87,9 @@ func TestLookupManyMethods(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Two goroutines per type look up every method by name, a missing name,
+	// and the interface, so the method index is built under contention. The
+	// method found for Mi must be the i-th one.
 	var wg sync.WaitGroup
 	for _, typ := range []Type{S, S, G, G} {
 		wg.Go(func() {
@@ -101,6 +110,7 @@ func TestLookupManyMethods(t *testing.T) {
 	}
 	wg.Wait()
 
+	// A method added to T after the index was built must be found too.
 	T := pkg.Scope().Lookup("T").Type().(*Named)
 	m := NewFunc(nopos, pkg, "M", NewSignatureType(NewVar(nopos, pkg, "", T), nil, nil, nil, nil, false))
 	T.AddMethod(m)
