@@ -341,13 +341,18 @@ func TestPseudoConsoleProcess(t *testing.T) {
 func TestAppContainer(t *testing.T) {
 	testenv.MustHaveExec(t)
 
+	// AppContainer profiles are registered persistently in the current Windows
+	// user's profile (not scoped to the process or temp directory), so use a
+	// unique name to avoid colliding with concurrent test runs or profiles
+	// leaked by previously interrupted runs.
 	var appContainerSid *syscall.SID
-	appContainerName := syscall.StringToUTF16Ptr("gotest-" + rand.Text())
+	name := "gotest-" + rand.Text()
+	appContainerName := syscall.StringToUTF16Ptr(name)
 	displayName := syscall.StringToUTF16Ptr("Go test AppContainer")
 	description := syscall.StringToUTF16Ptr("An isolated Go test sandbox application profile.")
 	err := windows.CreateAppContainerProfile(appContainerName, displayName, description, nil, 0, &appContainerSid)
 	if err != nil {
-		t.Fatalf("CreateAppContainerProfile failed: %v", err)
+		t.Fatalf("CreateAppContainerProfile(%q) failed: %v", name, err)
 	}
 	defer func() {
 		if appContainerSid != nil {
@@ -355,8 +360,29 @@ func TestAppContainer(t *testing.T) {
 				t.Error("FreeSid failed")
 			}
 		}
-		if err := windows.DeleteAppContainerProfile(appContainerName); err != nil {
-			t.Errorf("DeleteAppContainerProfile failed: %v", err)
+		// DeleteAppContainerProfile can fail transiently right after the child
+		// process exits while Windows finishes tearing down the container's
+		// storage directory and registry state (similar to issue #50051).
+		const arbitraryTimeout = 2 * time.Second
+		var (
+			start     time.Time
+			nextSleep = 1 * time.Millisecond
+		)
+		for {
+			err := windows.DeleteAppContainerProfile(appContainerName)
+			if err == nil {
+				break
+			}
+			if start.IsZero() {
+				start = time.Now()
+			}
+			elapsed := time.Since(start)
+			if elapsed >= arbitraryTimeout {
+				t.Errorf("DeleteAppContainerProfile(%q) failed: %v", name, err)
+				break
+			}
+			time.Sleep(min(nextSleep, arbitraryTimeout-elapsed))
+			nextSleep *= 2
 		}
 	}()
 
