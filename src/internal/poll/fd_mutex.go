@@ -105,7 +105,7 @@ func (mu *fdMutex) increfAndClose() bool {
 }
 
 // decref removes a reference from mu.
-// It reports whether there is no remaining reference.
+// It reports whether mu is closed and has no remaining references.
 func (mu *fdMutex) decref() bool {
 	for {
 		old := atomic.LoadUint64(&mu.state)
@@ -168,8 +168,8 @@ func (mu *fdMutex) rwlock(read bool, wait bool) bool {
 	}
 }
 
-// unlock removes a reference from mu and unlocks mu.
-// It reports whether there is no remaining reference.
+// rwunlock removes a reference from mu and unlocks mu for reading or writing.
+// It reports whether mu is closed and has no remaining references.
 func (mu *fdMutex) rwunlock(read bool) bool {
 	var mutexBit, mutexWait, mutexMask uint64
 	var mutexSema *uint32
