@@ -6,6 +6,7 @@ package syscall_test
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -341,7 +342,7 @@ func TestAppContainer(t *testing.T) {
 	testenv.MustHaveExec(t)
 
 	var appContainerSid *syscall.SID
-	appContainerName := syscall.StringToUTF16Ptr("gotest")
+	appContainerName := syscall.StringToUTF16Ptr("gotest-" + rand.Text())
 	displayName := syscall.StringToUTF16Ptr("Go test AppContainer")
 	description := syscall.StringToUTF16Ptr("An isolated Go test sandbox application profile.")
 	err := windows.CreateAppContainerProfile(appContainerName, displayName, description, nil, 0, &appContainerSid)
@@ -354,9 +355,8 @@ func TestAppContainer(t *testing.T) {
 				t.Error("FreeSid failed")
 			}
 		}
-		err = windows.DeleteAppContainerProfile(appContainerName)
-		if err != nil {
-			t.Fatalf("CreateAppContainerProfile failed: %v", err)
+		if err := windows.DeleteAppContainerProfile(appContainerName); err != nil {
+			t.Errorf("DeleteAppContainerProfile failed: %v", err)
 		}
 	}()
 
