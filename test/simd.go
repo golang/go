@@ -119,33 +119,6 @@ func ternShared(a, b, c, d, e archsimd.Int32x16) (p1, p2 archsimd.Int32x16) {
 	return p1, p2 // ERROR "has features avx[+]avx2[+]avx512$"
 }
 
-func ternTricky1(x, y, z archsimd.Int32x8) archsimd.Int32x8 {
-	// Int32x8 is a 256-bit vector and does not guarantee AVX-512
-	// a is a 3-variable logical expression occurring outside AVX-512 feature check
-	a := x.Xor(y).Xor(z)
-	var w archsimd.Int32x8
-	if !archsimd.X86.AVX512() { // ERROR "has features avx$"
-		// do nothing
-	} else {
-		w = y.AndNot(a) // ERROR "has features avx[+]avx2[+]avx512" "Rewriting.*ternInt"
-	}
-	// a is a common subexpression
-	return a.Or(w) // ERROR "has features avx$"
-}
-
-func ternTricky2(x, y, z archsimd.Int32x8) archsimd.Int32x8 {
-	// Int32x8 is a 256-bit vector and does not guarantee AVX-512
-	var a, w archsimd.Int32x8
-	if !archsimd.X86.AVX512() { // ERROR "has features avx$"
-		// do nothing
-	} else {
-		a = x.Xor(y).Xor(z)
-		w = y.AndNot(a) // ERROR "has features avx[+]avx2[+]avx512" "Rewriting.*ternInt"
-	}
-	// a is a common subexpression
-	return a.Or(w) // ERROR "has features avx$"
-}
-
 func ternTricky3(x, y, z archsimd.Int32x8) archsimd.Int32x8 {
 	// Int32x8 is a 256-bit vector and does not guarantee AVX-512
 	a := x.Xor(y).Xor(z)

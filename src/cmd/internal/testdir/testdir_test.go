@@ -431,8 +431,12 @@ func (ctxt *context) match(name string) bool {
 		return true
 	}
 
+	// Tool tags include goexperiment.* and GOAMD64 tags like amd64.v3.
+	if slices.Contains(build.Default.ToolTags, name) {
+		return true
+	}
 	if strings.HasPrefix(name, "goexperiment.") {
-		return slices.Contains(build.Default.ToolTags, name)
+		return false
 	}
 
 	if name == "cgo" && ctxt.cgoEnabled {
