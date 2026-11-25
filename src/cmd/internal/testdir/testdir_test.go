@@ -646,6 +646,12 @@ func (t test) run() error {
 		cmd.Stderr = &buf
 		// test/linkmain_run.go itself shells out to "go list -export", so we pass this along.
 		cmd.Env = append(os.Environ(), "GOENV=off", "GOFLAGS=", "TESTGO_EXPORT_ARCHIVE=1")
+		// Cap child GOMAXPROCS so concurrent testdir subtests do not oversubscribe
+		// high-core hosts. Skip WebAssembly targets because wasm runners inherit
+		// GOMAXPROCS and the wasm runtime throws on GOMAXPROCS > 1 at startup.
+		if goarch != "wasm" && goarch != "wasm32" {
+			cmd.Env = append(cmd.Env, "GOMAXPROCS="+strconv.Itoa(min(runtime.GOMAXPROCS(0), 4)))
+		}
 		if runInDir != "" {
 			cmd.Dir = runInDir
 			// Set PWD to match Dir to speed up os.Getwd in the child process.
@@ -756,7 +762,8 @@ func (t test) run() error {
 
 			cmdline = append(cmdline, long)
 			cmd := exec.Command(goTool, cmdline...)
-			cmd.Env = append(os.Environ(), env.Environ()...)
+			cmd.Env = append(os.Environ(), "GOMAXPROCS="+strconv.Itoa(min(runtime.GOMAXPROCS(0), 4)))
+			cmd.Env = append(cmd.Env, env.Environ()...)
 			if len(flags) > 0 && flags[0] == "-race" {
 				cmd.Env = append(cmd.Env, "CGO_ENABLED=1")
 			}
