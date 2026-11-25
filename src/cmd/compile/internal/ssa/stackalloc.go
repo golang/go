@@ -306,11 +306,19 @@ func (s *StackAllocState) computeLive(spillLive [][]ID) {
 	// (compared to the set of all values), we use a path exploration
 	// algorithm to calculate liveness here.
 	f := s.f
-	for _, b := range f.Blocks {
-		for _, spillvid := range spillLive[b.ID] {
-			val := &s.values[spillvid]
-			val.addUseBlock(b, true)
+
+	// here we group spillLive by values into flat slice
+	// as adding each block to value list  might be too expensive in large functions
+	spillStart, spillBlocks := s.groupSpillsByVal(f, spillLive)
+	var blockByID []*Block
+	if spillStart != nil {
+		blockByID = make([]*Block, f.NumBlocks())
+		for _, b := range f.Blocks {
+			blockByID[b.ID] = b
 		}
+	}
+
+	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			for i, a := range v.Args {
 				val := &s.values[a.ID]
@@ -333,9 +341,15 @@ func (s *StackAllocState) computeLive(spillLive [][]ID) {
 	}
 
 	s.Live = make([][]ID, f.NumBlocks())
+	for bid, l := range spillLive {
+		// preallocate Live for every spill since we already know the size
+		if len(l) > 0 {
+			s.Live[bid] = make([]ID, 0, len(l))
+		}
+	}
 	push := func(bid, vid ID) {
 		l := s.Live[bid]
-		if l == nil || l[len(l)-1] != vid {
+		if len(l) == 0 || l[len(l)-1] != vid {
 			l = append(l, vid)
 			s.Live[bid] = l
 		}
@@ -363,6 +377,12 @@ func (s *StackAllocState) computeLive(spillLive [][]ID) {
 		}
 		seen.Clear()
 		bqueue = bqueue[:0]
+		if spillStart != nil {
+			for _, bid := range spillBlocks[spillStart[vid]:spillStart[vid+1]] {
+				push(bid, ID(vid))
+				bqueue = append(bqueue, blockByID[bid])
+			}
+		}
 		for _, b := range v.useBlocks {
 			if b.liveout {
 				push(b.b.ID, ID(vid))
@@ -460,4 +480,42 @@ func (s *StackAllocState) buildInterferenceGraph() {
 			}
 		}
 	}
+}
+
+func (s *StackAllocState) groupSpillsByVal(f *Func, spillLive [][]ID) (spillStart []int, spillBlocks []ID) {
+	spillsCount := 0
+	for _, l := range spillLive {
+		spillsCount += len(l)
+	}
+
+	// small functions have no spills live at the end of any block, no need to alloc space
+	if spillsCount == 0 {
+		return
+	}
+
+	nv := f.NumValues()
+	spillStart = make([]int, nv+1)
+	for _, l := range spillLive {
+		for _, vid := range l {
+			spillStart[vid+1]++
+		}
+	}
+
+	for i := 1; i <= nv; i++ {
+		spillStart[i] += spillStart[i-1]
+	}
+
+	spillBlocks = make([]ID, spillsCount)
+	for bid, l := range spillLive {
+		for _, vid := range l {
+			spillBlocks[spillStart[vid]] = ID(bid)
+			spillStart[vid]++
+		}
+	}
+
+	// restore the initial state
+	copy(spillStart[1:], spillStart[:nv])
+	spillStart[0] = 0
+
+	return
 }
