@@ -156,7 +156,21 @@ func cpufeatures(f *ssa.Func) {
 	if arch != goarch.AMD64 && arch != goarch.ARM64 {
 		return
 	}
+	propagateCPUFeatures(f, ifEffect)
+	if f.Pass.Debug > 0 {
+		for _, b := range f.Blocks {
+			if b.CPUfeatures != ssa.CPUNone {
+				f.Warnl(b.Pos, "%s, block b%v has features %v", b.Func.Name, b.ID, b.CPUfeatures)
+			}
 
+		}
+	}
+}
+
+// propagateCPUFeatures sets the CPU features of each block of f, given the
+// features that each block's branch guarantees on one of its outgoing edges.
+func propagateCPUFeatures(f *ssa.Func, ifEffect func(b *ssa.Block) (features ssa.CPUfeatures, taken int)) {
+	arch := f.Config.Ctxt.Arch.Family
 	po := f.Postorder()
 
 	effects := make([]localEffect, 1+f.NumBlocks(), 1+f.NumBlocks())
@@ -301,14 +315,6 @@ func cpufeatures(f *ssa.Func) {
 			change = true
 		}
 	}
-	if f.Pass.Debug > 0 {
-		for _, b := range f.Blocks {
-			if b.CPUfeatures != ssa.CPUNone {
-				f.Warnl(b.Pos, "%s, block b%v has features %v", b.Func.Name, b.ID, b.CPUfeatures)
-			}
-
-		}
-	}
 }
 
 // foldCPUFeatures replaces checks of the internal/cpu.X86 feature flags that
@@ -326,23 +332,41 @@ func foldCPUFeatures(f *ssa.Func) {
 		level, ok := x86FeatureLevels[match]
 		return ok && buildcfg.GOAMD64 >= level
 	}
-	folded := false
+	// folded maps each folded branch's block to the features that the
+	// branch guaranteed on its taken edge, which is now its only edge.
+	var folded map[*ssa.Block]ssa.CPUfeatures
 	for _, b := range f.Blocks {
 		// The generic rules that would fold a constant branch have already
 		// run, so do it here.
 		if load, match, taken := featureCheck(b); load != nil && ensured(match) {
+			if folded == nil {
+				folded = make(map[*ssa.Block]ssa.CPUfeatures)
+			}
+			folded[b], _ = ifEffect(b)
 			if taken != 0 {
 				b.SwapSuccessors()
 			}
 			b.Reset(block.BlockFirst)
-			folded = true
 		}
 	}
-	if folded {
+	if folded != nil {
 		// Remove the code that doesn't use the feature now, so the lowering
 		// rules see the values that the guarded code computes, rather than
 		// phis that merge them with that code's.
 		deadcode(f)
+		// deadcode removed the paths that bypassed the guarded code, so now
+		// the blocks after it, such as the code after an "if" on the
+		// feature, only follow the guarded code. Recompute the features of
+		// each block so they get the feature too, keeping the features that
+		// the folded branches guaranteed. propagateCPUFeatures runs to a
+		// fixed point, and folding doesn't depend on the features, so one
+		// call suffices.
+		propagateCPUFeatures(f, func(b *ssa.Block) (ssa.CPUfeatures, int) {
+			if feat, ok := folded[b]; ok {
+				return feat, 0
+			}
+			return ifEffect(b)
+		})
 	}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
