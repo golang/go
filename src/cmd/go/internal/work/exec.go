@@ -627,22 +627,17 @@ func (b *Builder) buildExport(ctx context.Context, a *Action) (err error) {
 
 	const (
 		needBuild uint32 = 1 << iota
-		needVet
 		needCompiledGoFiles
 	)
 
 	cachedBuild := false
 	need := bit(needBuild, !b.IsCmdList && a.needBuild || b.NeedExport) |
-		bit(needVet, a.needVet) |
 		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
 
 	actionID := b.buildActionID(a)
 	if b.useCache(a, actionID, p.Target, need&needBuild != 0) {
 		// We found the main output in the cache.
 		// If we don't need any other outputs, we can stop.
-		// Otherwise, we need to write files to a.Objdir (needVet).
-		// Remember that we might have them in cache
-		// and check again after we create a.Objdir.
 		cachedBuild = true
 		a.output = []byte{} // start saving output in case we miss any cache results
 		need &^= needBuild
@@ -694,20 +689,6 @@ func (b *Builder) buildExport(ctx context.Context, a *Action) (err error) {
 		return err
 	}
 
-	// Load cached vet config, but only if that's all we have left
-	// (need == needVet, not testing just the one bit).
-	// If we are going to do a full build anyway,
-	// we're going to regenerate the files in the build action anyway.
-	if need == needVet {
-		if err := b.loadCachedVet(a); err == nil {
-			need &^= needVet
-		}
-	}
-
-	if need == 0 {
-		return
-	}
-
 	if cfg.BuildN {
 		// In -n mode, print a banner between packages.
 		// The banner is five lines so that when changes to
@@ -754,32 +735,11 @@ func (b *Builder) buildExport(ctx context.Context, a *Action) (err error) {
 		gofiles = append(gofiles, extraGo...)
 	}
 
-	var srcfiles []string // .go and non-.go
-	srcfiles = append(srcfiles, gofiles...)
-	srcfiles = append(srcfiles, sfiles...)
-	srcfiles = append(srcfiles, cfiles...)
-	b.cacheSrcFiles(a, srcfiles)
+	b.cacheSrcFiles(a, gofiles)
 
 	// Sanity check only, since Package.load already checked as well.
 	if len(gofiles) == 0 {
 		return &load.NoGoError{Package: p}
-	}
-
-	// Prepare Go vet config if needed (used by analysisvet).
-	if need&needVet != 0 {
-		vetSrcFiles := slices.Clone(srcfiles)
-		workPrefix := b.WorkDir + string(filepath.Separator)
-		for i, f := range vetSrcFiles {
-			if b.WorkDir != "" && strings.HasPrefix(f, workPrefix) && !strings.HasPrefix(f, a.Objdir) {
-				dst := a.Objdir + filepath.Base(f)
-				if err := sh.CopyFile(dst, f, 0666, true); err != nil {
-					return err
-				}
-				vetSrcFiles[i] = dst
-			}
-		}
-		buildVetConfigFromSrcFiles(a, vetSrcFiles)
-		need &^= needVet
 	}
 
 	if need&needCompiledGoFiles != 0 {
@@ -1537,15 +1497,6 @@ func (b *Builder) loadCachedSrcFiles(a *Action) ([]string, error) {
 	return srcfiles, nil
 }
 
-func (b *Builder) loadCachedVet(a *Action) error {
-	srcfiles, err := b.loadCachedSrcFiles(a)
-	if err != nil {
-		return err
-	}
-	buildVetConfigFromSrcFiles(a, srcfiles)
-	return nil
-}
-
 func (b *Builder) loadCachedCompiledGoFiles(a *Action) error {
 	c := cache.Default()
 	list, _, err := cache.GetBytes(c, cache.Subkey(a.actionID, "srcfiles"))
@@ -1650,40 +1601,15 @@ func analysisModuleFromModulePublic(m *modinfo.ModulePublic) *vetModule {
 	return vm
 }
 
-func buildVetConfigFromSrcFiles(a *Action, srcfiles []string) {
-	// Classify files based on .go extension.
-	// srcfiles does not include raw cgo files.
-	var gofiles, nongofiles []string
-	for _, name := range srcfiles {
-		if strings.HasSuffix(name, ".go") {
-			gofiles = append(gofiles, name)
-		} else {
-			nongofiles = append(nongofiles, name)
-		}
-	}
-	a.vetCfg = buildVetConfigFiles(a, a.Objdir, gofiles, nongofiles)
-}
-
 func buildVetConfig(a *Action) (vcfg *vetConfig, objdir string) {
+	p := a.Package
 	srcs := packageSources(a)
 	objdir = a.Objdir
 	if srcs.runCgoPr != nil {
 		objdir = srcs.runCgoPr.objdir
 	}
-	nongofiles := slices.Concat(srcs.sFiles, srcs.cFiles)
-	vcfg = buildVetConfigFiles(a, objdir, srcs.goFiles, nongofiles)
-	vcfg.PackageVetx = make(map[string]string)
-	vcfg.VetxOnly = a.VetxOnly
-	vcfg.VetxOutput = a.Objdir + "vet.out"
-	vcfg.Stdout = a.Objdir + "vet.stdout"
-	if a.needFix {
-		vcfg.FixArchive = a.Objdir + "vet.fix.zip"
-	}
-	return vcfg, objdir
-}
 
-func buildVetConfigFiles(a *Action, objdir string, gofiles, nongofiles []string) *vetConfig {
-	p := a.Package
+	nongofiles := slices.Concat(srcs.sFiles, srcs.cFiles)
 	ignored := slices.Concat(p.IgnoredGoFiles, p.IgnoredOtherFiles)
 
 	// Pass list of absolute paths to vet,
@@ -1692,16 +1618,23 @@ func buildVetConfigFiles(a *Action, objdir string, gofiles, nongofiles []string)
 	// in which the go command is invoked.
 	// (The exception is files in objdir; see trimObjdir.)
 	// We use "vet" terminology even when building action graphs for go fix.
-	vcfg := &vetConfig{
+	vcfg = &vetConfig{
 		ID:           p.ImportPath,
 		Compiler:     cfg.BuildToolchainName,
 		Dir:          p.Dir,
-		GoFiles:      trimObjdir(objdir, actualFiles(mkAbsFiles(p.Dir, gofiles))),
+		GoFiles:      trimObjdir(objdir, actualFiles(mkAbsFiles(p.Dir, srcs.goFiles))),
 		NonGoFiles:   trimObjdir(objdir, actualFiles(mkAbsFiles(p.Dir, nongofiles))),
 		IgnoredFiles: trimObjdir(objdir, actualFiles(mkAbsFiles(p.Dir, ignored))),
 		ImportPath:   p.ImportPath,
 		ImportMap:    make(map[string]string),
 		Standard:     make(map[string]bool),
+		PackageVetx:  make(map[string]string),
+		VetxOnly:     a.VetxOnly,
+		VetxOutput:   a.Objdir + "vet.out",
+		Stdout:       a.Objdir + "vet.stdout",
+	}
+	if a.needFix {
+		vcfg.FixArchive = a.Objdir + "vet.fix.zip"
 	}
 	v := gover.Local()
 	if p.Module != nil {
@@ -1740,7 +1673,7 @@ func buildVetConfigFiles(a *Action, objdir string, gofiles, nongofiles []string)
 		}
 	}
 
-	return vcfg
+	return vcfg, objdir
 }
 
 // VetTool is the path to the effective vet or fix tool binary.

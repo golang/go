@@ -88,6 +88,12 @@ stderr 'analysistool \$WORK[/\\]b\d+[/\\]analysis\.cfg # analyzers determined by
 # -vet accepts the legacy analyzer names that cmd/vet accepts.
 go test -vet=bool,buildtags,methods,rangeloops ./good
 
+# Analysis handles cgo packages, whose generated files live in the cgo objdir.
+[cgo] ! go test ./cgobad
+[cgo] stderr 'cgobad\.go:8:.*fmt\.Sprintf format %d has arg "x" of wrong type string'
+[cgo] ! go test -cover ./cgobad
+[cgo] stderr 'cgobad\.go:8:.*fmt\.Sprintf format %d has arg "x" of wrong type string'
+
 -- go.mod --
 module example.com/m
 
@@ -132,6 +138,22 @@ import "fmt"
 func F() { fmt.Sprint("x") }
 -- unused/unused_test.go --
 package unused
+
+import "testing"
+
+func TestF(t *testing.T) { F() }
+-- cgobad/cgobad.go --
+package cgobad
+
+import "C"
+import "fmt"
+
+func F() string {
+	var _ C.int
+	return fmt.Sprintf("%d", "x")
+}
+-- cgobad/cgobad_test.go --
+package cgobad
 
 import "testing"
 

@@ -111,13 +111,11 @@ type Action struct {
 	actionID         cache.ActionID // cache ID of action input
 	buildID          string         // build ID of action output
 
-	VetxOnly   bool       // Mode=="vet": only being called to supply info about dependencies
-	needVet    bool       // Mode=="build": need to fill in vet config
-	needBuild  bool       // Mode=="build": need to do actual build (can be false if needVet is true)
-	needFix    bool       // Mode=="vet": need secondary target, a .zip file containing fixes
-	vetCfg     *vetConfig // vet config
-	FixArchive string     // the created .zip file containing fixes (if needFix)
-	output     []byte     // output redirect buffer (nil means use b.Print)
+	VetxOnly   bool   // Mode=="vet": only being called to supply info about dependencies
+	needBuild  bool   // Mode=="build-export": need to do actual build
+	needFix    bool   // Mode=="vet": need secondary target, a .zip file containing fixes
+	FixArchive string // the created .zip file containing fixes (if needFix)
+	output     []byte // output redirect buffer (nil means use b.Print)
 
 	sh *Shell // lazily created per-Action shell; see Builder.Shell
 
@@ -187,7 +185,6 @@ type actionJSON struct {
 	Failed     bool      `json:",omitempty"`
 	Built      string    `json:",omitempty"`
 	VetxOnly   bool      `json:",omitempty"`
-	NeedVet    bool      `json:",omitempty"`
 	NeedBuild  bool      `json:",omitempty"`
 	ActionID   string    `json:",omitempty"`
 	BuildID    string    `json:",omitempty"`
@@ -241,7 +238,6 @@ func actionGraphJSON(a *Action) string {
 				Built:      a.built,
 				VetxOnly:   a.VetxOnly,
 				NeedBuild:  a.needBuild,
-				NeedVet:    a.needVet,
 			}
 			if a.Package != nil {
 				// TODO(rsc): Make this a unique key for a.Package somehow.
