@@ -6,6 +6,21 @@
 
 package runtime
 
+func PreemptedDroppedExtraM() bool {
+	// pp.m and mp.p are uintptrs, so keep the P and M off the stack.
+	pp := Escape(&p{status: _Prunning})
+	mp := Escape(&m{isextra: true, isExtraInC: true})
+	gp := &g{m: mp}
+	gp.atomicstatus.Store(_Gdeadextra)
+	mp.curg = gp
+	mp.p.set(pp)
+	pp.m.set(mp)
+
+	preemptone(pp)
+	KeepAlive(pp)
+	return gp.preempt
+}
+
 func RunStealOrderTest() {
 	var ord randomOrder
 	for procs := 1; procs <= 64; procs++ {

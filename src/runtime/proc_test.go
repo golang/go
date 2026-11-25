@@ -343,6 +343,14 @@ func TestPreemption(t *testing.T) {
 	<-c
 }
 
+// After a callback returns to C, a dropped extra M may still hold its P.
+// A preemption request for that P must not carry over to the next callback.
+func TestPreemptDroppedExtraM(t *testing.T) {
+	if runtime.PreemptedDroppedExtraM() {
+		t.Fatal("preemptone marked a dropped extra M's goroutine for preemption")
+	}
+}
+
 func TestPreemptionGC(t *testing.T) {
 	if runtime.GOARCH == "wasm" || runtime.GOARCH == "wasm32" {
 		t.Skip("no preemption on wasm yet")
