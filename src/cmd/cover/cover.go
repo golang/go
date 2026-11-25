@@ -383,14 +383,15 @@ func insideStatement(pos token.Pos, stmts []ast.Stmt) bool {
 	return i > 0 && pos < stmts[i-1].End()
 }
 
-// mergeRangesWithinStatements merges consecutive ranges when a later range's
-// start position falls strictly inside a statement. This prevents counter
-// insertion inside multi-line statements such as const (...) blocks.
+// rangeWithStatements pairs a range with the number of statements it contains.
 type rangeWithStatements struct {
 	Range
 	numStmt int
 }
 
+// mergeRangesWithinStatements merges consecutive ranges when a later range's
+// start position falls strictly inside a statement. This prevents counter
+// insertion inside multi-line statements such as const (...) blocks.
 func mergeRangesWithinStatements(ranges []Range, stmts []ast.Stmt) []rangeWithStatements {
 	merged := make([]rangeWithStatements, 0, len(ranges))
 	for _, r := range ranges {

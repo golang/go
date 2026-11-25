@@ -2309,7 +2309,7 @@ type writeRequest struct {
 	continueCh <-chan struct{}
 }
 
-// httpTimeoutError represents a timeout.
+// timeoutError represents a timeout.
 // It implements net.Error and wraps context.DeadlineExceeded.
 type timeoutError struct {
 	err string

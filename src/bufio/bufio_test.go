@@ -916,7 +916,7 @@ var testOutput = []byte("0123456789abcdefghijklmnopqrstuvwxy")
 var testInput = []byte("012\n345\n678\n9ab\ncde\nfgh\nijk\nlmn\nopq\nrst\nuvw\nxy")
 var testInputrn = []byte("012\r\n345\r\n678\r\n9ab\r\ncde\r\nfgh\r\nijk\r\nlmn\r\nopq\r\nrst\r\nuvw\r\nxy\r\n\n\r\n")
 
-// TestReader wraps a []byte and returns reads of a specific length.
+// testReader wraps a []byte and returns reads of a specific length.
 type testReader struct {
 	data   []byte
 	stride int

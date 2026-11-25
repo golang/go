@@ -2771,7 +2771,7 @@ func isConnectionCloseRequest(req *ClientRequest) bool {
 	return req.Close || httpguts.HeaderValuesContainsToken(req.Header["Connection"], "close")
 }
 
-// netHTTPClientConn wraps ClientConn and implements the interface net/http expects from
+// NetHTTPClientConn wraps ClientConn and implements the interface net/http expects from
 // the RoundTripper returned by NewClientConn.
 type NetHTTPClientConn struct {
 	cc *ClientConn

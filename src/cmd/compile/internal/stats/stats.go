@@ -63,7 +63,7 @@ func (s *Stats) NewPrefixStat(p string) *PrefixStats {
 	return pstat
 }
 
-// Stats holds a collection of statistics.
+// PrefixStats holds a collection of statistics with a common prefix.
 type PrefixStats struct {
 	prefix string
 	stats  map[string]int64
@@ -77,7 +77,7 @@ func (s *PrefixStats) Record(name string, value int64) {
 	s.stats[name] += value
 }
 
-// Merge merges another Stats object into this one.
+// Merge merges another PrefixStats object into this one.
 func (s *PrefixStats) Merge(other *PrefixStats) {
 	if s == nil || other == nil {
 		return
