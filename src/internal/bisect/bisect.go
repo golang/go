@@ -410,9 +410,9 @@ func appendFileLine(dst []byte, file string, line int) []byte {
 	return dst
 }
 
-// MatchStack assigns the current call stack a change ID.
-// If the stack should be printed, MatchStack prints it.
-// Then MatchStack reports whether a change at the current call stack should be enabled.
+// Stack assigns the current call stack a change ID.
+// If the stack should be printed, Stack prints it.
+// Then Stack reports whether a change at the current call stack should be enabled.
 func (m *Matcher) Stack(w Writer) bool {
 	if m == nil {
 		return true

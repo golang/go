@@ -2273,7 +2273,7 @@ func clearFinalizerContext(ptr uintptr) {
 	clearCleanupContext(ptr, 0)
 }
 
-// clearFinalizerContext removes the specialCheckFinalizer for the given pointer and cleanup ID, if any.
+// clearCleanupContext removes the specialCheckFinalizer for the given pointer and cleanup ID, if any.
 func clearCleanupContext(ptr uintptr, cleanupID uint64) {
 	// The following block removes the Special record of type cleanup for the object c.ptr.
 	span := spanOfHeap(ptr)

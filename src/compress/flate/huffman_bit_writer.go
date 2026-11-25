@@ -372,7 +372,9 @@ func (w *huffmanBitWriter) headerSize() (size, numCodegens int) {
 		int(w.codegenFreq[18])*7, numCodegens
 }
 
-// dynamicSize returns the size of dynamically encoded data in bits.
+// dynamicReuseSize returns the encoded size in bits when reusing the supplied
+// Huffman tables. The size excludes the header and extra bits.
+// The caller must add any extra bits separately.
 func (w *huffmanBitWriter) dynamicReuseSize(litEnc, offEnc *huffmanEncoder) (size int) {
 	size = litEnc.bitLength(w.literalFreq[:]) +
 		offEnc.bitLength(w.offsetFreq[:])

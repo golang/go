@@ -196,7 +196,7 @@ func (p *PacketConn) LocalAddr() net.Addr {
 	return p.addr
 }
 
-// SetReadDeadline sets the read deadline for the connection.
+// SetDeadline sets the read deadline for the connection.
 // PacketConns have no write deadline.
 func (p *PacketConn) SetDeadline(t time.Time) error {
 	return p.SetReadDeadline(t)

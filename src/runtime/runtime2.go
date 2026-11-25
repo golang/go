@@ -335,7 +335,7 @@ type maybeTraceablePtr struct {
 	vu uintptr        // Source of truth.
 }
 
-// untrack unsets the pointer but preserves the address.
+// setUntraceable unsets the pointer but preserves the address.
 // This is used to hide the pointer from the GC.
 //
 //go:nosplit

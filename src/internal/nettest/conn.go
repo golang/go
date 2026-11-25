@@ -179,7 +179,7 @@ func (c *Conn) SetLocalAddr(addr net.Addr) {
 	c.r.addr = addr
 }
 
-// LocalAddr returns the (fake) remote network address.
+// RemoteAddr returns the (fake) remote network address.
 func (c *Conn) RemoteAddr() net.Addr {
 	c.r.lock()
 	defer c.r.unlock()

@@ -273,8 +273,8 @@ func (priv *PrivateKey) precomputedIsConsistent() bool {
 		bigIntEqualToBytes(priv.Precomputed.Qinv, qInv)
 }
 
-// bigIntEqual reports whether a and b are equal, ignoring leading zero bytes in
-// b, and leaking only their bit length through timing side-channels.
+// bigIntEqualToBytes reports whether a and b are equal, ignoring leading zero
+// bytes in b, and leaking only their bit length through timing side-channels.
 func bigIntEqualToBytes(a *big.Int, b []byte) bool {
 	if a == nil || a.BitLen() > len(b)*8 {
 		return false

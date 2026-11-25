@@ -262,7 +262,8 @@ func (h *HTMLWriter) dumpNodesHTML(list Nodes, depth int) {
 
 const indentString = ".   "
 
-// indent prints indentation to w.
+// indentForToggle prints indentation, reserving space for a toggle arrow
+// when hasChildren is true.
 func (h *HTMLWriterBase) indentForToggle(depth int, hasChildren bool) {
 	h.Print("\n")
 	if depth == 0 {
