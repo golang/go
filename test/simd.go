@@ -8,24 +8,10 @@
 
 package foo
 
-import (
-	"fmt"
-	"simd/archsimd"
-)
+import "simd/archsimd"
 
 func f1(x archsimd.Int8x16) {
 	return // ERROR "has features avx"
-}
-
-func g1() archsimd.Int8x16 {
-	var x archsimd.Int8x16
-	return x // ERROR "has features avx$"
-}
-
-type T1 archsimd.Int8x16
-
-func (x T1) h() {
-	return // ERROR "has features avx$"
 }
 
 func f2(x archsimd.Int8x64) {
@@ -41,62 +27,6 @@ type T2 archsimd.Int8x64
 
 func (x T2) h() {
 	return // ERROR "has features avx[+]avx2[+]avx512$"
-}
-
-var a int
-
-func f() {
-	if a == 0 {
-		if !archsimd.X86.AVX512() {
-			return
-		}
-		println("has avx512") // ERROR "has features avx[+]avx2[+]avx512$"
-	} else {
-		if !archsimd.X86.AVX2() {
-			return
-		}
-		println("has avx2") // ERROR "has features avx[+]avx2$"
-	}
-	println("has something")
-} // ERROR "has features avx[+]avx2$"
-
-func g() {
-	if archsimd.X86.AVX2() { // ERROR "has features avx[+]avx2$"
-		for range 5 { // ERROR "has features avx[+]avx2$"
-			if a < 0 { // ERROR "has features avx[+]avx2$"
-				a++ // ERROR "has features avx[+]avx2$"
-			}
-		}
-	}
-	println("ahoy!") // ERROR "has features avx[+]avx2$" // this is an artifact of flaky block numbering and why isn't it fused?
-	if a > 0 {
-		a--
-	}
-}
-
-//go:noinline
-func p() bool {
-	return true
-}
-
-func hasIrreducibleLoop() {
-	if archsimd.X86.AVX2() {
-		goto a // ERROR "has features avx[+]avx2$"
-	} else {
-		goto b
-	}
-a:
-	println("a")
-	if p() {
-		goto c
-	}
-b:
-	println("b")
-	if p() {
-		goto a
-	}
-c:
-	println("c")
 }
 
 func ternRewrite(m, w, x, y, z archsimd.Int32x16) (t0, t1, t2 archsimd.Int32x16) {
@@ -119,30 +49,6 @@ func ternShared(a, b, c, d, e archsimd.Int32x16) (p1, p2 archsimd.Int32x16) {
 	return p1, p2 // ERROR "has features avx[+]avx2[+]avx512$"
 }
 
-func ternTricky3(x, y, z archsimd.Int32x8) archsimd.Int32x8 {
-	// Int32x8 is a 256-bit vector and does not guarantee AVX-512
-	a := x.Xor(y).Xor(z)
-	w := y.AndNot(a)
-	if !archsimd.X86.AVX512() { // ERROR "has features avx$"
-		return a // ERROR "has features avx$"
-	}
-	// a is a common subexpression
-	return a.Or(w) // ERROR "has features avx[+]avx2[+]avx512"  // This does not rewrite, do we want it to?
-}
-
-func vpternlogdPanic() {
-	resultsMask := archsimd.Mask64x8{}
-
-	// The loop header holds only rematerializable SIMD zeros, which emit
-	// no code, so it claims no features.
-	for {
-		resultsMask = archsimd.Mask64x8FromBits(0).Or( // ERROR "has features avx[+]avx2[+]avx512"
-			archsimd.Float64x8{}.Less(
-				archsimd.BroadcastFloat64x8(0))).Or(resultsMask) // ERROR "Rewriting.*ternInt"
-		fmt.Print(resultsMask.And(resultsMask.And(archsimd.Mask64x8{})))
-	}
-}
-
 type notSIMD struct {
 	v archsimd.Int8x16
 	n int
@@ -156,17 +62,5 @@ var cond bool
 // diagnostics at all.
 func zeroOnly(p *notSIMD) {
 	p.v = archsimd.Int8x16{}
-	p.n++
-}
-
-// Only the block executing a real SIMD instruction claims features;
-// they do not leak into the unconditionally executed parts of the
-// function through the no-code zero or the merge.
-func zeroMerge(p *notSIMD, s []int8) {
-	x := archsimd.Int8x16{}
-	if cond {
-		x = archsimd.LoadInt8x16(s) // ERROR "has features avx$"
-	}
-	p.v = x
 	p.n++
 }

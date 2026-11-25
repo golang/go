@@ -1,6 +1,6 @@
 // errorcheck -0 -d=ssa/critical/debug=1
 
-//go:build goexperiment.simdstable && amd64
+//go:build goexperiment.simdstable && amd64 && !amd64.v3
 
 // Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -18,6 +18,9 @@
 //  3. a split block reused for several predecessor edges carrying the
 //     same phi argument, which keeps only the features all of its
 //     predecessors guarantee
+//
+// With GOAMD64=v3 or higher, the compiler assumes AVX2 everywhere in code
+// that uses SIMD, which changes the features this checks.
 
 package foo
 

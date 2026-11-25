@@ -8,7 +8,7 @@
 
 // With GOAMD64=v4, the compiler folds away checks for AVX-512, so code after
 // an "if" on AVX-512 only follows the AVX-512 code and can use AVX-512 too.
-// This is the GOAMD64=v4 counterpart of the tests in simdnotv4.go.
+// This is the GOAMD64=v4 counterpart of the tests in simdnotv3.go.
 
 package foo
 
