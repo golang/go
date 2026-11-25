@@ -235,6 +235,9 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 		"GODEBUG=" + os.Getenv("GODEBUG"),
 		"GOEXE=" + cfg.ExeSuffix,
 		"GOEXPERIMENT=" + os.Getenv("GOEXPERIMENT"),
+		// Cap per-subprocess GOMAXPROCS so concurrent TestScript subtests do not
+		// oversubscribe high-core-count machines with P*NumCPU threads.
+		fmt.Sprintf("GOMAXPROCS=%d", min(runtime.GOMAXPROCS(0), 4)),
 		"GOOS=" + runtime.GOOS,
 		"TESTGO_GOHOSTOS=" + goHostOS,
 		"GOPROXY=" + proxyURL,
