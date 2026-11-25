@@ -7,6 +7,8 @@
 package syscall
 
 import (
+	"internal/asan"
+	"internal/msan"
 	"sync/atomic"
 )
 
@@ -42,6 +44,18 @@ func init() {
 		// than using prlimit to change to Cur == Max - 1.
 		// The place we check for this is in exec_linux.go.
 		nlim.Cur = nlim.Max - 1
+
+		if asan.Enabled || msan.Enabled {
+			// LLVM's sanitizer runtime closes all file descriptors up to
+			// sysconf(_SC_OPEN_MAX) (soft RLIMIT_NOFILE) one by one when
+			// spawning llvm-symbolizer (https://github.com/llvm/llvm-project/issues/63297).
+			// Cap how high we raise the soft limit so symbolizer startup
+			// stays fast when the hard limit is very large.
+			const maxSanitizerNofile = 100_000
+			if nlim.Cur > maxSanitizerNofile {
+				nlim.Cur = maxSanitizerNofile
+			}
+		}
 
 		adjustFileLimit(&nlim)
 		if nlim.Cur > lim.Cur {
