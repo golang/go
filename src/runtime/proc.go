@@ -1486,6 +1486,7 @@ const (
 	stwForTestReadMemStatsSlow                      // "ReadMemStatsSlow (test)"
 	stwForTestPageCachePagesLeaked                  // "PageCachePagesLeaked (test)"
 	stwForTestResetDebugLog                         // "ResetDebugLog (test)"
+	stwForTestQueueCleanupOnP                       // "QueueCleanupOnP (test)"
 )
 
 func (r stwReason) String() string {
@@ -1517,6 +1518,7 @@ var stwReasonStrings = [...]string{
 	stwForTestReadMemStatsSlow:     "ReadMemStatsSlow (test)",
 	stwForTestPageCachePagesLeaked: "PageCachePagesLeaked (test)",
 	stwForTestResetDebugLog:        "ResetDebugLog (test)",
+	stwForTestQueueCleanupOnP:      "QueueCleanupOnP (test)",
 }
 
 // worldStop provides context from the stop-the-world required by the
@@ -6113,6 +6115,14 @@ func (pp *p) destroy() {
 		pp.raceprocctx = 0
 	}
 	pp.gcAssistTime = 0
+	// Push the partially filled cleanup block, if any. We may be in
+	// the middle of the sweep, and flush only looks at allp, so nobody
+	// would pick the block up otherwise.
+	if b := pp.cleanups; b != nil {
+		gcCleanups.full.push(&b.lfnode)
+		gcCleanups.addWork(1)
+		pp.cleanups = nil
+	}
 	gcCleanups.queued += pp.cleanupsQueued
 	pp.cleanupsQueued = 0
 	sched.goroutinesCreated.Add(int64(pp.goroutinesCreated))
