@@ -179,8 +179,8 @@
 (Slicemask <t> x) => (SRAconst (NEG <t> x) [31])
 
 // float-int conversion
-(Cvt32to(32|64)F ...) => (MOVW(F|D) ...)
-(Cvt(32|64)Fto32 ...) => (TRUNC(F|D)W ...)
+(Cvt32to(32|64)F <t> x) => (MOVW(F|D) (MOVWgpfp <t> x))
+(Cvt(32|64)Fto32 <t> x) => (MOVWfpgp (TRUNC(F|D)W <t> x))
 (Cvt32Fto64F ...) => (MOVFD ...)
 (Cvt64Fto32F ...) => (MOVDF ...)
 
