@@ -25,8 +25,8 @@
 // If the RLDICL does not rotate its value, a shifted value can be merged.
 (RLDICL [em] x:(SRDconst [s] a)) && (em&0xFF0000) == 0 => (RLDICL [mergePPC64RLDICLandSRDconst(em, s)] a)
 
-// Convert rotated 32 bit masks on 32 bit values into rlwinm. In general, this leaves the upper 32 bits in an undefined state.
-(AND <t> x:(MOVDconst [m]) n) && t.Size() == 4 && ssa.IsPPC64WordRotateMask(m) => (RLWINM [ssa.EncodePPC64RotateMask(0,m,32)] n)
+// Convert non-wrapping 32 bit masks on 32 bit values into rlwinm, which also clears the upper 32 bits.
+(AND <t> x:(MOVDconst [m]) n) && t.Size() == 4 && ssa.IsPPC64WordRotateMaskNonWrapping(int64(uint32(m))) => (RLWINM [ssa.EncodePPC64RotateMask(0,m,32)] n)
 
 // When PCRel is supported, paddi can add a 34b signed constant in one instruction.
 (ADD (MOVDconst [m]) x) && ssa.SupportsPPC64PCRel() && (m<<30)>>30 == m => (ADDconst [m] x)

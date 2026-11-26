@@ -1098,6 +1098,16 @@ func IsPPC64WordRotateMask(v64 int64) bool {
 	return (v&vp == 0 || vn&vpn == 0) && v != 0
 }
 
+// Test if this mask is a valid, contiguous bitmask which can be
+// represented by a RLWNM mask and also clears the upper 32 bits
+// of the register.
+func IsPPC64WordRotateMaskNonWrapping(v64 int64) bool {
+	// Isolate rightmost 1 (if none 0) and add.
+	v := uint32(v64)
+	vp := (v & -v) + v
+	return (v&vp == 0) && v != 0 && uint64(uint32(v64)) == uint64(v64)
+}
+
 func IsPtr(t *types.Type) bool {
 	return t.IsPtrShaped()
 }
@@ -1208,7 +1218,8 @@ func MakeJumpTableSym(b *Block) *obj.LSym {
 // Combine (ANDconst [m] (SRWconst [s])) into (RLWINM [y]) or return 0
 func MergePPC64AndSrwi(m, s int64) int64 {
 	mask := MergePPC64RShiftMask(m, s, 32)
-	if !IsPPC64WordRotateMask(mask) {
+	// SRW clears the upper 32 bits, so the mask must not wrap.
+	if !IsPPC64WordRotateMaskNonWrapping(mask) {
 		return 0
 	}
 	return EncodePPC64RotateMask((32-s)&31, mask, 32)
@@ -1226,8 +1237,8 @@ func MergePPC64ClrlsldiRlwinm(sld int32, rlw int64) int64 {
 	r_2 := GetPPC64Shiftsh(int64(sld))
 	r_3 := (r_1 + r_2) & 31 // This can wrap.
 
-	// Verify the result is still a valid bitmask of <= 32 bits.
-	if !IsPPC64WordRotateMask(int64(mask_3)) || uint64(uint32(mask_3)) != mask_3 {
+	// Verify the result is still a valid, non-wrapping bitmask of <= 32 bits.
+	if !IsPPC64WordRotateMaskNonWrapping(int64(mask_3)) {
 		return 0
 	}
 	return EncodePPC64RotateMask(r_3, int64(mask_3), 32)

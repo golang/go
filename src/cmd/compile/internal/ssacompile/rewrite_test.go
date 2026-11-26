@@ -230,6 +230,8 @@ func TestMergePPC64ClrlsldiRlwinm(t *testing.T) {
 		{ssa.NewPPC64ShiftAuxInt(16, 48, 63, 64), ssa.EncodePPC64RotateMask(28, 0xFFFF, 32), true, 12, 0xFFFF0000},
 		// ((x>>4)&0xF000FFFF)<<16
 		{ssa.NewPPC64ShiftAuxInt(16, 48, 63, 64), ssa.EncodePPC64RotateMask(28, 0xF000FFFF, 32), true, 12, 0xFFFF0000},
+		// (x&0xFFFFFF7F)<<0
+		{ssa.NewPPC64ShiftAuxInt(0, 32, 63, 64), ssa.EncodePPC64RotateMask(0, 0xFFFFFF7F, 32), false, 0, 0},
 	}
 	for i, v := range tests {
 		result := ssa.MergePPC64ClrlsldiRlwinm(v.clrlsldi, v.rlwinm)

@@ -14,16 +14,6 @@ func getPPC64ShiftMaskLength(v int64) int64 {
 	return int64(bits.Len64(uint64(v)))
 }
 
-// Test if this mask is a valid, contiguous bitmask which can be
-// represented by a RLWNM mask and also clears the upper 32 bits
-// of the register.
-func isPPC64WordRotateMaskNonWrapping(v64 int64) bool {
-	// Isolate rightmost 1 (if none 0) and add.
-	v := uint32(v64)
-	vp := (v & -v) + v
-	return (v&vp == 0) && v != 0 && uint64(uint32(v64)) == uint64(v64)
-}
-
 // isU16Bit reports whether n can be represented as an unsigned 16 bit integer.
 func isU16Bit(n int64) bool {
 	return n == int64(uint16(n))
@@ -51,7 +41,7 @@ func mergePPC64AndSldi(m, s int64) int64 {
 	if rv&uint64(mask) != 0 {
 		return 0
 	}
-	if !isPPC64WordRotateMaskNonWrapping(mask) {
+	if !ssa.IsPPC64WordRotateMaskNonWrapping(mask) {
 		return 0
 	}
 	return ssa.EncodePPC64RotateMask(s&31, mask, 32)
@@ -66,7 +56,7 @@ func mergePPC64AndSrdi(m, s int64) int64 {
 	if rv&uint64(mask) != 0 {
 		return 0
 	}
-	if !isPPC64WordRotateMaskNonWrapping(mask) {
+	if !ssa.IsPPC64WordRotateMaskNonWrapping(mask) {
 		return 0
 	}
 	return ssa.EncodePPC64RotateMask((32-s)&31, mask, 32)

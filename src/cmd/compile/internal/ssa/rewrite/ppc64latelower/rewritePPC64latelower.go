@@ -100,7 +100,7 @@ func rewriteValue_OpPPC64AND(v *ssa.Value) bool {
 		break
 	}
 	// match: (AND <t> x:(MOVDconst [m]) n)
-	// cond: t.Size() == 4 && ssa.IsPPC64WordRotateMask(m)
+	// cond: t.Size() == 4 && ssa.IsPPC64WordRotateMaskNonWrapping(int64(uint32(m)))
 	// result: (RLWINM [ssa.EncodePPC64RotateMask(0,m,32)] n)
 	for {
 		t := v.Type
@@ -111,7 +111,7 @@ func rewriteValue_OpPPC64AND(v *ssa.Value) bool {
 			}
 			m := ssa.AuxIntToInt64(x.AuxInt)
 			n := v_1
-			if !(t.Size() == 4 && ssa.IsPPC64WordRotateMask(m)) {
+			if !(t.Size() == 4 && ssa.IsPPC64WordRotateMaskNonWrapping(int64(uint32(m)))) {
 				continue
 			}
 			v.Reset(ssaop.OpPPC64RLWINM)
