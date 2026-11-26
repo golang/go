@@ -489,20 +489,23 @@ func (fc FlagConstant) Uge() bool {
 	return fc.C()
 }
 
+// The noov conditions compare the result of an operation with 0,
+// ignoring V, as the MI, PL and EQ conditions that implement them do.
+
 func (fc FlagConstant) LtNoov() bool {
-	return fc.Lt() && !fc.V()
+	return fc.N()
 }
 
 func (fc FlagConstant) LeNoov() bool {
-	return fc.Le() && !fc.V()
+	return fc.Z() || fc.LtNoov()
 }
 
 func (fc FlagConstant) GtNoov() bool {
-	return fc.Gt() && !fc.V()
+	return !fc.Z() && fc.GeNoov()
 }
 
 func (fc FlagConstant) GeNoov() bool {
-	return fc.Ge() && !fc.V()
+	return !fc.N()
 }
 
 func (fc FlagConstant) String() string {
