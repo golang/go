@@ -2626,6 +2626,10 @@ func (e *edgeState) reestablishSSA(exposedDownwards []contentRecord) {
 				}
 			}
 			ddef, _ := downwardDef.Get(search.ID)
+			if use.op() != ssaop.OpPhi && search == use.block() {
+				// The phi we inserted reaches the use; the downward def may follow it
+				ddef, _ = topDef.Get(search.ID)
+			}
 			if f.Pass.Debug > ssa.RegDebug && ddef != use.value() {
 				fmt.Printf("replacing v%d with v%d in %#s\n", use.value().ID, ddef.ID, use)
 			}

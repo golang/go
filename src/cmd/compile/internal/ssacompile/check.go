@@ -248,6 +248,10 @@ func checkFunc(f *ssa.Func) {
 					if arg.Type.IsMemory() && i != len(v.Args)-1 {
 						f.Fatalf("value %s has non-final memory arg (%d < %d)", v.LongString(), i, len(v.Args)-1)
 					}
+					// After scheduling, args from the same block must come before v
+					if f.Scheduled && arg.Block == b && !valueMark[arg.ID] {
+						f.Fatalf("arg %d of value %s is not defined before it, arg=%s", i, v.LongString(), arg.LongString())
+					}
 				}
 			}
 
