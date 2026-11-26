@@ -131,16 +131,33 @@ func (bu *Binutils) SetTools(config string) {
 	bu.update(func(r *binrep) { initTools(r, config) })
 }
 
-func initTools(b *binrep, config string) {
-	// paths collect paths per tool; Key "" contains the default.
+// isToolName reports whether name is one of the tool names initTools looks up.
+// An entry is only read as a "<name>:<path>" pair for these names, so that a
+// path holding a colon, such as `C:\tools` on Windows, stays a path.
+func isToolName(name string) bool {
+	switch name {
+	case "llvm-symbolizer", "addr2line", "nm", "objdump":
+		return true
+	}
+	return false
+}
+
+// toolPaths splits the tools option into paths per tool. Key "" holds the
+// paths to search for every tool.
+func toolPaths(config string) map[string][]string {
 	paths := make(map[string][]string)
 	for _, t := range strings.Split(config, ",") {
 		name, path := "", t
-		if ct := strings.SplitN(t, ":", 2); len(ct) == 2 {
+		if ct := strings.SplitN(t, ":", 2); len(ct) == 2 && isToolName(ct[0]) {
 			name, path = ct[0], ct[1]
 		}
 		paths[name] = append(paths[name], path)
 	}
+	return paths
+}
+
+func initTools(b *binrep, config string) {
+	paths := toolPaths(config)
 
 	defaultPath := paths[""]
 	b.llvmSymbolizer, b.llvmSymbolizerFound = chooseExe([]string{"llvm-symbolizer"}, []string{}, append(paths["llvm-symbolizer"], defaultPath...))
@@ -254,8 +271,8 @@ func findExe(cmd string, paths []string) (string, bool) {
 	return cmd, false
 }
 
-// Disasm returns the assembly instructions for the specified address range
-// of a binary.
+// Disasm returns the assembly instructions in the address range [start, end)
+// of a binary, including start and excluding end.
 func (bu *Binutils) Disasm(file string, start, end uint64, intelSyntax bool) ([]plugin.Inst, error) {
 	b := bu.get()
 	if !b.objdumpFound {
@@ -586,6 +603,21 @@ type file struct {
 	m *elfMapping
 }
 
+// initBase initializes the relocation base for the file using the given address.
+// If the address is outside the file's mapping range, an error is returned without
+// computing or latching the base so that future calls with addresses within the
+// mapping range can succeed.
+func (f *file) initBase(addr uint64) error {
+	if f == nil {
+		return nil
+	}
+	if f.m != nil && f.m.start < f.m.limit && (addr < f.m.start || addr >= f.m.limit) {
+		return fmt.Errorf("specified address %x is outside the mapping range [%x, %x] for file %q", addr, f.m.start, f.m.limit, f.name)
+	}
+	f.baseOnce.Do(func() { f.baseErr = f.computeBase(addr) })
+	return f.baseErr
+}
+
 // computeBase computes the relocation base for the given binary file only if
 // the elfMapping field is set. It populates the base and isData fields and
 // returns an error.
@@ -593,7 +625,7 @@ func (f *file) computeBase(addr uint64) error {
 	if f == nil || f.m == nil {
 		return nil
 	}
-	if addr < f.m.start || addr >= f.m.limit {
+	if f.m.start < f.m.limit && (addr < f.m.start || addr >= f.m.limit) {
 		return fmt.Errorf("specified address %x is outside the mapping range [%x, %x] for file %q", addr, f.m.start, f.m.limit, f.name)
 	}
 	ef, err := elfOpen(f.name)
@@ -621,9 +653,8 @@ func (f *file) Name() string {
 }
 
 func (f *file) ObjAddr(addr uint64) (uint64, error) {
-	f.baseOnce.Do(func() { f.baseErr = f.computeBase(addr) })
-	if f.baseErr != nil {
-		return 0, f.baseErr
+	if err := f.initBase(addr); err != nil {
+		return 0, err
 	}
 	return addr - f.base, nil
 }
@@ -633,9 +664,8 @@ func (f *file) BuildID() string {
 }
 
 func (f *file) SourceLine(addr uint64) ([]plugin.Frame, error) {
-	f.baseOnce.Do(func() { f.baseErr = f.computeBase(addr) })
-	if f.baseErr != nil {
-		return nil, f.baseErr
+	if err := f.initBase(addr); err != nil {
+		return nil, err
 	}
 	return nil, nil
 }
@@ -664,9 +694,8 @@ type fileNM struct {
 }
 
 func (f *fileNM) SourceLine(addr uint64) ([]plugin.Frame, error) {
-	f.baseOnce.Do(func() { f.baseErr = f.computeBase(addr) })
-	if f.baseErr != nil {
-		return nil, f.baseErr
+	if err := f.initBase(addr); err != nil {
+		return nil, err
 	}
 	if f.addr2linernm == nil {
 		addr2liner, err := newAddr2LinerNM(f.b.nm, f.name, f.base)
@@ -691,9 +720,8 @@ type fileAddr2Line struct {
 }
 
 func (f *fileAddr2Line) SourceLine(addr uint64) ([]plugin.Frame, error) {
-	f.baseOnce.Do(func() { f.baseErr = f.computeBase(addr) })
-	if f.baseErr != nil {
-		return nil, f.baseErr
+	if err := f.initBase(addr); err != nil {
+		return nil, err
 	}
 	f.once.Do(f.init)
 	if f.llvmSymbolizer != nil {

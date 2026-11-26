@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/pprof/internal/dotwriter"
 	"github.com/google/pprof/internal/measurement"
 )
 
@@ -32,11 +33,18 @@ type DotAttributes struct {
 
 // DotNodeAttributes contains Node specific visualization options.
 type DotNodeAttributes struct {
-	Shape       string                 // The optional shape of the node when rendered visually
-	Bold        bool                   // If the node should be bold or not
-	Peripheries int                    // An optional number of borders to place around a node
-	URL         string                 // An optional url link to add to a node
-	Formatter   func(*NodeInfo) string // An optional formatter for the node's label
+	// Shape is the optional shape of the node when rendered visually.
+	Shape string
+	// Bold indicates if the node should be bold or not.
+	Bold bool
+	// Peripheries is an optional number of borders to place around a node.
+	Peripheries int
+	// URL is an optional URL link to add to a node.
+	URL string
+	// Formatter formats the node's label prefix. Its output is treated as
+	// untrusted plain text: ComposeDot DOT-escapes each line while preserving
+	// newline ("\n") characters as centered DOT line breaks (\n).
+	Formatter func(*NodeInfo) string
 }
 
 // DotConfig contains attributes about how a graph should be
@@ -52,14 +60,21 @@ type DotConfig struct {
 
 const maxNodelets = 4 // Number of nodelets for labels (both numeric and non)
 
-// ComposeDot creates and writes a in the DOT format to the writer, using
+// ComposeDot creates and writes a graph in the DOT format to the writer, using
 // the configurations given.
 func ComposeDot(w io.Writer, g *Graph, a *DotAttributes, c *DotConfig) {
-	builder := &builder{w, a, c}
+	graphname := "unnamed"
+	if c.Title != "" {
+		graphname = c.Title
+	}
+	dw := dotwriter.Begin(w, graphname)
+	defer dw.End()
+	dw.Node("node",
+		dotwriter.Attr{Key: "style", Val: dotwriter.ID("filled")},
+		dotwriter.Attr{Key: "fillcolor", Val: "#f8f8f8"},
+	)
 
-	// Begin constructing DOT by adding a title and legend.
-	builder.start()
-	defer builder.finish()
+	builder := &builder{dw: dw, attributes: a, config: c}
 	builder.addLegend()
 
 	if len(g.Nodes) == 0 {
@@ -97,26 +112,11 @@ func ComposeDot(w io.Writer, g *Graph, a *DotAttributes, c *DotConfig) {
 	}
 }
 
-// builder wraps an io.Writer and understands how to compose DOT formatted elements.
+// builder composes DOT elements into a dotwriter.Writer.
 type builder struct {
-	io.Writer
+	dw         *dotwriter.Writer
 	attributes *DotAttributes
 	config     *DotConfig
-}
-
-// start generates a title and initial node in DOT format.
-func (b *builder) start() {
-	graphname := "unnamed"
-	if b.config.Title != "" {
-		graphname = b.config.Title
-	}
-	fmt.Fprintln(b, `digraph "`+graphname+`" {`)
-	fmt.Fprintln(b, `node [style=filled fillcolor="#f8f8f8"]`)
-}
-
-// finish closes the opening curly bracket in the constructed DOT buffer.
-func (b *builder) finish() {
-	fmt.Fprintln(b, "}")
 }
 
 // addLegend generates a legend in DOT format.
@@ -126,49 +126,52 @@ func (b *builder) addLegend() {
 		return
 	}
 	title := labels[0]
-	fmt.Fprintf(b, `subgraph cluster_L { "%s" [shape=box fontsize=16`, escapeForDot(title))
-	fmt.Fprintf(b, ` label="%s\l"`, strings.Join(escapeAllForDot(labels), `\l`))
+	attrs := []dotwriter.Attr{
+		{Key: "shape", Val: dotwriter.ID("box")},
+		{Key: "fontsize", Val: 16},
+		{Key: "label", Val: dotwriter.LinesLeft(labels)},
+	}
 	if b.config.LegendURL != "" {
-		fmt.Fprintf(b, ` URL="%s" target="_blank"`, b.config.LegendURL)
+		attrs = append(attrs, dotwriter.Attr{Key: "URL", Val: b.config.LegendURL}, dotwriter.Attr{Key: "target", Val: "_blank"})
 	}
 	if b.config.Title != "" {
-		fmt.Fprintf(b, ` tooltip="%s"`, b.config.Title)
+		attrs = append(attrs, dotwriter.Attr{Key: "tooltip", Val: b.config.Title})
 	}
-	fmt.Fprintf(b, "] }\n")
+	b.dw.Legend(title, attrs...)
 }
 
 // addNode generates a graph node in DOT format.
 func (b *builder) addNode(node *Node, nodeID int, maxFlat float64) {
 	flat, cum := node.FlatValue(), node.CumValue()
-	attrs := b.attributes.Nodes[node]
+	nodeAttrs := b.attributes.Nodes[node]
 
 	// Populate label for node.
-	var label string
-	if attrs != nil && attrs.Formatter != nil {
-		label = attrs.Formatter(&node.Info)
-	} else {
-		label = multilinePrintableName(&node.Info)
+	formatter := multilinePrintableName
+	if nodeAttrs != nil && nodeAttrs.Formatter != nil {
+		formatter = nodeAttrs.Formatter
 	}
+	label := dotwriter.LinesCenter(strings.Split(formatter(&node.Info), "\n"))
 
 	flatValue := b.config.FormatValue(flat)
 	if flat != 0 {
-		label = label + fmt.Sprintf(`%s (%s)`,
+		flatLine := dotwriter.Escaped(fmt.Sprintf(`%s (%s)`,
 			flatValue,
-			strings.TrimSpace(measurement.Percentage(flat, b.config.Total)))
+			strings.TrimSpace(measurement.Percentage(flat, b.config.Total))))
+		label = dotwriter.Join(label, flatLine)
 	} else {
-		label = label + "0"
+		label = dotwriter.Join(label, dotwriter.Escaped("0"))
 	}
 	cumValue := flatValue
 	if cum != flat {
-		if flat != 0 {
-			label = label + `\n`
-		} else {
-			label = label + " "
-		}
+		cumLine := dotwriter.Escaped(fmt.Sprintf(`of %s (%s)`,
+			b.config.FormatValue(cum),
+			strings.TrimSpace(measurement.Percentage(cum, b.config.Total))))
 		cumValue = b.config.FormatValue(cum)
-		label = label + fmt.Sprintf(`of %s (%s)`,
-			cumValue,
-			strings.TrimSpace(measurement.Percentage(cum, b.config.Total)))
+		if flat != 0 {
+			label = dotwriter.JoinLinesCenter(label, cumLine)
+		} else {
+			label = dotwriter.Join(label, dotwriter.Escaped(" "), cumLine)
+		}
 	}
 
 	// Scale font sizes from 8 to 24 based on percentage of flat frequency.
@@ -181,40 +184,41 @@ func (b *builder) addNode(node *Node, nodeID int, maxFlat float64) {
 
 	// Determine node shape.
 	shape := "box"
-	if attrs != nil && attrs.Shape != "" {
-		shape = attrs.Shape
+	if nodeAttrs != nil && nodeAttrs.Shape != "" {
+		shape = nodeAttrs.Shape
 	}
 
-	// Create DOT attribute for node.
-	attr := fmt.Sprintf(`label="%s" id="node%d" fontsize=%d shape=%s tooltip="%s (%s)" color="%s" fillcolor="%s"`,
-		label, nodeID, fontSize, shape, escapeForDot(node.Info.PrintableName()), cumValue,
-		dotColor(float64(node.CumValue())/float64(abs64(b.config.Total)), false),
-		dotColor(float64(node.CumValue())/float64(abs64(b.config.Total)), true))
+	cumScore := float64(node.CumValue()) / float64(abs64(b.config.Total))
+	attrs := []dotwriter.Attr{
+		{Key: "label", Val: label},
+		{Key: "id", Val: fmt.Sprintf("node%d", nodeID)},
+		{Key: "fontsize", Val: fontSize},
+		{Key: "shape", Val: dotwriter.ID(shape)},
+		{Key: "tooltip", Val: fmt.Sprintf("%s (%s)", node.Info.PrintableName(), cumValue)},
+		{Key: "color", Val: dotColor(cumScore, false)},
+		{Key: "fillcolor", Val: dotColor(cumScore, true)},
+	}
 
 	// Add on extra attributes if provided.
-	if attrs != nil {
-		// Make bold if specified.
-		if attrs.Bold {
-			attr += ` style="bold,filled"`
+	if nodeAttrs != nil {
+		if nodeAttrs.Bold {
+			attrs = append(attrs, dotwriter.Attr{Key: "style", Val: "bold,filled"})
 		}
-
-		// Add peripheries if specified.
-		if attrs.Peripheries != 0 {
-			attr += fmt.Sprintf(` peripheries=%d`, attrs.Peripheries)
+		if nodeAttrs.Peripheries != 0 {
+			attrs = append(attrs, dotwriter.Attr{Key: "peripheries", Val: nodeAttrs.Peripheries})
 		}
-
-		// Add URL if specified. target="_blank" forces the link to open in a new tab.
-		if attrs.URL != "" {
-			attr += fmt.Sprintf(` URL="%s" target="_blank"`, attrs.URL)
+		if nodeAttrs.URL != "" {
+			// target="_blank" forces the link to open in a new tab.
+			attrs = append(attrs, dotwriter.Attr{Key: "URL", Val: nodeAttrs.URL}, dotwriter.Attr{Key: "target", Val: "_blank"})
 		}
 	}
 
-	fmt.Fprintf(b, "N%d [%s]\n", nodeID, attr)
+	b.dw.Node(dotwriter.ID(fmt.Sprintf("N%d", nodeID)), attrs...)
 }
 
 // addNodelets generates the DOT boxes for the node tags if they exist.
 func (b *builder) addNodelets(node *Node, nodeID int) bool {
-	var nodelets string
+	wrote := false
 
 	// Populate two Tag slices, one for LabelTags and one for NumericTags.
 	var ts []*Tag
@@ -238,6 +242,7 @@ func (b *builder) addNodelets(node *Node, nodeID int) bool {
 	if len(ts) > maxNodelets {
 		ts = ts[:maxNodelets]
 	}
+	parentID := dotwriter.ID(fmt.Sprintf("N%d", nodeID))
 	for i, t := range ts {
 		w := t.CumValue()
 		if flatTags {
@@ -246,83 +251,113 @@ func (b *builder) addNodelets(node *Node, nodeID int) bool {
 		if w == 0 {
 			continue
 		}
+		wrote = true
 		weight := b.config.FormatValue(w)
-		nodelets += fmt.Sprintf(`N%d_%d [label = "%s" id="N%d_%d" fontsize=8 shape=box3d tooltip="%s"]`+"\n", nodeID, i, t.Name, nodeID, i, weight)
-		nodelets += fmt.Sprintf(`N%d -> N%d_%d [label=" %s" weight=100 tooltip="%s" labeltooltip="%s"]`+"\n", nodeID, nodeID, i, weight, weight, weight)
+		id := dotwriter.ID(fmt.Sprintf("N%d_%d", nodeID, i))
+		label := dotwriter.LinesCenter(strings.Split(t.Name, "\n"))
+		b.dw.Node(id,
+			dotwriter.Attr{Key: "label", Val: label},
+			dotwriter.Attr{Key: "id", Val: string(id)},
+			dotwriter.Attr{Key: "fontsize", Val: 8},
+			dotwriter.Attr{Key: "shape", Val: dotwriter.ID("box3d")},
+			dotwriter.Attr{Key: "tooltip", Val: weight},
+		)
+		b.dw.Edge(parentID, id,
+			dotwriter.Attr{Key: "label", Val: " " + weight},
+			dotwriter.Attr{Key: "weight", Val: 100},
+			dotwriter.Attr{Key: "tooltip", Val: weight},
+			dotwriter.Attr{Key: "labeltooltip", Val: weight},
+		)
 		if nts := lnts[t.Name]; nts != nil {
-			nodelets += b.numericNodelets(nts, maxNodelets, flatTags, fmt.Sprintf(`N%d_%d`, nodeID, i))
+			b.numericNodelets(nts, maxNodelets, flatTags, id)
 		}
 	}
 
 	if nts := lnts[""]; nts != nil {
-		nodelets += b.numericNodelets(nts, maxNodelets, flatTags, fmt.Sprintf(`N%d`, nodeID))
+		if b.numericNodelets(nts, maxNodelets, flatTags, parentID) {
+			wrote = true
+		}
 	}
 
-	fmt.Fprint(b, nodelets)
-	return nodelets != ""
+	return wrote
 }
 
-func (b *builder) numericNodelets(nts []*Tag, maxNumNodelets int, flatTags bool, source string) string {
-	nodelets := ""
-
+func (b *builder) numericNodelets(nts []*Tag, maxNumNodelets int, flatTags bool, source dotwriter.ID) bool {
+	wrote := false
 	// Collapse numeric labels into maxNumNodelets buckets, of the form:
 	// 1MB..2MB, 3MB..5MB, ...
 	for j, t := range b.collapsedTags(nts, maxNumNodelets, flatTags) {
-		w, attr := t.CumValue(), ` style="dotted"`
+		w, dotted := t.CumValue(), true
 		if flatTags || t.FlatValue() == t.CumValue() {
-			w, attr = t.FlatValue(), ""
+			w, dotted = t.FlatValue(), false
 		}
-		if w != 0 {
-			weight := b.config.FormatValue(w)
-			nodelets += fmt.Sprintf(`N%s_%d [label = "%s" id="N%s_%d" fontsize=8 shape=box3d tooltip="%s"]`+"\n", source, j, t.Name, source, j, weight)
-			nodelets += fmt.Sprintf(`%s -> N%s_%d [label=" %s" weight=100 tooltip="%s" labeltooltip="%s"%s]`+"\n", source, source, j, weight, weight, weight, attr)
+		if w == 0 {
+			continue
 		}
+		wrote = true
+		weight := b.config.FormatValue(w)
+		id := dotwriter.ID(fmt.Sprintf("N%s_%d", source, j))
+		b.dw.Node(id,
+			dotwriter.Attr{Key: "label", Val: t.Name},
+			dotwriter.Attr{Key: "id", Val: string(id)},
+			dotwriter.Attr{Key: "fontsize", Val: 8},
+			dotwriter.Attr{Key: "shape", Val: dotwriter.ID("box3d")},
+			dotwriter.Attr{Key: "tooltip", Val: weight},
+		)
+		edgeAttrs := []dotwriter.Attr{
+			{Key: "label", Val: " " + weight},
+			{Key: "weight", Val: 100},
+			{Key: "tooltip", Val: weight},
+			{Key: "labeltooltip", Val: weight},
+		}
+		if dotted {
+			edgeAttrs = append(edgeAttrs, dotwriter.Attr{Key: "style", Val: "dotted"})
+		}
+		b.dw.Edge(source, id, edgeAttrs...)
 	}
-	return nodelets
+	return wrote
 }
 
 // addEdge generates a graph edge in DOT format.
 func (b *builder) addEdge(edge *Edge, from, to int, hasNodelets bool) {
-	var inline string
-	if edge.Inline {
-		inline = `\n (inline)`
-	}
 	w := b.config.FormatValue(edge.WeightValue())
-	attr := fmt.Sprintf(`label=" %s%s"`, w, inline)
+	label := dotwriter.Escaped(" " + w)
+	if edge.Inline {
+		label = dotwriter.JoinLinesCenter(label, dotwriter.Escaped(" (inline)"))
+	}
+	attrs := []dotwriter.Attr{{Key: "label", Val: label}}
 	if b.config.Total != 0 {
 		// Note: edge.weight > b.config.Total is possible for profile diffs.
 		if weight := 1 + int(min64(abs64(edge.WeightValue()*100/b.config.Total), 100)); weight > 1 {
-			attr = fmt.Sprintf(`%s weight=%d`, attr, weight)
+			attrs = append(attrs, dotwriter.Attr{Key: "weight", Val: weight})
 		}
 		if width := 1 + int(min64(abs64(edge.WeightValue()*5/b.config.Total), 5)); width > 1 {
-			attr = fmt.Sprintf(`%s penwidth=%d`, attr, width)
+			attrs = append(attrs, dotwriter.Attr{Key: "penwidth", Val: width})
 		}
-		attr = fmt.Sprintf(`%s color="%s"`, attr,
-			dotColor(float64(edge.WeightValue())/float64(abs64(b.config.Total)), false))
+		color := dotColor(float64(edge.WeightValue())/float64(abs64(b.config.Total)), false)
+		attrs = append(attrs, dotwriter.Attr{Key: "color", Val: color})
 	}
 	arrow := "->"
 	if edge.Residual {
 		arrow = "..."
 	}
-	tooltip := fmt.Sprintf(`"%s %s %s (%s)"`,
-		escapeForDot(edge.Src.Info.PrintableName()), arrow,
-		escapeForDot(edge.Dest.Info.PrintableName()), w)
-	attr = fmt.Sprintf(`%s tooltip=%s labeltooltip=%s`, attr, tooltip, tooltip)
+	tooltip := fmt.Sprintf("%s %s %s (%s)",
+		edge.Src.Info.PrintableName(), arrow, edge.Dest.Info.PrintableName(), w)
+	attrs = append(attrs, dotwriter.Attr{Key: "tooltip", Val: tooltip}, dotwriter.Attr{Key: "labeltooltip", Val: tooltip})
 
 	if edge.Residual {
-		attr = attr + ` style="dotted"`
+		attrs = append(attrs, dotwriter.Attr{Key: "style", Val: "dotted"})
 	}
-
 	if hasNodelets {
 		// Separate children further if source has tags.
-		attr = attr + " minlen=2"
+		attrs = append(attrs, dotwriter.Attr{Key: "minlen", Val: 2})
 	}
 
-	fmt.Fprintf(b, "N%d -> N%d [%s]\n", from, to, attr)
+	b.dw.Edge(dotwriter.ID(fmt.Sprintf("N%d", from)), dotwriter.ID(fmt.Sprintf("N%d", to)), attrs...)
 }
 
 // dotColor returns a color for the given score (between -1.0 and
-// 1.0), with -1.0 colored green, 0.0 colored grey, and 1.0 colored
+// 1.0), with -1.0 colored blue, 0.0 colored grey, and 1.0 colored
 // red. If isBackground is true, then a light (low-saturation)
 // color is returned (suitable for use as a background color);
 // otherwise, a darker color is returned (suitable for use as a
@@ -371,28 +406,46 @@ func dotColor(score float64, isBackground bool) string {
 
 	var r, g, b float64 // red, green, blue
 	if score < 0.0 {
-		g = value
+		b = value
 		r = value * (1 + saturation*score)
+		g = value * (1 + saturation*score)
 	} else {
 		r = value
 		g = value * (1 - saturation*score)
+		b = value * (1 - saturation)
 	}
-	b = value * (1 - saturation)
 	return fmt.Sprintf("#%02x%02x%02x", uint8(r*255.0), uint8(g*255.0), uint8(b*255.0))
 }
 
 func multilinePrintableName(info *NodeInfo) string {
 	infoCopy := *info
-	infoCopy.Name = escapeForDot(ShortenFunctionName(infoCopy.Name))
-	infoCopy.Name = strings.ReplaceAll(infoCopy.Name, "::", `\n`)
-	// Go type parameters are reported as "[...]" by Go pprof profiles.
-	// Keep this ellipsis rather than replacing with newlines below.
-	infoCopy.Name = strings.ReplaceAll(infoCopy.Name, "[...]", "[…]")
-	infoCopy.Name = strings.ReplaceAll(infoCopy.Name, ".", `\n`)
+	infoCopy.Name = ShortenFunctionName(infoCopy.Name)
 	if infoCopy.File != "" {
 		infoCopy.File = filepath.Base(infoCopy.File)
 	}
-	return strings.Join(infoCopy.NameComponents(), `\n`) + `\n`
+	if infoCopy.Objfile != "" {
+		infoCopy.Objfile = filepath.Base(infoCopy.Objfile)
+	}
+	var lines []string
+	for _, c := range infoCopy.NameComponents() {
+		if infoCopy.Name != "" && c == infoCopy.Name {
+			lines = append(lines, splitFunctionName(c)...)
+		} else {
+			lines = append(lines, c)
+		}
+	}
+	return strings.Join(lines, "\n") + "\n"
+}
+
+func splitFunctionName(name string) []string {
+	// Go type parameters are reported as "[...]" by Go pprof profiles.
+	// Keep this ellipsis rather than splitting on its dots below.
+	name = strings.ReplaceAll(name, "[...]", "[…]")
+	var parts []string
+	for _, seg := range strings.Split(name, "::") {
+		parts = append(parts, strings.Split(seg, ".")...)
+	}
+	return parts
 }
 
 // collapsedTags trims and sorts a slice of tags.
@@ -475,20 +528,4 @@ func min64(a, b int64) int64 {
 		return a
 	}
 	return b
-}
-
-// escapeAllForDot applies escapeForDot to all strings in the given slice.
-func escapeAllForDot(in []string) []string {
-	var out = make([]string, len(in))
-	for i := range in {
-		out[i] = escapeForDot(in[i])
-	}
-	return out
-}
-
-// escapeForDot escapes double quotes and backslashes, and replaces Graphviz's
-// "center" character (\n) with a left-justified character.
-// See https://graphviz.org/docs/attr-types/escString/ for more info.
-func escapeForDot(str string) string {
-	return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(str, `\`, `\\`), `"`, `\"`), "\n", `\l`)
 }

@@ -13,6 +13,6 @@
     </pre>
   </div>
   {{template "script" .}}
-  <script>viewer(new URL(window.location.href), null);</script>
+  <script{{if .CSPNonce}} nonce="{{.CSPNonce}}"{{end}}>viewer(new URL(window.location.href), null);</script>
 </body>
 </html>

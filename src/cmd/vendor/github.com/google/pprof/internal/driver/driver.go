@@ -288,11 +288,6 @@ func reportOptions(p *profile.Profile, numLabelUnits map[string]string, cfg conf
 		return nil, err
 	}
 
-	stype := sample.Type
-	if mean {
-		stype = "mean_" + stype
-	}
-
 	if cfg.DivideBy == 0 {
 		return nil, fmt.Errorf("zero divisor specified")
 	}
@@ -330,7 +325,7 @@ func reportOptions(p *profile.Profile, numLabelUnits map[string]string, cfg conf
 
 		SampleValue:       value,
 		SampleMeanDivisor: meanDiv,
-		SampleType:        stype,
+		SampleType:        sample.Type,
 		SampleUnit:        sample.Unit,
 
 		OutputUnit: cfg.Unit,

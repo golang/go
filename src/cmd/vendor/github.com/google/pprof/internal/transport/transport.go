@@ -116,7 +116,8 @@ func (tr *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		// Make shallow copy of request, and req.URL, so the request's URL can be
 		// modified.
 		r := *req
-		*r.URL = *req.URL
+		u := *req.URL
+		r.URL = &u
 		req = &r
 		tlsConfig.InsecureSkipVerify = true
 		req.URL.Scheme = "https"

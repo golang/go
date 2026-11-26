@@ -92,7 +92,7 @@ func (rpt *Report) Stacks() StackSet {
 	s := &StackSet{
 		Total:   rpt.total,
 		Scale:   scale,
-		Type:    rpt.options.SampleType,
+		Type:    rpt.options.sampleTypeLabel(),
 		Unit:    unit,
 		Stacks:  []Stack{},       // Ensure non-nil
 		Sources: []StackSource{}, // Ensure non-nil

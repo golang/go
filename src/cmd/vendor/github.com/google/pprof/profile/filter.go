@@ -167,6 +167,7 @@ func (p *Profile) FilterTagsByName(show, hide *regexp.Regexp) (sm, hm bool) {
 		for lab := range s.NumLabel {
 			if matchRemove(lab) {
 				delete(s.NumLabel, lab)
+				delete(s.NumUnit, lab)
 			}
 		}
 	}

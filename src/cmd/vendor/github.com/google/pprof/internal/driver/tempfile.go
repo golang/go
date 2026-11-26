@@ -24,7 +24,7 @@ import (
 // newTempFile returns a new output file in dir with the provided prefix and suffix.
 func newTempFile(dir, prefix, suffix string) (*os.File, error) {
 	for index := 1; index < 10000; index++ {
-		switch f, err := os.OpenFile(filepath.Join(dir, fmt.Sprintf("%s%03d%s", prefix, index, suffix)), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666); {
+		switch f, err := os.OpenFile(filepath.Join(dir, fmt.Sprintf("%s%03d%s", prefix, index, suffix)), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600); {
 		case err == nil:
 			return f, nil
 		case !os.IsExist(err):

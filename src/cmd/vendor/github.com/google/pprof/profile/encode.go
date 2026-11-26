@@ -321,9 +321,29 @@ func (p *Profile) postDecode() error {
 
 	for _, s := range p.Sample {
 		if len(s.labelX) > 0 {
-			labels := make(map[string][]string, len(s.labelX))
-			numLabels := make(map[string][]int64, len(s.labelX))
-			numUnits := make(map[string][]string, len(s.labelX))
+			var numStr, numNum, numUnit int
+			for _, l := range s.labelX {
+				if l.strX != 0 {
+					numStr++
+				} else if l.numX != 0 || l.unitX != 0 {
+					numNum++
+					if l.unitX != 0 {
+						numUnit++
+					}
+				}
+			}
+			var labels map[string][]string
+			if numStr > 0 {
+				labels = make(map[string][]string, numStr)
+			}
+			var numLabels map[string][]int64
+			if numNum > 0 {
+				numLabels = make(map[string][]int64, numNum)
+			}
+			var numUnits map[string][]string
+			if numUnit > 0 {
+				numUnits = make(map[string][]string, numUnit)
+			}
 			for _, l := range s.labelX {
 				var key, value string
 				key, err = getString(p.stringTable, &l.keyX, err)
@@ -332,10 +352,10 @@ func (p *Profile) postDecode() error {
 					labels[key] = append(labels[key], value)
 				} else if l.numX != 0 || l.unitX != 0 {
 					numValues := numLabels[key]
-					units := numUnits[key]
 					if l.unitX != 0 {
 						var unit string
 						unit, err = getString(p.stringTable, &l.unitX, err)
+						units := numUnits[key]
 						units = padStringArray(units, len(numValues))
 						numUnits[key] = append(units, unit)
 					}
@@ -347,14 +367,17 @@ func (p *Profile) postDecode() error {
 			}
 			if len(numLabels) > 0 {
 				s.NumLabel = numLabels
-				for key, units := range numUnits {
-					if len(units) > 0 {
-						numUnits[key] = padStringArray(units, len(numLabels[key]))
+				if len(numUnits) > 0 {
+					for key, units := range numUnits {
+						if len(units) > 0 {
+							numUnits[key] = padStringArray(units, len(numLabels[key]))
+						}
 					}
+					s.NumUnit = numUnits
 				}
-				s.NumUnit = numUnits
 			}
 		}
+		s.labelX = nil
 
 		s.Location = locBuffer[:len(s.locationIDX)]
 		locBuffer = locBuffer[len(s.locationIDX):]

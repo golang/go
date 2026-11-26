@@ -21,6 +21,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/pprof/profile"
 )
@@ -209,7 +210,9 @@ func (ut UnitType) findByAlias(alias string) *Unit {
 // specified alias. It returns nil if the unit with such alias is not found.
 func (ut UnitType) sniffUnit(unit string) *Unit {
 	unit = strings.ToLower(unit)
-	if len(unit) > 2 {
+	// Count runes rather than bytes so that multi-byte aliases such as "μs"
+	// are not mistaken for a plural form and stripped down to "μ".
+	if utf8.RuneCountInString(unit) > 2 {
 		unit = strings.TrimSuffix(unit, "s")
 	}
 	return ut.findByAlias(unit)

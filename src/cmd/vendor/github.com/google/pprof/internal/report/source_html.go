@@ -52,20 +52,13 @@ display: none;
 }
 </style>`
 
-const weblistPageScript = `<script type="text/javascript">
-function pprof_toggle_asm(e) {
-  var target;
-  if (!e) e = window.event;
-  if (e.target) target = e.target;
-  else if (e.srcElement) target = e.srcElement;
-
-  if (target) {
-    var asm = target.nextSibling;
-    if (asm && asm.className == "asm") {
-      asm.style.display = (asm.style.display == "block" ? "" : "block");
-      e.preventDefault();
-      return false;
-    }
+const weblistPageScript = `<script{{if .CSPNonce}} nonce="{{.CSPNonce}}"{{end}} type="text/javascript">
+// Clicking a source line toggles the display of its assembly.
+document.addEventListener("click", function(e) {
+  var asm = e.target.nextSibling;
+  if (asm && asm.className == "asm") {
+    asm.style.display = (asm.style.display == "block" ? "" : "block");
+    e.preventDefault();
   }
-}
+});
 </script>`

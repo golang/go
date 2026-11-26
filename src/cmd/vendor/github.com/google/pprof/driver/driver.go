@@ -143,8 +143,8 @@ type ObjTool interface {
 	// corresponding to the start address.
 	Open(file string, start, limit, offset uint64, relocationSymbol string) (ObjFile, error)
 
-	// Disasm disassembles the named object file, starting at
-	// the start address and stopping at (before) the end address.
+	// Disasm disassembles the named object file in the address range
+	// [start, end), including start and excluding end.
 	Disasm(file string, start, end uint64, intelSyntax bool) ([]Inst, error)
 }
 
@@ -178,7 +178,7 @@ type ObjFile interface {
 	// If r is not nil, Symbols restricts the list to symbols
 	// with names matching the regular expression.
 	// If addr is not zero, Symbols restricts the list to symbols
-	// containing that address.
+	// containing that address in the inclusive range [Sym.Start, Sym.End].
 	Symbols(r *regexp.Regexp, addr uint64) ([]*Sym, error)
 
 	// Close closes the file, releasing associated resources.
@@ -194,7 +194,8 @@ type Frame struct {
 	StartLine int    // start line of function (if available)
 }
 
-// A Sym describes a single symbol in an object file.
+// A Sym describes a single symbol in an object file. Its address range
+// [Start, End] includes both endpoints.
 type Sym struct {
 	Name  []string // names of symbol (many if symbol was dedup'ed)
 	File  string   // object file containing symbol

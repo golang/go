@@ -1,7 +1,8 @@
-# github.com/google/pprof v0.0.0-20260507013755-92041b743c96
-## explicit; go 1.24.0
+# github.com/google/pprof v0.0.0-20261118010117-084b33a85f63
+## explicit; go 1.26.0
 github.com/google/pprof/driver
 github.com/google/pprof/internal/binutils
+github.com/google/pprof/internal/dotwriter
 github.com/google/pprof/internal/driver
 github.com/google/pprof/internal/elfexec
 github.com/google/pprof/internal/graph

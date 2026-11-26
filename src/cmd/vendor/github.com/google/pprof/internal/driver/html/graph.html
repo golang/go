@@ -12,6 +12,6 @@
     {{.HTMLBody}}
   </div>
   {{template "script" .}}
-  <script>viewer(new URL(window.location.href), {{.Nodes}});</script>
+  <script{{if .CSPNonce}} nonce="{{.CSPNonce}}"{{end}}>viewer(new URL(window.location.href), {{.Nodes}});</script>
 </body>
 </html>

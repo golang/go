@@ -24,7 +24,7 @@
     {{range .Funcs -}}
       <h2>{{.Name}}</h2>{{"" -}}
       <p class="filename">{{.File}}</p>{{"\n" -}}
-      <pre onClick="pprof_toggle_asm(event)">{{"\n" -}}
+      <pre>{{"\n" -}}
         {{printf "  Total:  %10s %10s (flat, cum) %s" .Flat .Cumulative .Percent -}}
         {{range .Lines -}}{{"\n" -}}
           {{/* source line */ -}}
@@ -66,7 +66,7 @@
   {{if not .Standalone}}{{"\n  " -}}
     </div>{{"\n" -}}
     {{template "script" .}}{{"\n" -}}
-    <script>viewer(new URL(window.location.href), null);</script>{{"" -}}
+    <script{{if .CSPNonce}} nonce="{{.CSPNonce}}"{{end}}>viewer(new URL(window.location.href), null);</script>{{"" -}}
   {{end}}
 </body>
 </html>

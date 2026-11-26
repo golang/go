@@ -59,7 +59,7 @@ func addTemplates(templates *template.Template) {
 		return `<style type="text/css">` + "\n" + loadFile(fname) + `</style>` + "\n"
 	}
 	loadJS := func(fname string) string {
-		return `<script>` + "\n" + loadFile(fname) + `</script>` + "\n"
+		return `<script{{if .CSPNonce}} nonce="{{.CSPNonce}}"{{end}}>` + "\n" + loadFile(fname) + `</script>` + "\n"
 	}
 
 	// Define a named template with specified contents.

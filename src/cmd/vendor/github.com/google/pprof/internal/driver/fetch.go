@@ -110,7 +110,14 @@ func fetchProfiles(s *source, o *plugin.Options) (*profile.Profile, error) {
 
 		tempFile, err := newTempFile(dir, prefix, ".pb.gz")
 		if err == nil {
-			if err = p.Write(tempFile); err == nil {
+			writeErr := p.Write(tempFile)
+			closeErr := tempFile.Close()
+			switch {
+			case writeErr != nil:
+				err = writeErr
+			case closeErr != nil:
+				err = closeErr
+			default:
 				o.UI.PrintErr("Saved profile in ", tempFile.Name())
 			}
 		}

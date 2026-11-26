@@ -27,8 +27,8 @@
     <a title="{{.Help.show_from}}" id="action-showfrom" href="?">Show from</a>
   </div>
   {{template "script" .}}
-  {{template "stacks_js"}}
-  <script>
+  {{template "stacks_js" .}}
+  <script{{if .CSPNonce}} nonce="{{.CSPNonce}}"{{end}}>
     pprofUnitDefs = {{.UnitDefs}};
     stackViewer({{.Stacks}}, {{.Nodes}});
   </script>

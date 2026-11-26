@@ -147,7 +147,10 @@ func (d *addr2Liner) readFrame() (plugin.Frame, bool) {
 		funcname = ""
 	}
 
-	if fileline == "??:0" {
+	// GNU addr2line prints "??:?" for an unknown file and line since binutils
+	// 2.23 (2012), and "??:0" before it. LLVM's llvm-addr2line, which can be
+	// installed as addr2line, still prints "??:0".
+	if fileline == "??:0" || fileline == "??:?" {
 		fileline = ""
 	} else {
 		if i := strings.LastIndex(fileline, ":"); i >= 0 {

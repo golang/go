@@ -26,7 +26,7 @@
     </table>
   </div>
   {{template "script" .}}
-  <script>
+  <script{{if .CSPNonce}} nonce="{{.CSPNonce}}"{{end}}>
     function makeTopTable(total, entries) {
       const rows = document.getElementById('rows');
       if (rows == null) return;

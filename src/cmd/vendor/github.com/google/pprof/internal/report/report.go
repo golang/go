@@ -306,7 +306,19 @@ func printProto(w io.Writer, rpt *Report) error {
 			}
 		}
 	}
+	// Make the selected sample type the default of the saved profile, so that
+	// its consumers open on the same sample type.
+	p.DefaultSampleType = o.SampleType
 	return p.Write(w)
+}
+
+// sampleTypeLabel returns the sample type as displayed in reports, i.e. with a
+// "mean_" prefix if the report shows per-sample means.
+func (o *Options) sampleTypeLabel() string {
+	if o.SampleMeanDivisor != nil {
+		return "mean_" + o.SampleType
+	}
+	return o.SampleType
 }
 
 // printTopProto writes a list of the hottest routines in a profile as a profile.proto.
@@ -454,7 +466,13 @@ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) e
 		flatSum, cumSum := sns.Sum()
 
 		// Get the function assembly.
-		insts, err := obj.Disasm(s.sym.File, s.sym.Start, s.sym.End, o.IntelSyntax)
+		// Symbol ends are inclusive, but Disasm expects an exclusive end.
+		// Keep the unknown end of the final nm symbol from wrapping to zero.
+		end := s.sym.End
+		if end != ^uint64(0) {
+			end++
+		}
+		insts, err := obj.Disasm(s.sym.File, s.sym.Start, end, o.IntelSyntax)
 		if err != nil {
 			return err
 		}
@@ -523,7 +541,7 @@ func symbolsFromBinaries(prof *profile.Profile, g *graph.Graph, rx *regexp.Regex
 	// samples and are matched to the regexp.
 	fileHasSamplesAndMatched := make(map[string]bool)
 	for _, n := range g.Nodes {
-		if name := n.Info.PrintableName(); rx.MatchString(name) && n.Info.Objfile != "" {
+		if rx.MatchString(n.Info.Name) && n.Info.Objfile != "" {
 			fileHasSamplesAndMatched[n.Info.Objfile] = true
 		}
 	}
@@ -588,12 +606,14 @@ func (o orderSyms) Less(i, j int) bool { return o.less(o.v[i], o.v[j]) }
 func (o orderSyms) Swap(i, j int)      { o.v[i], o.v[j] = o.v[j], o.v[i] }
 
 // nodesPerSymbol classifies nodes into a group of symbols.
+// A node belongs to a symbol when its object address is in the inclusive
+// range [sym.Start, sym.End].
 func nodesPerSymbol(ns graph.Nodes, symbols []*objSymbol) map[*objSymbol]graph.Nodes {
 	symNodes := make(map[*objSymbol]graph.Nodes)
 	for _, s := range symbols {
 		// Gather samples for this symbol.
 		for _, n := range ns {
-			if address, err := s.file.ObjAddr(n.Info.Address); err == nil && address >= s.sym.Start && address < s.sym.End {
+			if address, err := s.file.ObjAddr(n.Info.Address); err == nil && address >= s.sym.Start && address <= s.sym.End {
 				symNodes[s] = append(symNodes[s], n)
 			}
 		}
@@ -938,7 +958,7 @@ func printCallgrind(w io.Writer, rpt *Report) error {
 	nodeNames := getDisambiguatedNames(g)
 
 	fmt.Fprintln(w, "positions: instr line")
-	fmt.Fprintln(w, "events:", o.SampleType+"("+o.OutputUnit+")")
+	fmt.Fprintln(w, "events:", o.sampleTypeLabel()+"("+o.OutputUnit+")")
 
 	objfiles := make(map[string]int)
 	files := make(map[string]int)
@@ -1174,7 +1194,7 @@ func ProfileLabels(rpt *Report) []string {
 		}
 	}
 	if o.SampleType != "" {
-		label = append(label, "Type: "+o.SampleType)
+		label = append(label, "Type: "+o.sampleTypeLabel())
 	}
 	if url := prof.DocURL; url != "" {
 		label = append(label, "Doc: "+url)

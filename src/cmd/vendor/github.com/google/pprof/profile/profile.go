@@ -344,9 +344,11 @@ func serialize(p *Profile) []byte {
 // Write writes the profile as a gzip-compressed marshaled protobuf.
 func (p *Profile) Write(w io.Writer) error {
 	zw := gzip.NewWriter(w)
-	defer zw.Close()
-	_, err := zw.Write(serialize(p))
-	return err
+	if _, err := zw.Write(serialize(p)); err != nil {
+		_ = zw.Close()
+		return err
+	}
+	return zw.Close()
 }
 
 // WriteUncompressed writes the profile as a marshaled protobuf.
@@ -807,10 +809,9 @@ func (p *Profile) ScaleN(ratios []float64) error {
 		keepSample := false
 		for i, v := range s.Value {
 			if ratios[i] != 1 {
-				val := int64(math.Round(float64(v) * ratios[i]))
-				s.Value[i] = val
-				keepSample = keepSample || val != 0
+				s.Value[i] = int64(math.Round(float64(v) * ratios[i]))
 			}
+			keepSample = keepSample || s.Value[i] != 0
 		}
 		if keepSample {
 			p.Sample[fillIdx] = s
