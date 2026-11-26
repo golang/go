@@ -6219,7 +6219,7 @@ func rewriteValue_Op386SARBconst(v *ssa.Value) bool {
 		return true
 	}
 	// match: (SARBconst [c] (MOVLconst [d]))
-	// result: (MOVLconst [d>>uint64(c)])
+	// result: (MOVLconst [int32(int8(d))>>uint64(c)])
 	for {
 		c := ssa.AuxIntToInt8(v.AuxInt)
 		if v_0.Op != ssaop.Op386MOVLconst {
@@ -6227,7 +6227,7 @@ func rewriteValue_Op386SARBconst(v *ssa.Value) bool {
 		}
 		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.Op386MOVLconst)
-		v.AuxInt = ssa.Int32ToAuxInt(d >> uint64(c))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(int8(d)) >> uint64(c))
 		return true
 	}
 	return false
@@ -6319,7 +6319,7 @@ func rewriteValue_Op386SARWconst(v *ssa.Value) bool {
 		return true
 	}
 	// match: (SARWconst [c] (MOVLconst [d]))
-	// result: (MOVLconst [d>>uint64(c)])
+	// result: (MOVLconst [int32(int16(d))>>uint64(c)])
 	for {
 		c := ssa.AuxIntToInt16(v.AuxInt)
 		if v_0.Op != ssaop.Op386MOVLconst {
@@ -6327,7 +6327,7 @@ func rewriteValue_Op386SARWconst(v *ssa.Value) bool {
 		}
 		d := ssa.AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.Op386MOVLconst)
-		v.AuxInt = ssa.Int32ToAuxInt(d >> uint64(c))
+		v.AuxInt = ssa.Int32ToAuxInt(int32(int16(d)) >> uint64(c))
 		return true
 	}
 	return false
