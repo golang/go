@@ -513,12 +513,9 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
 		mappedArgs = timedEventArgs{ev.Args[0], ev.Args[1], it.inlineToStringID[ev.Args[3]], uint64(ev.StkID)}
 	case tracev1.EvCPUSample:
 		mappedType = tracev2.EvCPUSample
-		// When emitted by the Go 1.22 tracer, CPU samples have 5 arguments:
-		// timestamp, M, P, G, stack. However, after they get turned into Event,
-		// they have the arguments stack, M, P, G.
-		//
-		// In Go 1.21, CPU samples did not have Ms.
-		mappedArgs = timedEventArgs{uint64(ev.StkID), ^uint64(0), uint64(ev.P), ev.G}
+		// The stack ID follows the three wire-format context arguments.
+		// The Event's context is set separately below.
+		mappedArgs[3] = uint64(ev.StkID)
 	default:
 		return Event{}, fmt.Errorf("unexpected event type %v", ev.Type)
 	}

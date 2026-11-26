@@ -23,16 +23,16 @@ import (
 // event as the first event, and a Sync event as the last event.
 // (There may also be any number of Sync events in the middle, too.)
 type Reader struct {
-	version    version.Version
-	r          *bufio.Reader
-	lastTs     Time
-	gen        *generation
-	frontier   []*batchCursor
-	cpuSamples []cpuSample
-	order      ordering
-	syncs      int
-	readGenErr error
-	done       bool
+	version      version.Version
+	r            *bufio.Reader
+	lastTs       Time
+	gen          *generation
+	frontier     []*batchCursor
+	stackSamples []stackSample
+	order        ordering
+	syncs        int
+	readGenErr   error
+	done         bool
 
 	// Spill state.
 	//
@@ -66,7 +66,7 @@ func NewReader(r io.Reader) (*Reader, error) {
 		return &Reader{
 			v1Events: convertV1Trace(tr),
 		}, nil
-	case version.Go122, version.Go123, version.Go125, version.Go126:
+	case version.Go122, version.Go123, version.Go125, version.Go126, version.Go128:
 		return &Reader{
 			version: v,
 			r:       br,
@@ -118,7 +118,7 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 	//
 	// (1) Read in all the batches for the next generation from the stream.
 	//   (a) Use the size field in the header to quickly find all batches.
-	// (2) Parse out the strings, stacks, CPU samples, and timestamp conversion data.
+	// (2) Parse out the strings, stacks, signal-handler stack samples, and timestamp conversion data.
 	// (3) Group each event batch by M, sorted by timestamp. (batchCursor contains the groups.)
 	// (4) Organize batchCursors in a min-heap, ordered by the timestamp of the next event for each M.
 	// (5) Try to advance the next event for the M at the top of the min-heap.
@@ -150,7 +150,7 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 	}
 
 	// Check if we need to refresh the generation.
-	if len(r.frontier) == 0 && len(r.cpuSamples) == 0 {
+	if len(r.frontier) == 0 && len(r.stackSamples) == 0 {
 		if r.version < version.Go126 {
 			return r.nextGenWithSpill()
 		}
@@ -190,11 +190,11 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 		}
 		return true, nil
 	}
-	// Inject a CPU sample if it comes next.
-	if len(r.cpuSamples) != 0 {
-		if len(r.frontier) == 0 || r.cpuSamples[0].time < r.frontier[0].ev.time {
-			e := r.cpuSamples[0].asEvent(r.gen.evTable)
-			r.cpuSamples = r.cpuSamples[1:]
+	// Inject a stack sample if it comes next.
+	if len(r.stackSamples) != 0 {
+		if len(r.frontier) == 0 || r.stackSamples[0].time < r.frontier[0].ev.time {
+			e := r.stackSamples[0].asEvent(r.gen.evTable)
+			r.stackSamples = r.stackSamples[1:]
 			return e, nil
 		}
 	}
@@ -283,8 +283,8 @@ func (r *Reader) installGen(gen *generation) (Event, error) {
 	}
 	r.gen = gen
 
-	// Reset CPU samples cursor.
-	r.cpuSamples = r.gen.cpuSamples
+	// Reset signal-handler stack samples cursor.
+	r.stackSamples = r.gen.stackSamples
 
 	// Reset frontier.
 	for _, m := range r.gen.batchMs {

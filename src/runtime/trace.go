@@ -233,7 +233,7 @@ var trace struct {
 	stringTab [2]traceStringTable // maps strings to unique ids
 	typeTab   [2]traceTypeTable   // maps type pointers to unique ids
 
-	// cpuLogRead accepts CPU profile samples from the signal handler where
+	// cpuLogRead accepts stack samples from the signal handlers where
 	// they're generated. There are two profBufs here: one for gen%2, one for
 	// 1-gen%2. These profBufs use a three-word header to hold the IDs of the P, G,
 	// and M (respectively) that were active at the time of the sample. Because
@@ -243,7 +243,8 @@ var trace struct {
 	// running (such as near syscalls) will set the first header field to 0b10.
 	// This careful handling of the first header field allows us to store ID of
 	// the active G directly in the second field, even though that will be 0
-	// when sampling g0.
+	// when sampling g0. The high bit of the first field distinguishes failed
+	// async preemptions from CPU profile samples.
 	//
 	// Initialization and teardown of these fields is protected by traceAdvanceSema.
 	cpuLogRead  [2]*profBuf
@@ -954,7 +955,7 @@ func readTrace0() (buf []byte, park bool) {
 	if !trace.headerWritten {
 		trace.headerWritten = true
 		unlock(&trace.lock)
-		return []byte("go 1.26 trace\x00\x00\x00"), false
+		return []byte("go 1.28 trace\x00\x00\x00"), false
 	}
 
 	// Read the next buffer.

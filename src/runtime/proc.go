@@ -4195,6 +4195,9 @@ func injectglist(glist *gList) {
 // Never returns.
 func schedule() {
 	mp := getg().m
+	if tracePreemptFailedSupported && mp.trace.preemptFailed {
+		mp.trace.preemptFailed = false
+	}
 
 	if mp.locks != 0 {
 		throw("schedule: holding locks")

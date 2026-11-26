@@ -22,7 +22,7 @@ const (
 	EvStack      // stack table entry [ID, ...{PC, func string ID, file string ID, line #}]
 	EvStrings    // start of a section of the string dictionary [...EvString]
 	EvString     // string dictionary entry [ID, length, string]
-	EvCPUSamples // start of a section of CPU samples [...EvCPUSample]
+	EvCPUSamples // start of a section of signal samples [...EvCPUSample|EvGoPreemptFailed]
 	EvCPUSample  // CPU profiling sample [timestamp, M ID, P ID, goroutine ID, stack ID]
 	EvFrequency  // timestamp units per sec [freq]
 
@@ -90,6 +90,9 @@ const (
 	// In-band end-of-generation signal. Added in Go 1.26.
 	// Used in Go 1.25 only internally.
 	EvEndOfGeneration
+
+	// Failed async preemption sample. Added in Go 1.28.
+	EvGoPreemptFailed // [timestamp, M ID, P ID, goroutine ID, stack ID]
 
 	NumEvents
 )
@@ -179,6 +182,11 @@ var specs = [...]EventSpec{
 		// N.B. There's clearly a timestamp here, but these Events
 		// are special in that they don't appear in the regular
 		// M streams.
+		StackIDs: []int{4},
+	},
+	EvGoPreemptFailed: {
+		Name:     "GoPreemptFailed",
+		Args:     []string{"time", "m", "p", "g", "stack"},
 		StackIDs: []int{4},
 	},
 	EvFrequency: {

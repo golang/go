@@ -25,11 +25,11 @@ import (
 // track any parse state nor does it contain a cursor
 // into the generation.
 type generation struct {
-	gen        uint64
-	batches    map[ThreadID][]batch
-	batchMs    []ThreadID
-	cpuSamples []cpuSample
-	minTs      timestamp
+	gen          uint64
+	batches      map[ThreadID][]batch
+	batchMs      []ThreadID
+	stackSamples []stackSample
+	minTs        timestamp
 	*evTable
 }
 
@@ -104,7 +104,7 @@ func readGeneration(r *bufio.Reader, ver version.Version) (*generation, error) {
 	}
 
 	// Now that we have the frequency, fix up CPU samples.
-	fixUpCPUSamples(g.cpuSamples, g.freq)
+	fixUpStackSamples(g.stackSamples, g.freq)
 	return g, nil
 }
 
@@ -217,7 +217,7 @@ func readGenerationWithSpill(r *bufio.Reader, spill *spilledBatch, ver version.V
 	}
 
 	// Now that we have the frequency, fix up CPU samples.
-	fixUpCPUSamples(g.cpuSamples, g.freq)
+	fixUpStackSamples(g.stackSamples, g.freq)
 	return g, spill, spillErr
 }
 
@@ -232,12 +232,12 @@ func processBatch(g *generation, b batch, ver version.Version) error {
 		if err := addStacks(&g.stacks, g.pcs, b); err != nil {
 			return err
 		}
-	case b.isCPUSamplesBatch():
-		samples, err := addCPUSamples(g.cpuSamples, b)
+	case b.isStackSamplesBatch():
+		samples, err := addStackSamples(g.stackSamples, b, ver)
 		if err != nil {
 			return err
 		}
-		g.cpuSamples = samples
+		g.stackSamples = samples
 	case b.isSyncBatch(ver):
 		if err := setSyncBatch(&g.sync, b, ver); err != nil {
 			return err
@@ -427,12 +427,10 @@ func addStacks(stackTable *dataTable[stackID, stack], pcs map[uint64]frame, b ba
 	return nil
 }
 
-// addCPUSamples takes a batch whose first byte is an EvCPUSamples event
-// (indicating that the batch contains only CPU samples) and adds each
-// sample contained therein to the provided samples list.
-func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
-	if !b.isCPUSamplesBatch() {
-		return nil, fmt.Errorf("internal error: addCPUSamples called on non-CPU-sample batch")
+// addStackSamples reads a batch of signal-handler samples.
+func addStackSamples(samples []stackSample, b batch, ver version.Version) ([]stackSample, error) {
+	if !b.isStackSamplesBatch() {
+		return nil, fmt.Errorf("internal error: addStackSamples called on non-sample batch")
 	}
 	r := bytes.NewReader(b.data)
 	hdr, err := r.ReadByte() // Consume the EvCPUSamples byte.
@@ -446,8 +444,9 @@ func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
 		if err != nil {
 			return nil, err
 		}
-		if tracev2.EventType(ev) != tracev2.EvCPUSample {
-			return nil, fmt.Errorf("expected CPU sample event, got %d", ev)
+		typ := tracev2.EventType(ev)
+		if typ != tracev2.EvCPUSample && (ver < version.Go128 || typ != tracev2.EvGoPreemptFailed) {
+			return nil, fmt.Errorf("expected stack sample event, got %d", ev)
 		}
 
 		// Read the sample's timestamp.
@@ -487,7 +486,7 @@ func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
 		}
 
 		// Add the sample to the slice.
-		samples = append(samples, cpuSample{
+		samples = append(samples, stackSample{
 			schedCtx: schedCtx{
 				M: mid,
 				P: pid,
@@ -495,6 +494,7 @@ func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
 			},
 			time:  Time(ts), // N.B. this is really a "timestamp," not a Time.
 			stack: stackID(s),
+			typ:   typ,
 		})
 	}
 	return samples, nil
@@ -590,14 +590,14 @@ func addExperimentalBatch(expBatches map[tracev2.Experiment][]ExperimentalBatch,
 	return nil
 }
 
-func fixUpCPUSamples(samples []cpuSample, freq frequency) {
-	// Fix up the CPU sample timestamps.
+func fixUpStackSamples(samples []stackSample, freq frequency) {
+	// Fix up the sample timestamps.
 	for i := range samples {
 		s := &samples[i]
 		s.time = freq.mul(timestamp(s.time))
 	}
-	// Sort the CPU samples.
-	slices.SortFunc(samples, func(a, b cpuSample) int {
+	// Sort the samples.
+	slices.SortFunc(samples, func(a, b stackSample) int {
 		return cmp.Compare(a.time, b.time)
 	})
 }

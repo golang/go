@@ -34,7 +34,7 @@ func (b *batch) isStacksBatch() bool {
 	return b.exp == tracev2.NoExperiment && len(b.data) > 0 && tracev2.EventType(b.data[0]) == tracev2.EvStacks
 }
 
-func (b *batch) isCPUSamplesBatch() bool {
+func (b *batch) isStackSamplesBatch() bool {
 	return b.exp == tracev2.NoExperiment && len(b.data) > 0 && tracev2.EventType(b.data[0]) == tracev2.EvCPUSamples
 }
 

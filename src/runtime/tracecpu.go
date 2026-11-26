@@ -2,11 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// CPU profile -> trace
+// Signal-handler stack samples -> trace
 
 package runtime
 
-import "internal/trace/tracev2"
+import (
+	"internal/goexperiment"
+	"internal/trace/tracev2"
+)
+
+// Linux blocks all signals while handling a Go signal, so SIGURG and
+// SIGPROF can share trace.signalLock without nesting on the same M.
+// On arm and mips{,le}, profBuf's emulated 64-bit atomics could deadlock
+// if SIGURG interrupted an atomic operation.
+const tracePreemptFailedSupported = GOOS == "linux" && GOARCH != "arm" && GOARCH != "mips" && GOARCH != "mipsle"
+
+const traceSignalPreemptFailed = uint64(1) << 63
 
 // traceInitReadCPU initializes CPU profile -> tracer state for tracing.
 //
@@ -120,10 +131,10 @@ func traceReadCPU(gen uintptr) bool {
 
 	data, tags, eof := trace.cpuLogRead[gen%2].read(profBufNonBlocking)
 	for len(data) > 0 {
-		if len(data) < 4 || data[0] > uint64(len(data)) {
+		if len(data) < 5 || data[0] > uint64(len(data)) {
 			break // truncated profile
 		}
-		if data[0] < 4 || tags != nil && len(tags) < 1 {
+		if data[0] < 5 || tags != nil && len(tags) < 1 {
 			break // malformed profile
 		}
 		if len(tags) < 1 {
@@ -133,9 +144,13 @@ func traceReadCPU(gen uintptr) bool {
 		// Deserialize the data in the profile buffer.
 		recordLen := data[0]
 		timestamp := data[1]
-		ppid := data[2] >> 1
+		ppid := (data[2] &^ traceSignalPreemptFailed) >> 1
 		if hasP := (data[2] & 0b1) != 0; !hasP {
 			ppid = ^uint64(0)
+		}
+		event := tracev2.EvCPUSample
+		if data[2]&traceSignalPreemptFailed != 0 {
+			event = tracev2.EvGoPreemptFailed
 		}
 		goid := data[3]
 		mpid := data[4]
@@ -171,17 +186,20 @@ func traceReadCPU(gen uintptr) bool {
 
 		// Ensure we have a place to write to.
 		var flushed bool
-		w, flushed = w.ensure(2 + 5*traceBytesPerNumber /* tracev2.EvCPUSamples + tracev2.EvCPUSample + timestamp + g + m + p + stack ID */)
+		w, flushed = w.ensure(2 + 5*traceBytesPerNumber /* batch header + event type + timestamp + M + P + G + stack ID */)
 		if flushed {
-			// Annotate the batch as containing strings.
+			// Annotate the batch as containing signal-handler samples.
 			w.byte(byte(tracev2.EvCPUSamples))
 		}
 
 		// Add the stack to the table.
-		stackID := trace.stackTab[gen%2].put(pcBuf[:nstk])
+		var stackID uint64
+		if len(stk) != 0 {
+			stackID = trace.stackTab[gen%2].put(pcBuf[:nstk])
+		}
 
-		// Write out the CPU sample.
-		w.byte(byte(tracev2.EvCPUSample))
+		// Write out the sample.
+		w.byte(byte(event))
 		w.varint(timestamp)
 		w.varint(mpid)
 		w.varint(ppid)
@@ -222,29 +240,70 @@ func traceCPUSample(gp *g, mp *m, pp *p, stk []uintptr) {
 		return
 	}
 
+	gen, locked := traceSignalAcquire(mp)
+	if gen != 0 {
+		traceSignalWrite(gen, traceClockNow(), gp, mp, pp, stk, 0)
+	}
+	if locked {
+		mp.trace.writing.Store(false)
+	}
+}
+
+// traceGoPreemptFailed records the first rejected async preemption of a
+// goroutine running on this M since its last call to schedule.
+//
+//go:nowritebarrierrec
+func traceGoPreemptFailed(gp *g, pc, sp, lr uintptr) {
+	mp := gp.m
+	// The signal is useful only when it interrupts running Go code that
+	// can be tied to a scheduling interval. Also, do not unwind secret
+	// computations (see isAsyncSafePoint).
+	if gp != mp.curg || mp.p == 0 || mp.trace.preemptFailed || goexperiment.RuntimeSecret && gp.secret > 0 {
+		return
+	}
+
+	gen, locked := traceSignalAcquire(mp)
+	if gen != 0 {
+		now := traceClockNow()
+		var stk [maxCPUProfStack]uintptr
+		n := 0
+		// The signal may have interrupted a switch to or from g0, or a
+		// call into the VDSO. Only unwind from a PC and SP on the Go stack.
+		if pc != 0 && sp >= gp.stack.lo && sp < gp.stack.hi {
+			var u unwinder
+			mp.mallocing++
+			u.initAt(pc, sp, lr, gp, unwindSilentErrors|unwindTrap)
+			n = tracebackPCs(&u, 0, stk[:])
+			mp.mallocing--
+		}
+
+		mp.trace.preemptFailed = true
+		traceSignalWrite(gen, now, gp, mp, mp.p.ptr(), stk[:n], traceSignalPreemptFailed)
+	}
+	if locked {
+		mp.trace.writing.Store(false)
+	}
+}
+
+// traceSignalAcquire pins the current generation from a signal handler.
+// The caller clears the write flag on return if locked is true.
+func traceSignalAcquire(mp *m) (gen uintptr, locked bool) {
 	// We're going to conditionally write to one of two buffers based on the
 	// generation. To make sure we write to the correct one, we need to make
 	// sure this thread's trace write flag is set. If it already is, then we're
 	// in the tracer and we can just take advantage of that. If it isn't, then
 	// we need to acquire it and read the generation.
-	locked := false
 	if !mp.trace.writing.Load() {
 		mp.trace.writing.Store(true)
 		locked = true
 	}
-	gen := trace.gen.Load()
-	if gen == 0 {
-		// Tracing is disabled, as it turns out. Clear the write flag if necessary
-		// and exit.
-		if locked {
-			mp.trace.writing.Store(false)
-		}
-		return
-	}
+	return trace.gen.Load(), locked
+}
 
-	now := traceClockNow()
-	// The "header" here is the ID of the M that was running the profiled code,
-	// followed by the IDs of the P and goroutine. (For normal CPU profiling, it's
+// traceSignalWrite queues a stack sample while the current M's trace write
+// flag is set. Only signal handlers may acquire trace.signalLock.
+func traceSignalWrite(gen uintptr, now traceTime, gp *g, mp *m, pp *p, stk []uintptr, kind uint64) {
+	// The header holds the IDs of the P, G, and M. (For normal CPU profiling, it's
 	// usually the number of samples with the given stack.) Near syscalls, pp
 	// may be nil. Reporting goid of 0 is fine for either g0 or a nil gp.
 	var hdr [3]uint64
@@ -259,6 +318,7 @@ func traceCPUSample(gp *g, mp *m, pp *p, stk []uintptr) {
 		hdr[1] = gp.goid
 	}
 	hdr[2] = mp.procid
+	hdr[0] |= kind
 
 	// Allow only one writer at a time
 	for !trace.signalLock.CompareAndSwap(0, 1) {
@@ -274,9 +334,4 @@ func traceCPUSample(gp *g, mp *m, pp *p, stk []uintptr) {
 	}
 
 	trace.signalLock.Store(0)
-
-	// Clear the write flag if we set it earlier.
-	if locked {
-		mp.trace.writing.Store(false)
-	}
 }

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"math"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -17,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"internal/trace"
 	"internal/trace/raw"
 	"internal/trace/traceviewer"
 	"internal/trace/traceviewer/format"
@@ -41,6 +43,107 @@ func TestJSONTraceHandler(t *testing.T) {
 			checkSyscalls(t, data)
 			checkNetworkUnblock(t, data)
 			// TODO(mknyszek): Check for flow events.
+		})
+	}
+}
+
+func TestJSONTracePreemptFailure(t *testing.T) {
+	const (
+		goid     trace.GoID     = 3
+		procID   trace.ProcID   = 2
+		threadID trace.ThreadID = 7
+	)
+	var parsed parsedTrace
+	add := func(ev trace.Event, err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+		parsed.events = append(parsed.events, ev)
+	}
+	addState := func(when trace.Time, st trace.StateTransition, stack trace.Stack) {
+		t.Helper()
+		add(trace.MakeEvent(trace.EventConfig[trace.StateTransition]{
+			Time: when, Kind: trace.EventStateTransition, Details: st,
+			Goroutine: goid, Proc: procID, Thread: threadID, Stack: stack,
+		}))
+	}
+	addFailure := func(when trace.Time) {
+		t.Helper()
+		add(trace.MakeEvent(trace.EventConfig[trace.StackSample]{
+			Time: when, Kind: trace.EventGoPreemptFailed,
+			Goroutine: goid, Proc: procID, Thread: threadID,
+			Stack: trace.MakeStack([]trace.StackFrame{{PC: 1, Func: "main.spin", Line: 12}}),
+		}))
+	}
+	addSync := func(when trace.Time, gen int) {
+		t.Helper()
+		add(trace.MakeEvent(trace.EventConfig[trace.Sync]{
+			Time: when, Kind: trace.EventSync, Details: trace.Sync{N: gen},
+		}))
+	}
+	addSync(1000, 1)
+	addFailure(2000) // The sample can precede the initial state snapshot.
+	addState(2100, trace.MakeProcStateTransition(procID, trace.ProcUndetermined, trace.ProcRunning), trace.NoStack)
+	addState(2200, trace.MakeGoStateTransition(goid, trace.GoUndetermined, trace.GoRunning), trace.NoStack)
+	addSync(3000, 2) // The goroutine can yield in a later generation.
+	yieldStack := trace.MakeStack([]trace.StackFrame{{PC: 2, Func: "main.yield", Line: 17}})
+	addState(5000, trace.MakeGoStateTransition(goid, trace.GoRunning, trace.GoRunnable), yieldStack)
+	addState(6000, trace.MakeGoStateTransition(goid, trace.GoRunnable, trace.GoRunning), trace.NoStack)
+	addFailure(7000)
+	addState(8000, trace.MakeGoStateTransition(goid, trace.GoRunning, trace.GoSyscall), trace.NoStack)
+	addState(9000, trace.MakeGoStateTransition(goid, trace.GoSyscall, trace.GoRunning), trace.NoStack)
+	addState(10000, trace.MakeGoStateTransition(goid, trace.GoRunning, trace.GoRunnable), trace.NoStack)
+	addState(11000, trace.MakeGoStateTransition(goid, trace.GoRunnable, trace.GoRunning), trace.NoStack)
+	addFailure(12000) // The trace ends before this goroutine yields.
+	addSync(13000, 3)
+
+	for _, view := range []struct {
+		name string
+		mode traceviewer.Mode
+		lane uint64
+	}{
+		{"proc", 0, uint64(procID)},
+		{"thread", traceviewer.ModeThreadOriented, uint64(threadID)},
+		{"goroutine", traceviewer.ModeGoroutineOriented, uint64(goid)},
+	} {
+		t.Run(view.name, func(t *testing.T) {
+			var out bytes.Buffer
+			opts := defaultGenOpts()
+			opts.mode = view.mode
+			if err := generateTrace(&parsed, opts, traceviewer.ViewerDataTraceConsumer(&out, 0, math.MaxInt64)); err != nil {
+				t.Fatal(err)
+			}
+			var data format.Data
+			if err := json.Unmarshal(out.Bytes(), &data); err != nil {
+				t.Fatal(err)
+			}
+			data = filterViewerTrace(data, filterEventName("Failed async preemption"))
+			type event struct {
+				phase string
+				time  float64
+				frame string
+			}
+			var got []event
+			for _, ev := range data.Events {
+				if ev.TID != view.lane {
+					t.Errorf("event at %v has lane %d, want %d", ev.Time, ev.TID, view.lane)
+				}
+				frames := stackFrames(&data, ev.Stack)
+				got = append(got, event{ev.Phase, ev.Time, strings.Join(frames, ",")})
+			}
+			want := []event{
+				{"b", 1, "main.spin:12"},
+				{"e", 4, "main.yield:17"},
+				{"I", 6, "main.spin:12"},
+				{"I", 11, "main.spin:12"},
+			}
+			if !slices.Equal(got, want) {
+				t.Errorf("events: got %v, want %v", got, want)
+			}
+			if len(data.Events) >= 2 && data.Events[0].ID != data.Events[1].ID {
+				t.Error("failed preemption interval's begin and end use different IDs")
+			}
 		})
 	}
 }
