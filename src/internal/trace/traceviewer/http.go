@@ -332,11 +332,7 @@ function onTraceViewerImportFail() {
 
   function load() {
     var req = new XMLHttpRequest();
-    var isBinary = /[.]gz$/.test(url) || /[.]zip$/.test(url);
-    req.overrideMimeType('text/plain; charset=x-user-defined');
     req.open('GET', url, true);
-    if (isBinary)
-      req.responseType = 'arraybuffer';
 
     req.onreadystatechange = function(event) {
       if (req.readyState !== 4)
@@ -344,7 +340,7 @@ function onTraceViewerImportFail() {
 
       window.setTimeout(function() {
         if (req.status === 200)
-          onResult(isBinary ? req.response : req.responseText);
+          onResult(req.responseText);
         else
           onResultFail(req.status);
       }, 0);

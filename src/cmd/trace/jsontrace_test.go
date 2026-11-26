@@ -7,20 +7,121 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"html"
 	"io"
+	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
+	"runtime/trace"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	itrace "internal/trace"
 	"internal/trace/raw"
 	"internal/trace/traceviewer"
 	"internal/trace/traceviewer/format"
 )
+
+func TestJSONTraceRegions(t *testing.T) {
+	var buf bytes.Buffer
+	if err := trace.Start(&buf); err != nil {
+		t.Fatal(err)
+	}
+	ctx := t.Context()
+	var wg sync.WaitGroup
+	trace.Log(ctx, "", "before")
+	read := trace.StartRegion(ctx, "stage/read")
+	wg.Go(func() { trace.Log(ctx, "", "unrelated goroutine") })
+	wg.Wait()
+	read.End()
+	trace.Log(ctx, "", "between")
+	wg.Go(func() {
+		// A region can be selected even if its task never ends.
+		ctx, _ := trace.NewTask(ctx, "request")
+		write := trace.StartRegion(ctx, "stage/write")
+		defer write.End()
+		trace.WithRegion(ctx, "other", func() { trace.Log(ctx, "", "writing") })
+	})
+	wg.Wait()
+	trace.Log(ctx, "", "after")
+	trace.Stop()
+
+	parsed, err := parseTrace(&buf, int64(buf.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	get := func(h http.Handler, target string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest("GET", target, nil))
+		return w
+	}
+	pattern := "^stage/(read|write)$"
+	page := get(UserRegionsHandlerFunc(parsed), "/userregions?region="+url.QueryEscape(pattern))
+	href := regexp.MustCompile(`href="(/trace\?[^"]+)"`).FindStringSubmatch(page.Body.String())
+	if page.Code != http.StatusOK || href == nil {
+		t.Fatalf("region search returned status %d, timeline link %v", page.Code, href)
+	}
+	link, err := url.Parse(html.UnescapeString(href[1]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The link should zoom to the beginning of the first region and the end
+	// of the last, in milliseconds relative to the start of the trace.
+	when := func(kind itrace.EventKind, name string) float64 {
+		for _, ev := range parsed.events {
+			if ev.Kind() == kind && ev.Region().Type == name {
+				return asMillisecond(ev.Time().Sub(parsed.startTime()))
+			}
+		}
+		t.Fatalf("trace missing %s for %q", kind, name)
+		return 0
+	}
+	wantSpan := fmt.Sprintf("%g:%g", when(itrace.EventRegionBegin, "stage/read"), when(itrace.EventRegionEnd, "stage/write"))
+	if link.Query().Get("region") != pattern || link.Fragment != wantSpan {
+		t.Errorf("timeline link = %s, want pattern %q and span %s", link, pattern, wantSpan)
+	}
+	h := JSONTraceHandler(parsed)
+	w := get(h, "/jsontrace?"+link.RawQuery)
+	if w.Code != http.StatusOK {
+		t.Fatalf("query regions: %s", w.Result().Status)
+	}
+	var data format.Data
+	if err := json.Unmarshal(w.Body.Bytes(), &data); err != nil {
+		t.Fatal(err)
+	}
+	var regions, logs []string
+	for _, ev := range data.Events {
+		switch ev.Category {
+		case "Region":
+			regions = append(regions, ev.Name+"/"+ev.Phase)
+		case "user event":
+			logs = append(logs, ev.Name)
+		}
+	}
+	slices.Sort(regions)
+	if want := []string{"stage/read/b", "stage/read/e", "stage/write/b", "stage/write/e"}; !slices.Equal(regions, want) {
+		t.Errorf("region events = %v, want %v", regions, want)
+	}
+	// Include events between matches on selected goroutines. Exclude events
+	// outside that time window or on unrelated goroutines within it.
+	if want := []string{"between", "writing"}; !slices.Equal(logs, want) {
+		t.Errorf("logs = %v, want %v", logs, want)
+	}
+
+	for pattern, want := range map[string]int{"": http.StatusBadRequest, "[": http.StatusBadRequest, "^absent$": http.StatusNotFound} {
+		if w := get(h, "/jsontrace?region="+url.QueryEscape(pattern)); w.Code != want || w.Body.Len() == 0 {
+			t.Errorf("region %q: status %d, want %d and an error message", pattern, w.Code, want)
+		}
+	}
+}
 
 func TestJSONTraceHandler(t *testing.T) {
 	testPaths, err := filepath.Glob("./testdata/*.test")

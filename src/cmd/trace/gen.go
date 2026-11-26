@@ -83,6 +83,9 @@ func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace, opts *gen
 			}
 		}
 	}
+	for _, region := range opts.regions {
+		emitRegion(ctx, region)
+	}
 	g.Finish(ctx)
 }
 

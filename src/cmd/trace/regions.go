@@ -22,32 +22,57 @@ import (
 // UserRegionsHandlerFunc returns a HandlerFunc that reports all regions found in the trace.
 func UserRegionsHandlerFunc(t *parsedTrace) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Summarize all the regions.
+		var page struct {
+			Pattern     string
+			Error       string
+			TimelineURL string
+			Matches     int
+			Goroutines  int
+			Regions     []regionStats
+		}
 		summary := make(map[regionFingerprint]regionStats)
-		for _, g := range t.summary.Goroutines {
-			for _, r := range g.Regions {
-				id := fingerprintRegion(r)
-				stats, ok := summary[id]
-				if !ok {
-					stats.regionFingerprint = id
+		add := func(region *trace.UserRegionSummary) {
+			id := fingerprintRegion(region)
+			stats := summary[id]
+			stats.regionFingerprint = id
+			stats.add(t, region)
+			summary[id] = stats
+		}
+		if pattern := r.FormValue("region"); r.Form.Has("region") {
+			page.Pattern = pattern
+			opts := defaultGenOpts()
+			if status, err := opts.setRegions(t, pattern); err != nil {
+				page.Error = err.Error()
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.WriteHeader(status)
+			} else {
+				for _, region := range opts.regions {
+					add(region)
 				}
-				stats.add(t, r)
-				summary[id] = stats
+				page.Matches = len(opts.regions)
+				page.Goroutines = len(opts.goroutines)
+				page.TimelineURL = fmt.Sprintf("/trace?region=%s#%v:%v", url.QueryEscape(pattern), asMillisecond(opts.startTime), asMillisecond(opts.endTime))
+			}
+		} else {
+			for _, g := range t.summary.Goroutines {
+				for _, region := range g.Regions {
+					add(region)
+				}
 			}
 		}
-		// Sort regions by PC and name.
-		userRegions := make([]regionStats, 0, len(summary))
+		// Sort regions by name and PC.
+		page.Regions = make([]regionStats, 0, len(summary))
 		for _, stats := range summary {
-			userRegions = append(userRegions, stats)
+			page.Regions = append(page.Regions, stats)
 		}
-		slices.SortFunc(userRegions, func(a, b regionStats) int {
+		slices.SortFunc(page.Regions, func(a, b regionStats) int {
 			if c := cmp.Compare(a.Type, b.Type); c != 0 {
 				return c
 			}
 			return cmp.Compare(a.Frame.PC, b.Frame.PC)
 		})
 		// Emit table.
-		err := templUserRegionTypes.Execute(w, userRegions)
+		err := templUserRegionTypes.Execute(w, page)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to execute template: %v", err), http.StatusInternalServerError)
 			return
@@ -120,13 +145,24 @@ th {
 <body>
 <h1>Regions</h1>
 
-Below is a table containing a summary of all the user-defined regions in the trace.
+<form action="/userregions" method="get">
+  <label for="region">Region name (Go regular expression)</label>
+  <input type="text" id="region" name="region" value="{{.Pattern}}" placeholder="^(decode|commit)$" required>
+  <button>Find regions</button>
+</form>
+{{if .Error}}
+<p>{{.Error}}</p>
+{{else if .TimelineURL}}
+<p><a href="{{.TimelineURL}}">View timeline</a> for {{.Matches}} matching region{{if ne .Matches 1}}s{{end}}
+on {{.Goroutines}} goroutine{{if ne .Goroutines 1}}s{{end}}.</p>
+{{end}}
+{{if or .Error .TimelineURL}}<p><a href="/userregions">Show all regions</a></p>{{end}}
+
+{{if .Regions}}
 Regions are grouped by the region type and the point at which the region started.
 The rightmost column of the table contains a latency histogram for each region group.
-Note that this histogram only counts regions that began and ended within the traced
-period.
-However, the "Count" column includes all regions, including those that only started
-or ended during the traced period.
+For regions that started before or ended after the trace, the histogram includes
+only the portion of the region observed during the trace.
 Regions that were active through the trace period were not recorded, and so are not
 accounted for at all.
 Click on the links to explore a breakdown of time spent for each region by goroutine
@@ -138,9 +174,9 @@ and user-defined task.
 <tr>
 <th>Region type</th>
 <th>Count</th>
-<th>Duration distribution (complete tasks)</th>
+<th>Region duration</th>
 </tr>
-{{range $}}
+{{range .Regions}}
   <tr>
     <td><pre>{{printf "%q" .Type}}<br>{{.Frame.Func}} @ {{printf "0x%x" .Frame.PC}}<br>{{.Frame.File}}:{{.Frame.Line}}</pre></td>
     <td><a href="/userregion?type={{.Type}}&pc={{.Frame.PC | printf "%x"}}">{{.Histogram.Count}}</a></td>
@@ -148,6 +184,9 @@ and user-defined task.
   </tr>
 {{end}}
 </table>
+{{else if not .Error}}
+<p>This trace contains no user-defined regions.</p>
+{{end}}
 </body>
 </html>
 `))
