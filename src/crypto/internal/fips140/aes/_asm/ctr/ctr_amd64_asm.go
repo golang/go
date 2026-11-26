@@ -23,6 +23,7 @@ func main() {
 	ctrBlocks(2)
 	ctrBlocks(4)
 	ctrBlocks(8)
+	ctrBlocksBulk()
 
 	Generate()
 }

@@ -103,31 +103,40 @@ func (c *CTR) xorKeyStreamAt(dst, src []byte, offset uint64, keybuf *[BlockSize]
 		ivlo, ivhi = add128(ivlo, ivhi, 1)
 	}
 
-	for len(src) >= 8*BlockSize {
-		ctrBlocks8(&c.b, (*[8 * BlockSize]byte)(dst), (*[8 * BlockSize]byte)(src), ivlo, ivhi)
-		src = src[8*BlockSize:]
-		dst = dst[8*BlockSize:]
-		ivlo, ivhi = add128(ivlo, ivhi, 8)
-	}
+	if n := uint64(len(src)) / BlockSize; ctrBulk(n, ivlo) {
+		// On amd64, all full blocks go to one assembly call, unless the low
+		// 64 bits of the counter would wrap within them.
+		ctrBlocksBulk(&c.b, &dst[0], &src[0], n, ivlo, ivhi)
+		src = src[n*BlockSize:]
+		dst = dst[n*BlockSize:]
+		ivlo, ivhi = add128(ivlo, ivhi, n)
+	} else {
+		for len(src) >= 8*BlockSize {
+			ctrBlocks8(&c.b, (*[8 * BlockSize]byte)(dst), (*[8 * BlockSize]byte)(src), ivlo, ivhi)
+			src = src[8*BlockSize:]
+			dst = dst[8*BlockSize:]
+			ivlo, ivhi = add128(ivlo, ivhi, 8)
+		}
 
-	// The tail can have at most 7 = 4 + 2 + 1 blocks.
-	if len(src) >= 4*BlockSize {
-		ctrBlocks4(&c.b, (*[4 * BlockSize]byte)(dst), (*[4 * BlockSize]byte)(src), ivlo, ivhi)
-		src = src[4*BlockSize:]
-		dst = dst[4*BlockSize:]
-		ivlo, ivhi = add128(ivlo, ivhi, 4)
-	}
-	if len(src) >= 2*BlockSize {
-		ctrBlocks2(&c.b, (*[2 * BlockSize]byte)(dst), (*[2 * BlockSize]byte)(src), ivlo, ivhi)
-		src = src[2*BlockSize:]
-		dst = dst[2*BlockSize:]
-		ivlo, ivhi = add128(ivlo, ivhi, 2)
-	}
-	if len(src) >= 1*BlockSize {
-		ctrBlocks1(&c.b, (*[1 * BlockSize]byte)(dst), (*[1 * BlockSize]byte)(src), ivlo, ivhi)
-		src = src[1*BlockSize:]
-		dst = dst[1*BlockSize:]
-		ivlo, ivhi = add128(ivlo, ivhi, 1)
+		// The tail can have at most 7 = 4 + 2 + 1 blocks.
+		if len(src) >= 4*BlockSize {
+			ctrBlocks4(&c.b, (*[4 * BlockSize]byte)(dst), (*[4 * BlockSize]byte)(src), ivlo, ivhi)
+			src = src[4*BlockSize:]
+			dst = dst[4*BlockSize:]
+			ivlo, ivhi = add128(ivlo, ivhi, 4)
+		}
+		if len(src) >= 2*BlockSize {
+			ctrBlocks2(&c.b, (*[2 * BlockSize]byte)(dst), (*[2 * BlockSize]byte)(src), ivlo, ivhi)
+			src = src[2*BlockSize:]
+			dst = dst[2*BlockSize:]
+			ivlo, ivhi = add128(ivlo, ivhi, 2)
+		}
+		if len(src) >= 1*BlockSize {
+			ctrBlocks1(&c.b, (*[1 * BlockSize]byte)(dst), (*[1 * BlockSize]byte)(src), ivlo, ivhi)
+			src = src[1*BlockSize:]
+			dst = dst[1*BlockSize:]
+			ivlo, ivhi = add128(ivlo, ivhi, 1)
+		}
 	}
 
 	if len(src) != 0 {
@@ -139,10 +148,11 @@ func (c *CTR) xorKeyStreamAt(dst, src []byte, offset uint64, keybuf *[BlockSize]
 	}
 }
 
-// Each ctrBlocksN function XORs src with N blocks of counter keystream, and
-// stores it in dst. src is loaded in full before storing dst, so they can
-// overlap even inexactly. The starting counter value is passed in as a pair of
-// little-endian 64-bit integers.
+// Each of ctrBlocks1, ctrBlocks2, ctrBlocks4 and ctrBlocks8 XORs src with that
+// many blocks of counter keystream, and stores it in dst. src is loaded in full
+// before storing dst, so they can overlap even inexactly. (ctrBlocksBulk, used
+// on amd64, needs exact overlap or none.) The starting counter value is passed
+// in as a pair of little-endian 64-bit integers.
 
 func ctrBlocks(b *Block, dst, src []byte, ivlo, ivhi uint64) {
 	buf := make([]byte, len(src), 8*BlockSize)
