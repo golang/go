@@ -128,6 +128,11 @@ func sccp(f *ssa.Func) {
 			f.Warnl(f.Entry.Pos, "Phase SCCP for %v : %v constants, %v dce", f.Name, constCnt, rewireCnt)
 		}
 	}
+
+	// fold uses of the new constants, such as shifts by 0
+	if constCnt > 0 {
+		applyRewrite(f, generic.RewriteBlock, generic.RewriteValue, ssa.LeaveDeadValues)
+	}
 }
 
 func equals(a, b lattice) bool {
