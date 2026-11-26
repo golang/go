@@ -544,7 +544,7 @@ Decode:
 						if pos+2 > len(src) {
 							return truncated(src, mode)
 						}
-						mem.Disp = int64(binary.LittleEndian.Uint16(src[pos:]))
+						mem.Disp = int64(int16(binary.LittleEndian.Uint16(src[pos:])))
 						pos += 2
 					}
 
@@ -615,7 +615,7 @@ Decode:
 					}
 					dispoff = pos
 					displen = 4
-					mem.Disp = int64(binary.LittleEndian.Uint32(src[pos:]))
+					mem.Disp = int64(int32(binary.LittleEndian.Uint32(src[pos:])))
 					pos += 4
 				}
 

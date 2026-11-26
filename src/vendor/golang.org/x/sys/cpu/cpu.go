@@ -79,6 +79,7 @@ var X86 struct {
 	HasAVXIFMA          bool // Advanced vector extension Integer Fused Multiply Add
 	HasAVXVNNI          bool // Advanced vector extension Vector Neural Network Instructions
 	HasAVXVNNIInt8      bool // Advanced vector extension Vector Neural Network Int8 instructions
+	HasVPCLMULQDQ       bool // Vector carry-less multiply operations on 256-bit vectors (requires only AVX)
 	HasXSAVE            bool // XSAVE/XRSTOR/XSETBV/XGETBV instructions (hardware support; see also HasOSXSAVE)
 	_                   CacheLinePad
 }

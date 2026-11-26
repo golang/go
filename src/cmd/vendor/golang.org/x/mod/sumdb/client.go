@@ -224,11 +224,14 @@ func (c *Client) Lookup(path, vers string) (lines []string, err error) {
 	}
 
 	// Prepare encoded cache filename / URL.
+	// Lookups for vers and vers/go.mod share one record,
+	// which is filed under the module version modVers.
+	modVers := strings.TrimSuffix(vers, "/go.mod")
 	epath, err := module.EscapePath(path)
 	if err != nil {
 		return nil, err
 	}
-	evers, err := module.EscapeVersion(strings.TrimSuffix(vers, "/go.mod"))
+	evers, err := module.EscapeVersion(modVers)
 	if err != nil {
 		return nil, err
 	}
@@ -266,6 +269,21 @@ func (c *Client) Lookup(path, vers string) (lines []string, err error) {
 		}
 		if err := c.checkRecord(id, text); err != nil {
 			return cached{nil, err}
+		}
+		if err := checkRecordLines(path, modVers, text); err != nil {
+			// The record is authenticated, so a bad line is proof
+			// that the checksum database logged a bad record, or that
+			// whoever answered the lookup (the checksum database or
+			// a proxy for it) served the wrong record.
+			// The report does not blame either one.
+			var buf bytes.Buffer
+			fmt.Fprintf(&buf, "SECURITY ERROR\n")
+			fmt.Fprintf(&buf, "go.sum database record does not match lookup!\n\n")
+			fmt.Fprintf(&buf, "lookup %s@%s returned record %d:\n", path, modVers, id)
+			fmt.Fprintf(&buf, "\t%s\n", bytes.ReplaceAll(bytes.TrimSuffix(text, []byte("\n")), []byte("\n"), []byte("\n\t")))
+			fmt.Fprintf(&buf, "%v\n", err)
+			c.ops.SecurityError(buf.String())
+			return cached{nil, ErrSecurity}
 		}
 
 		// Now that we've validated the record,
@@ -492,6 +510,38 @@ func (c *Client) checkRecord(id int64, data []byte) error {
 		return nil
 	}
 	return fmt.Errorf("cannot authenticate record data in server response")
+}
+
+// checkRecordLines checks that every line in the record text
+// for the module version path@vers has the form
+//
+//	<path> <vers>[/<file>] <hash>
+//
+// path and vers are verbatim, not escaped with [module.EscapePath]
+// or [module.EscapeVersion], because that is how they appear in records.
+//
+// Today <file> is only "go.mod", but any file name and any hash format
+// are allowed so that the checksum database can add more lines later.
+// A record must not hold lines for any other module version.
+// Otherwise a server could answer a lookup for one module version
+// with a logged record that was filed under another one.
+func checkRecordLines(path, vers string, text []byte) error {
+	prefix := path + " " + vers
+	for line := range strings.SplitSeq(strings.TrimSuffix(string(text), "\n"), "\n") {
+		rest, ok := strings.CutPrefix(line, prefix)
+		// file is "" for the module hash, or "/<file>" for a file hash.
+		file, hash, _ := strings.Cut(rest, " ")
+		if !ok || !validRecordFile(file) || hash == "" || strings.Contains(hash, " ") {
+			return fmt.Errorf("unexpected line in record for %s@%s: %q", path, vers, line)
+		}
+	}
+	return nil
+}
+
+// validRecordFile reports whether file, the text between the version
+// and the hash in a record line, is empty or a "/" followed by a name.
+func validRecordFile(file string) bool {
+	return file == "" || len(file) > 1 && file[0] == '/'
 }
 
 // tileReader is a *Client wrapper that implements tlog.TileReader.

@@ -19,6 +19,9 @@ type Op uint16
 
 func (op Op) String() string {
 	if op >= Op(len(opstr)) || opstr[op] == "" {
+		if sveIsOp(op) {
+			return sveOpString(op)
+		}
 		return fmt.Sprintf("Op(%d)", int(op))
 	}
 	return opstr[op]
@@ -51,7 +54,8 @@ type Args [5]Arg
 // Reg, RegSP, ImmShift, RegExtshiftAmount, PCRel, MemImmediate,
 // MemExtend, Imm, Imm64, Imm_hint, Imm_clrex, Imm_dcps, Cond,
 // Imm_c, Imm_option, Imm_prfop, Pstatefield, Systemreg, Imm_fp
-// RegisterWithArrangement, RegisterWithArrangementAndIndex.
+// RegisterWithArrangement, RegisterWithArrangementAndIndex,
+// ImmSigned, MemScaledVL, MemVectorBase, MemVectorIndex, VLGroup.
 type Arg interface {
 	isArg()
 	String() string
@@ -357,6 +361,9 @@ func (r Reg) String() string {
 	case V0 <= r && r <= V31:
 		return fmt.Sprintf("V%d", int(r-V0))
 	default:
+		if s := sveRegString(r); s != "" {
+			return s
+		}
 		return fmt.Sprintf("Reg(%d)", int(r))
 	}
 }
@@ -897,6 +904,8 @@ func (a Arrangement) String() (result string) {
 		result = ".2D"
 	case Arrangement1Q:
 		result = ".1Q"
+	default:
+		result = sveArrangementString(a)
 	}
 	return
 }
@@ -905,12 +914,18 @@ func (a Arrangement) String() (result string) {
 type RegisterWithArrangement struct {
 	r   Reg
 	a   Arrangement
-	cnt uint8
+	cnt uint8 // registers in a list, or 0 if not a list; the top bit is sveRangeBit
 }
 
 func (RegisterWithArrangement) isArg() {}
 
 func (r RegisterWithArrangement) String() string {
+	if n, rng := listCount(r.cnt); rng || fileBase(r.r) != V0 {
+		if n == 0 {
+			return r.r.String() + r.a.String()
+		}
+		return sveListString(r.r, r.a, n)
+	}
 	result := r.r.String()
 	result += r.a.String()
 	if r.cnt > 0 {
@@ -942,12 +957,19 @@ type RegisterWithArrangementAndIndex struct {
 	r     Reg
 	a     Arrangement
 	index uint8
-	cnt   uint8
+	cnt   uint8 // registers in a list, or 0 if not a list; the top bit is sveRangeBit
 }
 
 func (RegisterWithArrangementAndIndex) isArg() {}
 
 func (r RegisterWithArrangementAndIndex) String() string {
+	if n, rng := listCount(r.cnt); rng || fileBase(r.r) != V0 {
+		s := r.r.String() + r.a.String()
+		if n > 1 {
+			s = sveListString(r.r, r.a, n)
+		}
+		return fmt.Sprintf("%s[%d]", s, r.index)
+	}
 	result := r.r.String()
 	result += r.a.String()
 	if r.cnt > 0 {

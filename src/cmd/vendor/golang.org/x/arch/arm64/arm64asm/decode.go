@@ -74,6 +74,11 @@ Search:
 		}
 		return inst, nil
 	}
+	// SVE does not overlap anything in the table above, so its forms are tried
+	// last and cannot shadow an existing instruction.
+	if inst, ok := sveDecode(x); ok {
+		return inst, nil
+	}
 	return Inst{}, errUnknown
 }
 

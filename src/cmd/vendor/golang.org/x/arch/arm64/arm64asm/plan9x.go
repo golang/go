@@ -26,6 +26,10 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 		symname = func(uint64) (string, uint64) { return "", 0 }
 	}
 
+	if sveIsOp(inst.Op) {
+		return sveGoSyntax(inst)
+	}
+
 	var args []string
 	for _, a := range inst.Args {
 		if a == nil {
@@ -106,6 +110,12 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 		}
 		if rno >= 0 && rno <= int(WZR) {
 			op = "MOVW"
+			// mov Wd, Wm zero-extends into Xd. cmd/asm's MOVW between
+			// registers is the sign-extending move (SXTW); the
+			// zero-extending one is MOVWU.
+			if src, ok := inst.Args[1].(Reg); ok && src <= WZR {
+				op = "MOVWU"
+			}
 		} else if rno >= int(X0) && rno <= int(XZR) {
 			op = "MOVD"
 		}

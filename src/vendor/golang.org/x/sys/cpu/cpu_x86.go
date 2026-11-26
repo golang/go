@@ -57,6 +57,7 @@ func initOptions() {
 		{Name: "sse41", Feature: &X86.HasSSE41},
 		{Name: "sse42", Feature: &X86.HasSSE42},
 		{Name: "ssse3", Feature: &X86.HasSSSE3},
+		{Name: "vpclmulqdq", Feature: &X86.HasVPCLMULQDQ},
 		{Name: "avxifma", Feature: &X86.HasAVXIFMA},
 		{Name: "avxvnni", Feature: &X86.HasAVXVNNI},
 		{Name: "avxvnniint8", Feature: &X86.HasAVXVNNIInt8},
@@ -113,7 +114,8 @@ func archInit() {
 		cpuid_AVX512_VBMI      = 1 << 1
 		cpuid_AVX512_VBMI2     = 1 << 6
 		cpuid_GFNI             = 1 << 8
-		cpuid_AVX512VPCLMULQDQ = 1 << 10
+		cpuid_VPCLMULQDQ       = 1 << 10 // && AVX => 256-bit VPCLMULQDQ
+		cpuid_AVX512VPCLMULQDQ = 1 << 10 // && AVX512 => 512-bit VPCLMULQDQ
 		cpuid_AVX512_BITALG    = 1 << 12
 
 		// edx bits
@@ -150,6 +152,15 @@ func archInit() {
 	)
 
 	Initialized = true
+
+	doDerived = func() {
+		// The same CPUID bit reports VPCLMULQDQ on 256-bit vectors and
+		// on 512-bit vectors, and GODEBUG=cpu.vpclmulqdq=off turns off
+		// the 256-bit flag, so the 512-bit flag must follow it.
+		if !X86.HasVPCLMULQDQ {
+			X86.HasAVX512VPCLMULQDQ = false
+		}
+	}
 
 	maxID, _, _, _ := cpuid(0, 0)
 
@@ -213,6 +224,7 @@ func archInit() {
 	X86.HasERMS = isSet(ebx7, cpuid_ERMS)
 	X86.HasRDSEED = isSet(ebx7, cpuid_RDSEED)
 	X86.HasADX = isSet(ebx7, cpuid_ADX)
+	X86.HasVPCLMULQDQ = isSet(ecx7, cpuid_VPCLMULQDQ) && X86.HasAVX
 
 	X86.HasAVX512 = isSet(ebx7, cpuid_AVX512F) && osSupportsAVX512 // Because avx-512 foundation is the core required extension
 	if X86.HasAVX512 {

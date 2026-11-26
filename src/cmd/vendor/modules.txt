@@ -16,7 +16,7 @@ github.com/google/pprof/third_party/svgpan
 # github.com/ianlancetaylor/demangle v0.0.0-20250417193237-f615e6bd150b
 ## explicit; go 1.13
 github.com/ianlancetaylor/demangle
-# golang.org/x/arch v0.32.1-0.20261105033918-6a31474cd4d8
+# golang.org/x/arch v0.33.1-0.20261125042448-08f54687881f
 ## explicit; go 1.26.0
 golang.org/x/arch/arm/armasm
 golang.org/x/arch/arm64/arm64asm
@@ -25,10 +25,10 @@ golang.org/x/arch/ppc64/ppc64asm
 golang.org/x/arch/riscv64/riscv64asm
 golang.org/x/arch/s390x/s390xasm
 golang.org/x/arch/x86/x86asm
-# golang.org/x/build v0.0.0-20260715183034-a43f90886f2e
-## explicit; go 1.25.0
+# golang.org/x/build v0.0.0-20261119205413-41b438ee44b1
+## explicit; go 1.26.0
 golang.org/x/build/relnote
-# golang.org/x/mod v0.43.0
+# golang.org/x/mod v0.43.1-0.20261112161916-2b553c8b61bf
 ## explicit; go 1.26.0
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
@@ -43,12 +43,12 @@ golang.org/x/mod/zip
 ## explicit; go 1.26.0
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.50.0
+# golang.org/x/sys v0.50.1-0.20261120131340-d4690d67735d
 ## explicit; go 1.26.0
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/telemetry v0.0.0-20261116191925-e77a43154acb
+# golang.org/x/telemetry v0.0.0-20261124234621-1402bdb29cb5
 ## explicit; go 1.26.0
 golang.org/x/telemetry
 golang.org/x/telemetry/counter
@@ -60,10 +60,10 @@ golang.org/x/telemetry/internal/crashmonitor
 golang.org/x/telemetry/internal/mmap
 golang.org/x/telemetry/internal/telemetry
 golang.org/x/telemetry/internal/upload
-# golang.org/x/term v0.45.0
-## explicit; go 1.25.0
+# golang.org/x/term v0.48.0
+## explicit; go 1.26.0
 golang.org/x/term
-# golang.org/x/text v0.44.0
+# golang.org/x/text v0.44.1-0.20261117190556-9e7a977af666
 ## explicit; go 1.26.0
 golang.org/x/text/cases
 golang.org/x/text/internal
@@ -73,7 +73,7 @@ golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.53.1-0.20261125221610-1257c914f92d
+# golang.org/x/tools v0.53.1-0.20261126161324-9b1bd87ef490
 ## explicit; go 1.26.0
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover

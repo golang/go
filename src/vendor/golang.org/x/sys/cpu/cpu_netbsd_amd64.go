@@ -39,6 +39,7 @@ func doinit() {
 	X86.HasAVXIFMA = false
 	X86.HasAVXVNNI = false
 	X86.HasAVXVNNIInt8 = false
+	X86.HasVPCLMULQDQ = false
 
 }
 

@@ -252,6 +252,10 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 		}
 		return fmt.Sprintf("%s %d(%s), %s.%s%d", mov, off, args[1], args[0], suf, count)
 
+	case CSRXCHG:
+		// Keep Rj even when it equals Rd: the assembler needs all three operands.
+		return fmt.Sprintf("%s %s, %s, %s", op, args[2], args[1], args[0])
+
 	default:
 		// Reverse args, placing dest last
 		for i, j := 0, len(args)-1; i < j; i, j = i+1, j-1 {
@@ -581,6 +585,9 @@ var plan9OpMap = map[Op]string{
 	RDTIMEH_W:   "RDTIMEHW",
 	RDTIME_D:    "RDTIMED",
 	CPUCFG:      "CPUCFG",
+	CSRRD:       "CSRRD",
+	CSRWR:       "CSRWR",
+	CSRXCHG:     "CSRXCHG",
 
 	// Floating-point instructions
 	FADD_S:       "ADDF",

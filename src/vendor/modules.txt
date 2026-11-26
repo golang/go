@@ -1,4 +1,4 @@
-# golang.org/x/crypto v0.59.0
+# golang.org/x/crypto v0.59.1-0.20261123192653-4dc4fb521066
 ## explicit; go 1.26.0
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/chacha20poly1305
@@ -7,6 +7,8 @@ golang.org/x/crypto/cryptobyte/asn1
 golang.org/x/crypto/hkdf
 golang.org/x/crypto/internal/alias
 golang.org/x/crypto/internal/poly1305
+# golang.org/x/mod v0.43.1-0.20261112161916-2b553c8b61bf
+## explicit; go 1.26.0
 # golang.org/x/net v0.63.1-0.20261119175338-fd4c9ad54137
 ## explicit; go 1.26.0
 golang.org/x/net/dns/dnsmessage
@@ -18,16 +20,16 @@ golang.org/x/net/internal/quic/quicwire
 golang.org/x/net/lif
 golang.org/x/net/nettest
 golang.org/x/net/quic
-# golang.org/x/sys v0.50.0
+# golang.org/x/sys v0.50.1-0.20261120131340-d4690d67735d
 ## explicit; go 1.26.0
 golang.org/x/sys/cpu
-# golang.org/x/text v0.44.0
+# golang.org/x/text v0.44.1-0.20261117190556-9e7a977af666
 ## explicit; go 1.26.0
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.53.1-0.20261125221610-1257c914f92d
+# golang.org/x/tools v0.53.1-0.20261126161324-9b1bd87ef490
 ## explicit; go 1.26.0
 golang.org/x/tools/go/analysis
 golang.org/x/tools/go/analysis/internal/analysisflags

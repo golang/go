@@ -106,6 +106,9 @@ type Terminal struct {
 	// a read. It aliases into inBuf.
 	remainder []byte
 	inBuf     [256]byte
+	// readErr is an error returned by a read that also returned data. It is
+	// reported after all of that data has been processed.
+	readErr error
 
 	// History records and retrieves lines of input read by [ReadLine] which
 	// a user can retrieve and navigate using the up and down arrow keys.
@@ -788,7 +791,11 @@ func (t *Terminal) ReadPassword(prompt string) (line string, err error) {
 	return
 }
 
-// ReadLine returns a line of input from the terminal.
+// ReadLine returns a line of input from the terminal, excluding the
+// trailing newline. It may return partial data along with an error.
+// An [io.EOF] error indicates the end of the stream. For other errors,
+// such as [ErrPasteIndicator] in bracketed paste mode, a subsequent
+// call may return more data.
 func (t *Terminal) ReadLine() (line string, err error) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
@@ -863,21 +870,24 @@ func (t *Terminal) readLine() (line string, err error) {
 			}
 			return
 		}
+		if t.readErr != nil {
+			err = t.readErr
+			t.readErr = nil
+			return
+		}
 
 		// t.remainder is a slice at the beginning of t.inBuf
 		// containing a partial key sequence
 		readBuf := t.inBuf[len(t.remainder):]
-		var n int
 
 		t.lock.Unlock()
-		n, err = t.c.Read(readBuf)
+		n, readErr := t.c.Read(readBuf)
 		t.lock.Lock()
 
-		if err != nil {
-			return
-		}
-
 		t.remainder = t.inBuf[:n+len(t.remainder)]
+		if readErr != nil {
+			t.readErr = readErr
+		}
 	}
 }
 
