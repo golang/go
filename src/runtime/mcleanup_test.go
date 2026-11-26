@@ -381,6 +381,9 @@ func TestCleanupLost(t *testing.T) {
 // the P is destroyed before the sweep ends. See go.dev/issue/83361.
 func TestCleanupQueuedOnDestroyedP(t *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+	if runtime.GOMAXPROCS(-1) < 2 {
+		t.Skip("need GOMAXPROCS >= 2")
+	}
 
 	// Finish any sweep in progress and flush leftover blocks first.
 	// Otherwise this can pass without the fix.
