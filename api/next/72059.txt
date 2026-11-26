@@ -1,1 +1,0 @@
-pkg go/types, func StrictlyComparable(Type) bool #72059

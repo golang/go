@@ -1,1 +1,0 @@
-pkg go/types, func CommonUnderlying(Type) Type #60994

@@ -1,3 +1,0 @@
-pkg flag, func All() iter.Seq[*Flag] #65675
-pkg flag, method (*FlagSet) All() iter.Seq[*Flag] #65675
-pkg flag, type Flag struct, IsSet bool #65675

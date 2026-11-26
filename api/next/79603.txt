@@ -1,2 +1,0 @@
-pkg go/types, func NewTypeList([]Type) *TypeList #79603
-pkg go/types, func NewTypeParamList([]*TypeParam) *TypeParamList #79603
