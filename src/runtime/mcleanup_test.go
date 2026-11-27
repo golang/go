@@ -377,6 +377,33 @@ func TestCleanupLost(t *testing.T) {
 	}
 }
 
+// Cleanups queued on a P must still run if GOMAXPROCS goes down and
+// the P is destroyed before the sweep ends. See go.dev/issue/83361.
+func TestCleanupQueuedOnDestroyedP(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+	if runtime.GOMAXPROCS(-1) < 2 {
+		t.Skip("need GOMAXPROCS >= 2")
+	}
+
+	// Finish any sweep in progress and flush leftover blocks first.
+	// Otherwise this can pass without the fix.
+	runtime.GC()
+
+	var ran atomic.Bool
+	runtime.QueueCleanupOnP(1, func() { ran.Store(true) })
+	runtime.GOMAXPROCS(1)
+
+	// BlockUntilEmptyCleanupQueue needs a flush, so run one more cycle.
+	runtime.GC()
+	timeout := 10 * time.Second
+	if !runtime.BlockUntilEmptyCleanupQueue(int64(timeout)) {
+		t.Fatalf("failed to drain cleanup queue within %s", timeout)
+	}
+	if !ran.Load() {
+		t.Error("cleanup queued on a destroyed P did not run")
+	}
+}
+
 func TestCleanupUnreachablePointer(t *testing.T) {
 	defer func() {
 		if recover() == nil {

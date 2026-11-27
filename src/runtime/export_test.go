@@ -1923,6 +1923,32 @@ func BlockUntilEmptyCleanupQueue(timeout int64) bool {
 	return gcCleanups.blockUntilEmpty(timeout)
 }
 
+// QueueCleanupOnP queues f in the cleanup block of P id.
+func QueueCleanupOnP(id int, f func()) {
+	// Make sure there's a cleanup goroutine, like AddCleanup does.
+	if gcCleanups.needG() {
+		gcCleanups.createGs()
+	}
+	c := cleanupFn{
+		call: callCleanupNoArg,
+		fn:   *(**funcval)(unsafe.Pointer(&f)),
+	}
+
+	// With gcsema held the GC isn't marking, and with the world
+	// stopped no sweeper is running.
+	stw := stopTheWorldGC(stwForTestQueueCleanupOnP)
+	if id < 0 || id >= len(allp) {
+		throw("QueueCleanupOnP: invalid P id")
+	}
+	gcCleanups.enqueueOn(allp[id], c)
+	startTheWorldGC(stw)
+}
+
+func callCleanupNoArg(fn *funcval, _ unsafe.Pointer) {
+	f := *(*func())(unsafe.Pointer(&fn))
+	f()
+}
+
 func FrameStartLine(f *Frame) int {
 	return f.startLine
 }
