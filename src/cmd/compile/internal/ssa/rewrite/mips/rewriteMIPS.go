@@ -130,20 +130,16 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpCtz8NonZero:
 		return rewriteValue_OpCtz8NonZero(v)
 	case ssaop.OpCvt32Fto32:
-		v.Op = ssaop.OpMIPSTRUNCFW
-		return true
+		return rewriteValue_OpCvt32Fto32(v)
 	case ssaop.OpCvt32Fto64F:
 		v.Op = ssaop.OpMIPSMOVFD
 		return true
 	case ssaop.OpCvt32to32F:
-		v.Op = ssaop.OpMIPSMOVWF
-		return true
+		return rewriteValue_OpCvt32to32F(v)
 	case ssaop.OpCvt32to64F:
-		v.Op = ssaop.OpMIPSMOVWD
-		return true
+		return rewriteValue_OpCvt32to64F(v)
 	case ssaop.OpCvt64Fto32:
-		v.Op = ssaop.OpMIPSTRUNCDW
-		return true
+		return rewriteValue_OpCvt64Fto32(v)
 	case ssaop.OpCvt64Fto32F:
 		v.Op = ssaop.OpMIPSMOVDF
 		return true
@@ -1047,6 +1043,66 @@ func rewriteValue_OpCtz8NonZero(v *ssa.Value) bool {
 		x := v_0
 		v.Reset(ssaop.OpCtz32)
 		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to32, typ.UInt32)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpCvt32Fto32(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Cvt32Fto32 <t> x)
+	// result: (MOVWfpgp (TRUNCFW <t> x))
+	for {
+		t := v.Type
+		x := v_0
+		v.Reset(ssaop.OpMIPSMOVWfpgp)
+		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSTRUNCFW, t)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpCvt32to32F(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Cvt32to32F <t> x)
+	// result: (MOVWF (MOVWgpfp <t> x))
+	for {
+		t := v.Type
+		x := v_0
+		v.Reset(ssaop.OpMIPSMOVWF)
+		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWgpfp, t)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpCvt32to64F(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Cvt32to64F <t> x)
+	// result: (MOVWD (MOVWgpfp <t> x))
+	for {
+		t := v.Type
+		x := v_0
+		v.Reset(ssaop.OpMIPSMOVWD)
+		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSMOVWgpfp, t)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpCvt64Fto32(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Cvt64Fto32 <t> x)
+	// result: (MOVWfpgp (TRUNCDW <t> x))
+	for {
+		t := v.Type
+		x := v_0
+		v.Reset(ssaop.OpMIPSMOVWfpgp)
+		v0 := b.NewValue0(v.Pos, ssaop.OpMIPSTRUNCDW, t)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
