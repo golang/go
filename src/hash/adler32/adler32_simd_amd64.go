@@ -82,6 +82,8 @@ func updateSIMD(d digest, p []byte) digest {
 		s2 %= mod
 		p = p[n:]
 	}
+	// Clear the upper vector state before returning to ordinary Go code.
+	archsimd.ClearAVXUpperBits()
 	if len(p) > 0 {
 		return updateGeneric(digest(s2<<16|s1), p)
 	}
