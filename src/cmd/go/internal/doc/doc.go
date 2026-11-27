@@ -461,7 +461,10 @@ func parseArgs(ctx context.Context, flagSet *flag.FlagSet, args []string) (pkg *
 	// case letter, it can only be a symbol in the current directory.
 	// Kills the problem caused by case-insensitive file systems
 	// matching an upper case name as a package name.
-	if !strings.ContainsAny(arg, `/\`) && token.IsExported(arg) {
+	// A @version query cannot apply to a symbol with no package, so
+	// do not silently drop it here; let the versioned load below
+	// report its error instead.
+	if version == "" && !strings.ContainsAny(arg, `/\`) && token.IsExported(arg) {
 		pkg, err := loadPackage(ctx, loader, ".")
 		if err == nil {
 			return pkg, "", arg, false
@@ -487,8 +490,13 @@ func parseArgs(ctx context.Context, flagSet *flag.FlagSet, args []string) (pkg *
 			period += start
 			symbol = arg[period+1:]
 		}
-		// Have we identified a package already?
-		pkg, err := loadPackage(ctx, loader, arg[0:period])
+		// Have we identified a package already? Use importPkg (not
+		// loadPackage) so that a @version query is honored: for
+		// example, loadVersioned rejects @version for standard
+		// library packages, and that error must not be dropped by
+		// reloading the package from GOROOT without a version.
+		// See golang/go#81670.
+		pkg, err := importPkg(arg[0:period])
 		if err == nil {
 			return pkg, arg[0:period], symbol, false
 		}

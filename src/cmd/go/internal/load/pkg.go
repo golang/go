@@ -3434,7 +3434,7 @@ func PackagesAndErrorsOutsideModule(ld *modload.Loader, ctx context.Context, opt
 		case pathpkg.Clean(p) != p:
 			return nil, fmt.Errorf("%s: argument must be a clean package path", arg)
 		case !strings.Contains(p, "...") && search.IsStandardImportPath(p) && modindex.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, p):
-			return nil, fmt.Errorf("%s: argument must not be a package in the standard library", arg)
+			return nil, fmt.Errorf("%s: cannot specify @version for a package in the standard library", arg)
 		default:
 			patterns[i] = p
 		}
