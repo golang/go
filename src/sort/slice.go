@@ -44,8 +44,8 @@ func SliceStable(x any, less func(i, j int) bool) {
 	stable_func(lessSwap{less, swap}, rv.Len())
 }
 
-// SliceIsSorted reports whether the slice x is sorted according to the provided less function.
-// It panics if x is not a slice.
+// SliceIsSorted reports whether x is sorted according to the provided
+// less function. The argument x must be a slice.
 //
 // Note: in many situations, the newer [slices.IsSortedFunc] function is more
 // ergonomic and runs faster.
