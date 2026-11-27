@@ -62,7 +62,7 @@ TEXT runtime·open(SB),NOSPLIT,$0
 	SWI	$0
 	MOVW	$0xfffff001, R1
 	CMP	R1, R0
-	MOVW.HI	$-1, R0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -72,7 +72,7 @@ TEXT runtime·closefd(SB),NOSPLIT,$0
 	SWI	$0
 	MOVW	$0xfffff001, R1
 	CMP	R1, R0
-	MOVW.HI	$-1, R0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+4(FP)
 	RET
 
@@ -189,9 +189,9 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVW	$0xfffff001, R6
 	CMP		R6, R0
 	MOVW	$0, R1
-	RSB.HI	$0, R0
-	MOVW.HI	R0, R1		// if error, put in R1
-	MOVW.HI	$0, R0
+	RSB.CS	$0, R0
+	MOVW.CS	R0, R1		// if error, put in R1
+	MOVW.CS	$0, R0
 	MOVW	R0, p+24(FP)
 	MOVW	R1, err+28(FP)
 	RET
@@ -203,8 +203,8 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
 	SWI	$0
 	MOVW	$0xfffff001, R6
 	CMP 	R6, R0
-	MOVW.HI	$0, R8  // crash on syscall failure
-	MOVW.HI	R8, (R8)
+	MOVW.CS	$0, R8  // crash on syscall failure
+	MOVW.CS	R8, (R8)
 	RET
 
 TEXT runtime·madvise(SB),NOSPLIT,$0
@@ -528,8 +528,8 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	SWI	$0
 	MOVW	$0xfffff001, R6
 	CMP 	R6, R0
-	MOVW.HI	$0, R8  // crash on syscall failure
-	MOVW.HI	R8, (R8)
+	MOVW.CS	$0, R8  // crash on syscall failure
+	MOVW.CS	R8, (R8)
 	RET
 
 TEXT runtime·sigfwd(SB),NOSPLIT,$0-16

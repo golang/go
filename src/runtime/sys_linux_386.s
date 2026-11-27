@@ -93,7 +93,7 @@ TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL	perm+8(FP), DX
 	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
-	JLS	2(PC)
+	JCS	2(PC)
 	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
@@ -103,7 +103,7 @@ TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL	fd+0(FP), BX
 	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
-	JLS	2(PC)
+	JCS	2(PC)
 	MOVL	$-1, AX
 	MOVL	AX, ret+4(FP)
 	RET
@@ -409,7 +409,7 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
 	MOVL	size+12(FP), SI
 	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
-	JLS	2(PC)
+	JCS	2(PC)
 	INT $3
 	RET
 
@@ -515,7 +515,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	SHRL	$12, BP
 	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
-	JLS	ok
+	JCS	ok
 	NOTL	AX
 	INCL	AX
 	MOVL	$0, p+24(FP)
@@ -532,7 +532,7 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
 	MOVL	n+4(FP), CX
 	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
-	JLS	2(PC)
+	JCS	2(PC)
 	INT $3
 	RET
 
@@ -666,7 +666,7 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVL	old+4(FP), CX
 	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
-	JLS	2(PC)
+	JCS	2(PC)
 	INT	$3
 	RET
 
@@ -746,7 +746,7 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
 
 	// breakpoint on error
 	CMPL AX, $0xfffff001
-	JLS 2(PC)
+	JCS 2(PC)
 	INT $3
 
 	// read allocated entry number back out of user_desc
