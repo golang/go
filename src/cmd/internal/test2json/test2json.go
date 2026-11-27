@@ -198,6 +198,7 @@ var (
 		[]byte("=== PASS  "),
 		[]byte("=== FAIL  "),
 		[]byte("=== SKIP  "),
+		[]byte("=== RETRY "),
 		[]byte("=== ATTR  "),
 		[]byte("=== ARTIFACTS "),
 	}
