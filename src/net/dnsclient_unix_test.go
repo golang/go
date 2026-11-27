@@ -1947,6 +1947,61 @@ func TestSingleRequestLookup(t *testing.T) {
 	}
 }
 
+func TestLookupIPNotFoundDoesNotHideOtherError(t *testing.T) {
+	defer dnsWaitGroup.Wait()
+	for _, tt := range []struct {
+		name          string
+		host          string
+		failingType   dnsmessage.Type
+		noData        bool
+		singleRequest bool
+		strictErrors  bool
+	}{
+		{name: "A fails, AAAA NXDOMAIN", host: "hostname.example.net", failingType: dnsmessage.TypeA, singleRequest: true},
+		{name: "AAAA fails, A NXDOMAIN", host: "hostname.example.net", failingType: dnsmessage.TypeAAAA, singleRequest: true},
+		{name: "A fails, AAAA NODATA", host: "hostname.example.net", failingType: dnsmessage.TypeA, noData: true, singleRequest: true},
+		{name: "rooted name, AAAA fails, A NXDOMAIN", host: "hostname.example.net.", failingType: dnsmessage.TypeAAAA, singleRequest: true},
+		{name: "strict, A fails, AAAA NXDOMAIN", host: "hostname.example.net", failingType: dnsmessage.TypeA, singleRequest: true, strictErrors: true},
+		{name: "parallel, AAAA fails, A NODATA", host: "hostname.example.net", failingType: dnsmessage.TypeAAAA, noData: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := fakeDNSServer{rh: func(_, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+				header := dnsmessage.Header{ID: q.ID, Response: true, RecursionAvailable: true, RCode: dnsmessage.RCodeNameError}
+				switch {
+				case q.Questions[0].Type == tt.failingType:
+					header.RCode = dnsmessage.RCodeServerFailure
+				case tt.noData:
+					header.RCode = dnsmessage.RCodeSuccess
+				}
+				return dnsmessage.Message{Header: header, Questions: q.Questions}, nil
+			}}
+			r := Resolver{PreferGo: true, StrictErrors: tt.strictErrors, Dial: fake.DialContext}
+
+			conf, err := newResolvConfTest()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer conf.teardown()
+			var lines []string
+			if tt.singleRequest {
+				lines = []string{"options single-request"}
+			}
+			if err := conf.writeAndUpdate(lines); err != nil {
+				t.Fatal(err)
+			}
+
+			_, err = r.LookupIPAddr(context.Background(), tt.host)
+			dnsErr, ok := errors.AsType[*DNSError](err)
+			if !ok {
+				t.Fatalf("LookupIPAddr error = %v, want *DNSError", err)
+			}
+			if dnsErr.IsNotFound || !dnsErr.IsTemporary {
+				t.Errorf("LookupIPAddr error = %v (IsNotFound=%v, IsTemporary=%v), want the temporary server failure", err, dnsErr.IsNotFound, dnsErr.IsTemporary)
+			}
+		})
+	}
+}
+
 // Issue 29358. Add configuration knob to force TCP-only DNS requests in the pure Go resolver.
 func TestDNSUseTCP(t *testing.T) {
 	fake := fakeDNSServer{
