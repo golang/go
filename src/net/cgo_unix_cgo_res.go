@@ -28,7 +28,7 @@ func _C_res_ninit(state *_C_struct___res_state) error {
 	return nil
 }
 
-func _C_res_nclose(state *_C_struct___res_state) {
+func _C_res_ndestroy(state *_C_struct___res_state) {
 	return
 }
 

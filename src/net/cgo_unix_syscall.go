@@ -79,8 +79,8 @@ func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int
 	return x
 }
 
-func _C_res_nclose(state *_C_struct___res_state) {
-	unix.ResNclose(state)
+func _C_res_ndestroy(state *_C_struct___res_state) {
+	unix.ResNdestroy(state)
 }
 
 func cgoNameinfoPTR(b []byte, sa *syscall.RawSockaddr, salen int) (int, error) {
