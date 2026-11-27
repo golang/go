@@ -231,7 +231,18 @@ type Options = jsonopts.Options
 //	jsonv2.Marshal(v, jsonv1.DefaultOptionsV1())
 //	jsonv2.Unmarshal(b, v, jsonv1.DefaultOptionsV1())
 func DefaultOptionsV1() Options {
-	return &jsonopts.DefaultOptionsV1
+	return &defaultOptionsV1
+}
+
+// Attach error conversion to the legacy options instead of retaining it
+// whenever encoding/json is imported. The full options are also available
+// from a v1 Encoder passed into a custom marshaler.
+var defaultOptionsV1 = jsonopts.Struct{
+	Flags: jsonflags.Flags{
+		Presence: uint64(jsonflags.DefaultV1Flags),
+		Values:   uint64(jsonflags.DefaultV1Flags),
+	},
+	ArshalValues: jsonopts.ArshalValues{TransformUnmarshalError: transformUnmarshalError},
 }
 
 // CallMethodsWithLegacySemantics specifies that calling of type-provided
@@ -488,10 +499,18 @@ func ParseTimeWithLooseRFC3339(v bool) Options {
 // The v1 default is true.
 func ReportErrorsWithLegacySemantics(v bool) Options {
 	if v {
-		return jsonflags.ReportErrorsWithLegacySemantics | 1
+		return &legacyUnmarshalErrorOption
 	} else {
 		return jsonflags.ReportErrorsWithLegacySemantics | 0
 	}
+}
+
+var legacyUnmarshalErrorOption = jsonopts.Struct{
+	Flags: jsonflags.Flags{
+		Presence: uint64(jsonflags.ReportErrorsWithLegacySemantics),
+		Values:   uint64(jsonflags.ReportErrorsWithLegacySemantics),
+	},
+	ArshalValues: jsonopts.ArshalValues{TransformUnmarshalError: transformUnmarshalError},
 }
 
 // StringifyWithLegacySemantics specifies that the `string` tag option
