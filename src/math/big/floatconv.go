@@ -138,14 +138,89 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	// exp5 != 0
 
 	// apply 5**exp5
-	p := new(Float).SetPrec(z.Prec() + 64) // use more bits for p -- TODO(gri) what is the right number?
-	if exp5 < 0 {
-		z.Quo(z, p.pow5(uint64(-exp5)))
-	} else {
-		z.Mul(z, p.pow5(uint64(exp5)))
-	}
-
+	z.scale5(exp5)
 	return
+}
+
+// scale5 multiplies z, whose mantissa is exact, by 5**exp5 and rounds the
+// result according to z's precision and rounding mode, setting z's
+// accuracy.
+//
+// 5**exp5 is too large to compute exactly for large exponents, so the
+// product is computed with extra precision first. That decides the
+// rounding unless the exact value may lie on a rounding boundary or on the
+// other side of one, in which case the precision is doubled until the
+// result is exact or the boundary is clearly on one side.
+func (z *Float) scale5(exp5 int64) {
+	n := uint64(exp5)
+	if exp5 < 0 {
+		n = uint64(-exp5)
+	}
+	x := &Float{neg: z.neg, form: finite, mant: z.mant, exp: z.exp}
+	for extra := uint64(64); ; extra *= 2 {
+		w := uint64(z.prec) + extra
+		if w > MaxPrec {
+			w = MaxPrec
+		}
+		p := new(Float).SetPrec(uint(w)).pow5(n)
+		if p.form == inf {
+			// The product overflows and the quotient underflows.
+			if exp5 < 0 {
+				z.form = zero
+				z.acc = makeAcc(z.neg)
+			} else {
+				z.form = inf
+				z.acc = makeAcc(!z.neg)
+			}
+			return
+		}
+		t := new(Float).SetPrec(uint(w))
+		if exp5 < 0 {
+			t.Quo(x, p)
+		} else {
+			t.Mul(x, p)
+		}
+		if t.form != finite {
+			z.form = t.form
+			z.acc = t.acc
+			return
+		}
+		// If 5**n fits in w bits, p is exact and so is t's accuracy.
+		exact := n <= 1<<40 && uint64(float64(n)*2.33)+2 <= w && t.acc == Exact
+		if exact || w == MaxPrec || !t.nearBoundary(z.prec) {
+			z.mant, z.exp = t.mant, t.exp
+			z.round(0)
+			return
+		}
+	}
+}
+
+// nearBoundary reports whether x, computed with 5**n as in scale5, is
+// within the error of that computation of a rounding boundary for prec
+// bits: a float of that precision or the midpoint between two.
+func (x *Float) nearBoundary(prec uint32) bool {
+	// The relative error of x is below 2**(8-w) for w = x.prec: in pow5
+	// the error of the squares of 5, which doubles with each squaring,
+	// stays below 2**-w thanks to their 64 extra bits, and the at most
+	// 64 multiplications by them and the final multiplication or
+	// division each add a relative error below 2**-w. That is less than
+	// 2**8 ulps of x. The bits of x below prec decide the rounding. Their
+	// most significant bit tells on which side of the midpoint x lies,
+	// and the lowest 9 bits are within the error, so x may be on a
+	// boundary or on the other side of one exactly when the bits in
+	// between are all 0 or all 1. Bits below the stored mantissa are 0.
+	l := len(x.mant) * _W
+	lo := l - int(x.prec) + 9
+	hi := l - int(prec) - 1
+	zeros, ones := true, true
+	for i := lo; i < hi && (zeros || ones); i++ {
+		if i < 0 || x.mant.bit(uint(i)) == 0 {
+			ones = false
+		} else {
+			zeros = false
+		}
+	}
+	return zeros || ones
 }
 
 // These powers of 5 fit into a uint64.
