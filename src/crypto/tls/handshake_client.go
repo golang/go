@@ -504,7 +504,9 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
 
 	if c.quic != nil {
 		if c.quic.enableSessionEvents {
-			c.quicResumeSession(session)
+			if err := c.quicResumeSession(session); err != nil {
+				return nil, nil, nil, err
+			}
 		}
 
 		// For 0-RTT, the cipher suite has to match exactly, and we need to be

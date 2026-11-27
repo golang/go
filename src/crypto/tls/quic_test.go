@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 )
 
 type testQUICConn struct {
@@ -692,6 +693,44 @@ func TestQUICCanceledWaitingForTransportParams(t *testing.T) {
 	err := cli.conn.Close()
 	if !errors.Is(err, alertCloseNotify) {
 		t.Errorf("conn.Close() = %v, want alertCloseNotify", err)
+	}
+}
+
+func TestQUICCanceledWaitingForResumeSession(t *testing.T) {
+	for _, readEvent := range []bool{false, true} {
+		t.Run(fmt.Sprint(readEvent), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				clientConfig := &QUICConfig{TLSConfig: testConfigClient(), EnableSessionEvents: true}
+				clientConfig.TLSConfig.MinVersion = VersionTLS13
+				clientConfig.TLSConfig.ClientSessionCache = NewLRUClientSessionCache(1)
+				clientConfig.TLSConfig.NextProtos = []string{"h3"}
+				serverConfig := &QUICConfig{TLSConfig: testConfigServer()}
+				serverConfig.TLSConfig.MinVersion = VersionTLS13
+				serverConfig.TLSConfig.NextProtos = []string{"h3"}
+
+				cli := newTestQUICClient(t, clientConfig)
+				cli.conn.SetTransportParameters(nil)
+				srv := newTestQUICServer(t, serverConfig)
+				srv.conn.SetTransportParameters(nil)
+				if err := runTestQUICConnection(context.Background(), cli, srv, nil); err != nil {
+					t.Fatal(err)
+				}
+
+				conn := QUICClient(clientConfig)
+				conn.SetTransportParameters(nil)
+				if err := conn.Start(context.Background()); err != nil {
+					t.Fatal(err)
+				}
+				if readEvent {
+					if e := conn.NextEvent(); e.Kind != QUICResumeSession {
+						t.Fatalf("NextEvent() = %v, want QUICResumeSession", e.Kind)
+					}
+				}
+				if err := conn.Close(); !errors.Is(err, alertCloseNotify) {
+					t.Errorf("conn.Close() = %v, want alertCloseNotify", err)
+				}
+			})
+		})
 	}
 }
 
