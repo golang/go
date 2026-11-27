@@ -1075,12 +1075,13 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, strict bool) (int32, uint
 	}
 	datap := f.datap
 	p := datap.pctab[off:]
-	pc := f.entry()
+	entry := f.entry()
+	pc := entry
 	prevpc := pc
 	val := int32(-1)
 	for {
 		var ok bool
-		p, ok = step(p, &pc, &val, pc == f.entry())
+		p, ok = step(p, &pc, &val, pc == entry)
 		if !ok {
 			break
 		}
@@ -1129,11 +1130,11 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, strict bool) (int32, uint
 	print("runtime: invalid pc-encoded table f=", funcname(f), " pc=", hex(pc), " targetpc=", hex(targetpc), " tab=", p, "\n")
 
 	p = datap.pctab[off:]
-	pc = f.entry()
+	pc = entry
 	val = -1
 	for {
 		var ok bool
-		p, ok = step(p, &pc, &val, pc == f.entry())
+		p, ok = step(p, &pc, &val, pc == entry)
 		if !ok {
 			break
 		}
