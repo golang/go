@@ -103,6 +103,22 @@ func BenchmarkAESCTR(b *testing.B) {
 	}
 }
 
+// BenchmarkAESCTRBlocks measures messages of 1 to 12 whole blocks.
+// Unlike in BenchmarkAESCTR, every call starts at a block boundary and
+// has no partial block.
+func BenchmarkAESCTRBlocks(b *testing.B) {
+	for _, keyBits := range []int{128, 192, 256} {
+		keySize := keyBits / 8
+		b.Run(strconv.Itoa(keyBits), func(b *testing.B) {
+			for blocks := 1; blocks <= 12; blocks++ {
+				b.Run(strconv.Itoa(blocks), func(b *testing.B) {
+					benchmarkAESStream(b, cipher.NewCTR, make([]byte, blocks*aes.BlockSize), keySize)
+				})
+			}
+		})
+	}
+}
+
 func BenchmarkAESCBCEncrypt1K(b *testing.B) {
 	buf := make([]byte, 1024)
 	b.SetBytes(int64(len(buf)))
