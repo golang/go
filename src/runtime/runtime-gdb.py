@@ -165,6 +165,7 @@ class MapTypePrinter:
 
 	def children(self):
 		MapGroupSlots = 8 # see internal/abi:MapGroupSlots
+		ctrl_empty = read_runtime_const("'internal/runtime/maps.ctrlEmpty'", 0x80)
 
 		cnt = 0
 		# Yield keys and elements in group.
@@ -178,7 +179,7 @@ class MapTypePrinter:
 
 			for i in xrange(MapGroupSlots):
 				c = (ctrl >> (8*i)) & 0xff
-				if (c & 0x80) != 0:
+				if (c & 0x80) == ctrl_empty:
 					# Empty or deleted
 					continue
 
