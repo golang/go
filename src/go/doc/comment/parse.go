@@ -781,6 +781,8 @@ func isList(line string) bool {
 // must be both preceded and followed by punctuation, spaces, tabs,
 // or the start or end of a line. An example problem would be treating
 // map[ast.Expr]TypeAndValue as containing a link.
+//
+// If links are nested ("[a[b]]"), the innermost link ("[b]") is preferred.
 func (d *parseDoc) parseLinkedText(text string) []Text {
 	var out []Text
 	wrote := 0
@@ -792,7 +794,7 @@ func (d *parseDoc) parseLinkedText(text string) []Text {
 	}
 
 	start := -1
-	var buf []byte
+	var buf []byte // valid if start >= 0
 	for i := 0; i < len(text); i++ {
 		c := text[i]
 		if c == '\n' || c == '\t' {
@@ -801,6 +803,7 @@ func (d *parseDoc) parseLinkedText(text string) []Text {
 		switch c {
 		case '[':
 			start = i
+			buf = buf[:0] // innermost link wins
 		case ']':
 			if start >= 0 {
 				if def, ok := d.links[string(buf)]; ok {
@@ -819,7 +822,6 @@ func (d *parseDoc) parseLinkedText(text string) []Text {
 				}
 			}
 			start = -1
-			buf = buf[:0]
 		}
 		if start >= 0 && i != start {
 			buf = append(buf, c)
