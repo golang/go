@@ -192,7 +192,13 @@ func TestRoutingNodeMatch(t *testing.T) {
 		{"GET", "", "/a/b", "", nil},
 		{"GET", "", "/a/b/", "", nil},
 		{"GET", "", "/a/b/c", pat2, []string{"c"}},
+		{"GET", "", "/a/b/%2F", pat2, []string{"/"}},
+		{"GET", "", "/a/b/%2f", pat2, []string{"/"}},
 		{"GET", "", "/a/b/c/d", "", nil},
+	})
+	test(buildTree("/a/{x}/c"), []testCase{
+		{"GET", "", "/a/%2F/c", "/a/{x}/c", []string{"/"}},
+		{"GET", "", "/a/%2f/c", "/a/{x}/c", []string{"/"}},
 	})
 
 	// A pattern ending in a multi wildcard should match both URLs.
@@ -202,6 +208,10 @@ func TestRoutingNodeMatch(t *testing.T) {
 		{"GET", "", "/a/b/", pat3, []string{""}},
 		{"GET", "", "/a/b/c", pat3, []string{"c"}},
 		{"GET", "", "/a/b/c/d", pat3, []string{"c/d"}},
+	})
+	test(buildTree(pat2, pat3), []testCase{
+		{"GET", "", "/a/b/%2F", pat2, []string{"/"}},
+		{"GET", "", "/a/b/%2f", pat2, []string{"/"}},
 	})
 
 	// All three of the above should work together.
@@ -250,6 +260,11 @@ func TestMatchingMethods(t *testing.T) {
 			"host3",
 			hostTree, "b.com", "/bar",
 			"PUT",
+		},
+		{
+			"escaped slash",
+			buildTree("GET /foo/{x}"), "", "/foo/%2F",
+			"GET,HEAD",
 		},
 		{
 			// This case shouldn't come up because we only call matchingMethods

@@ -180,7 +180,8 @@ func (n *routingNode) matchPath(path string, matches []string) (*routingNode, []
 	// those with a multi wildcard.
 	// We skip this step if the segment is a trailing slash, because single wildcards
 	// don't match trailing slashes.
-	if seg != "/" {
+	// Use the original path: an escaped slash unescapes to "/" too.
+	if path != "/" {
 		if n, m := n.emptyChild.matchPath(rest, append(matches, seg)); n != nil {
 			return n, m
 		}
