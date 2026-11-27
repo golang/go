@@ -141,7 +141,7 @@ func (c *UnixConn) writeTo(b []byte, addr *UnixAddr) (int, error) {
 }
 
 func (c *UnixConn) writeMsg(b, oob []byte, addr *UnixAddr) (n, oobn int, err error) {
-	if c.fd.sotype == syscall.SOCK_DGRAM && c.fd.isConnected {
+	if c.fd.sotype == syscall.SOCK_DGRAM && c.fd.isConnected && addr != nil {
 		return 0, 0, ErrWriteToConnected
 	}
 	var sa syscall.Sockaddr
