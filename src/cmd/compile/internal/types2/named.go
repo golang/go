@@ -6,6 +6,7 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -709,13 +710,63 @@ func (n *Named) resolveUnderlying() {
 	}
 }
 
-func (n *Named) lookupMethod(pkg *Package, name string, foldCase bool) (int, *Func) {
+// methodIndices holds method name indexes for a single interface comparison.
+// The keys are uninstantiated types; all their instantiations agree on the
+// method names and order.
+type methodIndices map[*Named]methodIndexState
+
+type methodIndexState struct {
+	lookups int
+	order   []int
+}
+
+// It takes time to build an index. Use linear search when either the
+// interface being checked or the concrete method list is small.
+const minIndexedMethods = 64
+
+// Defer indexing until we've seen several lookups. Most mismatches
+// are found after comparing only the first few methods.
+const minIndexLookups = 8
+
+func (indices methodIndices) lookup(origin *Named, name string, foldCase bool) int {
+	if indices == nil || foldCase || len(origin.methods) < minIndexedMethods {
+		return origin.methodIndex(name, foldCase)
+	}
+	state := indices[origin]
+	if state.lookups < minIndexLookups {
+		state.lookups++
+		indices[origin] = state
+		return origin.methodIndex(name, foldCase)
+	}
+	order := state.order
+	if len(order) != len(origin.methods) {
+		order = make([]int, len(origin.methods))
+		for i := range order {
+			order[i] = i
+		}
+		// Keep the original order for duplicate names, as in the linear search.
+		slices.SortStableFunc(order, func(i, j int) int {
+			return strings.Compare(origin.methods[i].name, origin.methods[j].name)
+		})
+		state.order = order
+		indices[origin] = state
+	}
+	i, found := slices.BinarySearchFunc(order, name, func(i int, name string) int {
+		return strings.Compare(origin.methods[i].name, name)
+	})
+	if !found || name == "_" {
+		return -1
+	}
+	return order[i]
+}
+
+func (n *Named) lookupMethod(pkg *Package, name string, foldCase bool, indices methodIndices) (int, *Func) {
 	n.unpack()
 	if samePkg(n.obj.pkg, pkg) || isExported(name) || foldCase {
 		// If n is an instance, we may not have yet instantiated all of its methods.
 		// Look up the method index in orig, and only instantiate method at the
 		// matching index (if any).
-		if i := n.Origin().methodIndex(name, foldCase); i >= 0 {
+		if i := indices.lookup(n.Origin(), name, foldCase); i >= 0 {
 			// For instances, m.Method(i) will be different from the orig method.
 			return i, n.Method(i)
 		}
