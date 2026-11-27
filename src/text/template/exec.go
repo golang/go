@@ -1032,7 +1032,11 @@ func (s *state) evalFloat(typ reflect.Type, n parse.Node) reflect.Value {
 	s.at(n)
 	if n, ok := n.(*parse.NumberNode); ok && n.IsFloat {
 		value := reflect.New(typ).Elem()
-		value.SetFloat(n.Float64)
+		if typ.Kind() == reflect.Float32 {
+			value.SetFloat(float64(n.Float32))
+		} else {
+			value.SetFloat(n.Float64)
+		}
 		return value
 	}
 	s.errorf("expected float; found %s", n)
@@ -1042,7 +1046,11 @@ func (s *state) evalFloat(typ reflect.Type, n parse.Node) reflect.Value {
 func (s *state) evalComplex(typ reflect.Type, n parse.Node) reflect.Value {
 	if n, ok := n.(*parse.NumberNode); ok && n.IsComplex {
 		value := reflect.New(typ).Elem()
-		value.SetComplex(n.Complex128)
+		if typ.Kind() == reflect.Complex64 {
+			value.SetComplex(complex128(n.Complex64))
+		} else {
+			value.SetComplex(n.Complex128)
+		}
 		return value
 	}
 	s.errorf("expected complex; found %s", n)
