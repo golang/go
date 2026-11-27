@@ -19,6 +19,22 @@ import (
 // dominate grow latency for large objects.
 const maxTableCapacity = 1024
 
+// Shrink only the largest tables whose groups occupy at least 64 KiB.
+// Rebuilding compact tables would save less space for similar hashing work.
+const minShrinkGroupSize = (64 << 10) / (maxTableCapacity / abi.MapGroupSlots)
+
+// Shrink thresholds are expressed in units of MapGroupSlots so that they fit
+// in the byte of padding before table.index.
+const (
+	shrinkArmAt   = (maxTableCapacity * 3 / 8) / abi.MapGroupSlots
+	shrinkArmedAt = (maxTableCapacity / 128) / abi.MapGroupSlots
+	shrinkRearmAt = (maxTableCapacity*maxAvgGroupLoad)/(abi.MapGroupSlots*abi.MapGroupSlots) - 1
+	shrinkRestore = 254 // sentinel for a table that shrank
+	shrinkNever   = 255
+
+	shrunkCapacity = maxTableCapacity / 16
+)
+
 // Ensure the max capacity fits in uint16, used for capacity and growthLeft
 // below.
 var _ = uint16(maxTableCapacity)
@@ -51,6 +67,11 @@ type table struct {
 	// but this table has not yet been split.
 	localDepth uint8
 
+	// shrinkAt is the occupancy, in units of MapGroupSlots, at which a
+	// successful delete advances the shrink policy. Sentinel values are
+	// greater than any reachable occupancy.
+	shrinkAt uint8
+
 	// Index of this table in the Map directory. This is the index of the
 	// _first_ location in the directory. The table may occur in multiple
 	// sequential indices.
@@ -61,8 +82,7 @@ type table struct {
 
 	// groups is an array of slot groups. Each group holds abi.MapGroupSlots
 	// key/elem slots and their control bytes. A table has a fixed size
-	// groups array. The table is replaced (in rehash) when more space is
-	// required.
+	// groups array. The table is replaced when its capacity changes.
 	//
 	// TODO(prattmic): keys and elements are interleaved to maximize
 	// locality, but it comes at the expense of wasted space for some types
@@ -104,6 +124,10 @@ func (t *table) reset(typ *abi.MapType, capacity uint16) {
 	t.groups = newGroups(typ, groupCount)
 	t.capacity = capacity
 	t.growthLeft = t.maxGrowthLeft()
+	t.shrinkAt = shrinkNever
+	if capacity == maxTableCapacity && typ.GroupSize >= minShrinkGroupSize {
+		t.shrinkAt = shrinkArmAt
+	}
 
 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
 		g := t.groups.group(typ, i)
@@ -137,6 +161,12 @@ func (t *table) maxGrowthLeft() uint16 {
 
 func (t *table) Used() uint64 {
 	return uint64(t.used)
+}
+
+// capacityForRange returns the share of a map-wide capacity for this table's
+// hash range, rounded up.
+func (t *table) capacityForRange(targetCapacity uintptr) uintptr {
+	return ((targetCapacity - 1) >> t.localDepth) + 1
 }
 
 // Get performs a lookup of the key that key points to. It returns a pointer to
@@ -535,6 +565,9 @@ func (t *table) Delete(typ *abi.MapType, m *Map, hash uintptr, key unsafe.Pointe
 				}
 
 				t.checkInvariants(typ, m)
+				if t.used == uint16(t.shrinkAt)*abi.MapGroupSlots {
+					t.shrinkAfterDelete(typ, m)
+				}
 				return tombstone
 			}
 			match = match.removeFirst()
@@ -654,6 +687,9 @@ func (t *table) tombstones() uint16 {
 
 // Clear deletes all entries from the table resulting in an empty table.
 func (t *table) Clear(typ *abi.MapType) {
+	if t.shrinkAt == shrinkArmedAt {
+		t.shrinkAt = shrinkArmAt
+	}
 	mgl := t.maxGrowthLeft()
 	if t.used == 0 && t.growthLeft == mgl { // no current entries and no tombstones
 		return
@@ -1221,9 +1257,17 @@ func (t *table) rehash(typ *abi.MapType, m *Map) {
 	// new allocation, so the existing grow support in iteration would
 	// continue to work.
 
+	if t.shrinkAt == shrinkRestore {
+		// A refill needs room again. Restore the capacity in one step.
+		// Require it to get nearly full before arming another shrink
+		// so a repeated drain/refill can keep reusing this storage.
+		t.resize(typ, m, maxTableCapacity).shrinkAt = shrinkRearmAt
+		return
+	}
+
 	newCapacity := 2 * t.capacity
 	if newCapacity <= maxTableCapacity {
-		t.grow(typ, m, newCapacity)
+		t.resize(typ, m, newCapacity)
 		return
 	}
 
@@ -1283,11 +1327,28 @@ func (t *table) split(typ *abi.MapType, m *Map) {
 	t.index = -1
 }
 
-// grow the capacity of the table by allocating a new table with a bigger array
-// and uncheckedPutting each element of the table into the new table (we know
-// that no insertion here will Put an already-present value), and discard the
-// old table.
-func (t *table) grow(typ *abi.MapType, m *Map, newCapacity uint16) {
+func (t *table) shrinkAfterDelete(typ *abi.MapType, m *Map) {
+	// Arm only after reaching the high-water mark. This leaves space in
+	// sparsely populated tables allocated by make or maps.Grow.
+	if t.shrinkAt != shrinkArmedAt {
+		t.shrinkAt = shrinkArmedAt
+		return
+	}
+
+	// Waiting until the load falls from 3/8 to 1/128 pays for scanning
+	// the old table and bounds the number of live entries we move.
+	// Updating a shared directory range is part of the resize cost.
+	if 1<<(m.globalDepth-t.localDepth) <= int(t.capacity) {
+		t.resize(typ, m, shrunkCapacity).shrinkAt = shrinkRestore
+	} else {
+		// The directory range can only get wider while t is installed.
+		t.shrinkAt = shrinkNever
+	}
+}
+
+// resize moves the entries into a new table covering the same hash range.
+// Iterators holding t continue to use it for their traversal order.
+func (t *table) resize(typ *abi.MapType, m *Map, newCapacity uint16) *table {
 	newTable := newTable(typ, uint64(newCapacity), t.index, t.localDepth)
 
 	if t.capacity > 0 {
@@ -1319,6 +1380,7 @@ func (t *table) grow(typ *abi.MapType, m *Map, newCapacity uint16) {
 	newTable.checkInvariants(typ, m)
 	m.replaceTable(newTable)
 	t.index = -1
+	return newTable
 }
 
 // probeSeq maintains the state for a probe sequence that iterates through the

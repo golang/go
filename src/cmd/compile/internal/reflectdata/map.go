@@ -124,7 +124,7 @@ func mapTableType() *types.Type {
 	//     capacity   uint16
 	//     growthLeft uint16
 	//     localDepth uint8
-	//     // N.B Padding
+	//     shrinkAt uint8
 	//
 	//     index int
 	//
@@ -138,6 +138,7 @@ func mapTableType() *types.Type {
 		makefield("capacity", types.Types[types.TUINT16]),
 		makefield("growthLeft", types.Types[types.TUINT16]),
 		makefield("localDepth", types.Types[types.TUINT8]),
+		makefield("shrinkAt", types.Types[types.TUINT8]),
 		makefield("index", types.Types[types.TINT]),
 		makefield("groups_data", types.Types[types.TUNSAFEPTR]),
 		makefield("groups_lengthMask", types.Types[types.TUINT64]),
@@ -153,7 +154,7 @@ func mapTableType() *types.Type {
 
 	// The size of table should be 32 bytes on 64 bit
 	// and 24 bytes on 32 bit platforms.
-	if size := int64(3*2 + 2*1 /* one extra for padding */ + 1*8 + 2*types.PtrSize); table.Size() != size {
+	if size := int64(3*2 + 2*1 + 1*8 + 2*types.PtrSize); table.Size() != size {
 		base.Fatalf("internal/runtime/maps.table size not correct: got %d, want %d", table.Size(), size)
 	}
 

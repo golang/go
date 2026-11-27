@@ -97,9 +97,9 @@ import (
 // limited by limiting the maximum size of a table before it is split into
 // multiple tables.
 //
-// A map starts with a single table. Up to [maxTableCapacity], growth simply
-// replaces this table with a replacement with double capacity. Beyond this
-// limit, growth splits the table into two.
+// Up to [maxTableCapacity], growth replaces a table with a larger table.
+// Beyond this limit, growth splits the table into two. After enough deletes,
+// a sparse table may be replaced by a smaller one covering the same hash range.
 //
 // The map uses "extendible hashing" to select which table to use. In
 // extendible hashing, we use the upper bits of the hash as an index into an
@@ -141,14 +141,12 @@ import (
 // 5. Iteration order is unspecified. In the implementation, it is explicitly
 //    randomized.
 //
-// If the map never grows, these semantics are straightforward: just iterate
-// over every table in the directory and every group and slot in each table.
-// These semantics all land as expected.
+// If the map's storage layout stays the same, iteration walks every table in
+// the directory and every group and slot in each table.
 //
-// If the map grows during iteration, things complicate significantly. First
-// and foremost, we need to track which entries we already returned to satisfy
-// (1). There are three types of grow:
-// a. A table replaced by a single larger table.
+// If the layout changes during iteration, we need to track which entries we
+// already returned to satisfy (1). There are three cases:
+// a. A table replaced by a single table of a different capacity.
 // b. A table split into two replacement tables.
 // c. Growing the directory (occurs as part of (b) if necessary).
 //
@@ -156,7 +154,7 @@ import (
 // sequence, so simply tracking the current group and slot indices is not
 // sufficient.
 //
-// For (a) and (b), note that grows of tables other than the one we are
+// For (a) and (b), note that replacements of tables other than the one we are
 // currently iterating over are irrelevant.
 //
 // We handle (a) and (b) by having the iterator keep a reference to the table
@@ -368,24 +366,23 @@ func NewEmptyMap() *Map {
 	return m
 }
 
-// totalCapacity returns m's total slot count, summed across distinct
-// tables in the directory. A small map reports abi.MapGroupSlots.
-func (m *Map) totalCapacity() uint64 {
+func (m *Map) hasCapacityFor(targetCapacity uintptr) bool {
 	if m.dirLen == 0 {
-		return abi.MapGroupSlots
+		return targetCapacity <= abi.MapGroupSlots
 	}
 
 	var total uint64
-	var lastTab *table
-	for i := range m.dirLen {
+	for i := 0; i < m.dirLen; {
 		t := m.directoryAt(uintptr(i))
-		if t == lastTab {
-			continue
+		// A large table's spare slots cannot make up for a smaller
+		// table's shortage in a different hash range.
+		if t.capacity < maxTableCapacity && t.capacityForRange(targetCapacity) > uintptr(t.capacity) {
+			return false
 		}
-		lastTab = t
 		total += uint64(t.capacity)
+		i += 1 << (m.globalDepth - t.localDepth)
 	}
-	return total
+	return total >= uint64(targetCapacity)
 }
 
 // Grow increases m's capacity, if necessary, so that at least n more
@@ -420,24 +417,51 @@ func (m *Map) grow(typ *abi.MapType, n uintptr, maxAlloc uintptr) {
 		return
 	}
 
-	if m.totalCapacity() >= uint64(targetCapacity) {
+	if m.hasCapacityFor(targetCapacity) {
 		return // already enough room.
-	}
-
-	// Never shrink the directory: growTo only subdivides existing
-	// tables, and merging them could overload a new table's headroom.
-	if oldDirLen := uint64(m.dirLen); dirSize < oldDirLen {
-		dirSize = oldDirLen
 	}
 
 	m.writing ^= 1 // toggle, see comment on writing
 
-	m.growTo(typ, dirSize, targetCapacity)
+	// A map with shrunken tables may already have a larger directory
+	// than the hint needs. Try to grow those tables in their existing
+	// ranges before allocating a full-size table for every directory slot.
+	oldDirLen := uint64(m.dirLen)
+	if dirSize >= oldDirLen || !m.growWithinDirectory(typ, targetCapacity) {
+		// Never shrink the directory. If the existing ranges are too
+		// wide, growTo can subdivide them without reducing the depth.
+		dirSize = max(dirSize, oldDirLen)
+		if dirSize <= uint64(maxAlloc/typ.GroupSize/(maxTableCapacity/abi.MapGroupSlots)) {
+			m.growTo(typ, dirSize, targetCapacity)
+		}
+	}
 
 	if m.writing == 0 {
 		fatal("concurrent map writes")
 	}
 	m.writing ^= 1
+}
+
+// growWithinDirectory reserves capacity in proportion to the fraction of the
+// hash space covered by each table, leaving the directory ranges intact.
+func (m *Map) growWithinDirectory(typ *abi.MapType, targetCapacity uintptr) bool {
+	for i := 0; i < m.dirLen; {
+		t := m.directoryAt(uintptr(i))
+		if t.capacityForRange(targetCapacity) > maxTableCapacity {
+			// This range needs more slots than one table can hold.
+			return false
+		}
+		i += 1 << (m.globalDepth - t.localDepth)
+	}
+	for i := 0; i < m.dirLen; {
+		t := m.directoryAt(uintptr(i))
+		capacity := t.capacityForRange(targetCapacity)
+		if capacity > uintptr(t.capacity) {
+			t.resize(typ, m, uint16(capacity))
+		}
+		i += 1 << (m.globalDepth - t.localDepth)
+	}
+	return true
 }
 
 // growTo replaces m's storage with a fresh directory of dirSize tables

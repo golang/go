@@ -139,3 +139,12 @@ func (t *table) GroupsStart() unsafe.Pointer {
 func (t *table) GroupsLength() uintptr {
 	return uintptr(t.groups.lengthMask + 1)
 }
+
+func (m *Map) TableAt(i uintptr) *table {
+	return m.directoryAt(i)
+}
+
+func (it *Iter) SetOffsets(dir, entry uint64) {
+	it.dirOffset = dir
+	it.entryOffset = entry
+}
