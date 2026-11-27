@@ -7,6 +7,7 @@
 package reflect
 
 import (
+	"internal/abi"
 	"internal/bytealg"
 	"unsafe"
 )
@@ -99,15 +100,23 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		if v1.IsNil() != v2.IsNil() {
 			return false
 		}
-		if v1.Len() != v2.Len() {
+		len := v1.Len()
+		if len != v2.Len() {
 			return false
 		}
-		if v1.UnsafePointer() == v2.UnsafePointer() {
+		v1ptr := v1.UnsafePointer()
+		v2ptr := v2.UnsafePointer()
+		if v1ptr == v2ptr {
 			return true
 		}
-		// Special case for []byte, which is common.
-		if v1.Type().Elem().Kind() == Uint8 {
-			return bytealg.Equal(v1.Bytes(), v2.Bytes())
+		// Special case raw memory. Particularly, []byte is very common and is handled here.
+		elem := v1.typ().Elem()
+		if isDeepEqualRawMemory(elem) {
+			size := elem.Size_ * uintptr(len)
+			return bytealg.Equal(
+				unsafe.Slice((*byte)(v1ptr), size),
+				unsafe.Slice((*byte)(v2ptr), size),
+			)
 		}
 		for i := 0; i < v1.Len(); i++ {
 			if !deepValueEqual(v1.Index(i), v2.Index(i), visited) {
@@ -173,6 +182,22 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
 		// Normal equality suffices
 		return valueInterface(v1, false) == valueInterface(v2, false)
 	}
+}
+
+// isDeepEqualRawMemory reports whether DeepEqual can compare
+// two instances of a type by just comparing their raw memory contents.
+func isDeepEqualRawMemory(typ *abi.Type) (ok bool) {
+	// Note: Here is an incorrect implementation :
+	//
+	//	return typ.TFlag&abi.TFlagRegularMemory != 0
+	//
+	// The reason is DeepEqual can't determine whether two pointer values are equal by comparing them byte by byte.
+	// Doing so would report unequal when it shouldn't,
+	// in the case where two pointers are different but point to the same contents
+	// (e.g. two *int32s that point to different int32s,
+	// both of which contain the same value).
+
+	return typ.PtrBytes == 0 && typ.TFlag&abi.TFlagRegularMemory != 0
 }
 
 // DeepEqual reports whether x and y are “deeply equal,” defined as follows.
