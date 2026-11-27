@@ -201,7 +201,9 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
 	if !neg && un >= cutoff {
 		return int64(cutoff - 1), ErrRange
 	}
-	if neg && un > cutoff {
+	// ParseUint caps un at 1<<bitSize - 1, which equals cutoff
+	// when bitSize is 1, so check for its range error too.
+	if neg && (un > cutoff || err == ErrRange) {
 		return -int64(cutoff), ErrRange
 	}
 	n := int64(un)

@@ -490,6 +490,30 @@ func TestParseIntBitSize(t *testing.T) {
 	}
 }
 
+func TestParseIntBitSizeRange(t *testing.T) {
+	for bitSize := 1; bitSize <= 64; bitSize++ {
+		cutoff := uint64(1) << (bitSize - 1)
+		min, max := -int64(cutoff), int64(cutoff-1)
+		tests := []struct {
+			in  string
+			out int64
+			err error
+		}{
+			{"-" + FormatUint(cutoff+1, 10), min, ErrRange},
+			{"-" + FormatUint(cutoff, 10), min, nil},
+			{FormatInt(max, 10), max, nil},
+			{FormatUint(cutoff, 10), max, ErrRange},
+		}
+		for _, test := range tests {
+			out, err := ParseInt(test.in, 10, bitSize)
+			if out != test.out || err != test.err {
+				t.Errorf("ParseInt(%q, 10, %d) = %v, %v want %v, %v",
+					test.in, bitSize, out, err, test.out, test.err)
+			}
+		}
+	}
+}
+
 func TestParseUintBitSize(t *testing.T) {
 	for i := range parseBitSizeTests {
 		test := &parseBitSizeTests[i]
