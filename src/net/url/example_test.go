@@ -177,7 +177,7 @@ func ExampleURL_roundtrip() {
 }
 
 func ExampleURL_ResolveReference() {
-	u, err := url.Parse("../../..//search?q=dotnet")
+	u, err := url.Parse("../../../search?q=dotnet")
 	if err != nil {
 		log.Fatal(err)
 	}
