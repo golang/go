@@ -333,6 +333,7 @@ func TestStdFixed(t *testing.T) {
 		"issue49814.go",  // go/types does not have constraints on array size
 		"issue78355.go",  // go/types does not have constraints on map element size
 		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
+		"issue74928.go",  // anonymous interface cycles (go.dev/issue/56103)
 		"issue52697.go",  // go/types does not have constraints on stack size
 
 		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
