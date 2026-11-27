@@ -3573,6 +3573,8 @@ func (s *regAllocState) computeDesired() {
 	var desired desiredState
 	f := s.f
 	po := f.Postorder()
+	mergeIndex := f.Cache.AllocSparseMap(f.NumValues())
+	defer f.Cache.FreeSparseMap(mergeIndex)
 	maxPreds := 0
 	for _, b := range f.Blocks {
 		maxPreds = max(maxPreds, len(b.Preds))
@@ -3647,8 +3649,8 @@ func (s *regAllocState) computeDesired() {
 			}
 			for pidx, e := range b.Preds {
 				p := e.B
-				changed = s.desired[p.ID].merge(&desired) || changed
-				changed = s.desired[p.ID].merge(&phiPrefs[pidx]) || changed
+				changed = s.desired[p.ID].merge(&desired, mergeIndex) || changed
+				changed = s.desired[p.ID].merge(&phiPrefs[pidx], mergeIndex) || changed
 			}
 		}
 		if !changed || (!s.loopnest.HasIrreducible && len(s.loopnest.Loops) == 0) {
@@ -3767,23 +3769,25 @@ func (d *desiredState) add(vid ssa.ID, r ssaop.Register) {
 		if e.ID != vid {
 			continue
 		}
-		if e.regs[0] == r {
-			// Already known and highest priority
-			return
-		}
-		for j := 1; j < len(e.regs); j++ {
-			if e.regs[j] == r {
-				// Move from lower priority to top priority
-				copy(e.regs[1:], e.regs[:j])
-				e.regs[0] = r
-				return
-			}
-		}
-		copy(e.regs[1:], e.regs[:])
-		e.regs[0] = r
+		e.prefer(r)
 		return
 	}
 	d.entries = append(d.entries, desiredStateEntry{vid, [4]ssaop.Register{r, noRegister, noRegister, noRegister}})
+}
+
+func (e *desiredStateEntry) prefer(r ssaop.Register) {
+	if e.regs[0] == r {
+		return
+	}
+	for i := 1; i < len(e.regs); i++ {
+		if e.regs[i] == r {
+			copy(e.regs[1:], e.regs[:i])
+			e.regs[0] = r
+			return
+		}
+	}
+	copy(e.regs[1:], e.regs[:])
+	e.regs[0] = r
 }
 
 func (d *desiredState) addList(vid ssa.ID, regs [4]ssaop.Register) {
@@ -3846,15 +3850,36 @@ func (d *desiredState) remove(vid ssa.ID) [4]ssaop.Register {
 	return [4]ssaop.Register{noRegister, noRegister, noRegister, noRegister}
 }
 
-// merge merges another desired state x into d. Returns whether the set has
-// changed
-func (d *desiredState) merge(x *desiredState) bool {
+// merge adds x's register preferences to d and reports whether d.avoid changed.
+// Use a scratch index to find existing entries without changing their order.
+func (d *desiredState) merge(x *desiredState, index *ssa.SparseMap) bool {
 	oldAvoid := d.avoid
 	d.avoid = d.avoid.Union(x.avoid)
-	// There should only be a few desired registers, so
-	// linear insert is ok.
+	if len(x.entries) == 0 {
+		return oldAvoid != d.avoid
+	}
+	index.Clear()
+	for i, e := range d.entries {
+		index.Set(e.ID, int32(i))
+	}
 	for _, e := range x.entries {
-		d.addList(e.ID, e.regs)
+		if i, ok := index.Get(e.ID); ok {
+			dst := &d.entries[i]
+			for j := len(e.regs) - 1; j >= 0; j-- {
+				if r := e.regs[j]; r != noRegister {
+					dst.prefer(r)
+					d.avoid = d.avoid.AddReg(r)
+				}
+			}
+		} else {
+			// Each ID occurs only once in x.
+			d.entries = append(d.entries, e)
+			for _, r := range e.regs {
+				if r != noRegister {
+					d.avoid = d.avoid.AddReg(r)
+				}
+			}
+		}
 	}
 	return oldAvoid != d.avoid
 }
