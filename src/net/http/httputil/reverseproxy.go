@@ -874,16 +874,25 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 	reqUpType := upgradeType(req.Header)
 	resUpType := upgradeType(res.Header)
 	if !ascii.IsPrint(resUpType) { // We know reqUpType is ASCII, it's checked by the caller.
+		if res.Body != nil {
+			res.Body.Close()
+		}
 		p.getErrorHandler()(rw, req, fmt.Errorf("backend tried to switch to invalid protocol %q", resUpType))
 		return
 	}
 	if !ascii.EqualFold(reqUpType, resUpType) {
+		if res.Body != nil {
+			res.Body.Close()
+		}
 		p.getErrorHandler()(rw, req, fmt.Errorf("backend tried to switch protocol %q when %q was requested", resUpType, reqUpType))
 		return
 	}
 
 	backConn, ok := res.Body.(io.ReadWriteCloser)
 	if !ok {
+		if res.Body != nil {
+			res.Body.Close()
+		}
 		p.getErrorHandler()(rw, req, fmt.Errorf("internal error: 101 switching protocols response with non-writable body"))
 		return
 	}
@@ -891,6 +900,7 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 	rc := http.NewResponseController(rw)
 	conn, brw, hijackErr := rc.Hijack()
 	if errors.Is(hijackErr, http.ErrNotSupported) {
+		backConn.Close()
 		p.getErrorHandler()(rw, req, fmt.Errorf("can't switch protocols using non-Hijacker ResponseWriter type %T", rw))
 		return
 	}
@@ -926,7 +936,7 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 		return
 	}
 	errc := make(chan error, 1)
-	spc := switchProtocolCopier{user: conn, backend: backConn}
+	spc := switchProtocolCopier{user: conn, userReader: brw.Reader, backend: backConn}
 	go spc.copyToBackend(errc)
 	go spc.copyFromBackend(errc)
 
@@ -944,6 +954,9 @@ var errCopyDone = errors.New("hijacked connection copy complete")
 // forth have nice names in stacks.
 type switchProtocolCopier struct {
 	user, backend io.ReadWriter
+	// userReader reads from user, including any data that was
+	// buffered before the connection was hijacked.
+	userReader io.Reader
 }
 
 func (c switchProtocolCopier) copyFromBackend(errc chan<- error) {
@@ -962,7 +975,7 @@ func (c switchProtocolCopier) copyFromBackend(errc chan<- error) {
 }
 
 func (c switchProtocolCopier) copyToBackend(errc chan<- error) {
-	if _, err := io.Copy(c.backend, c.user); err != nil {
+	if _, err := io.Copy(c.backend, c.userReader); err != nil {
 		errc <- err
 		return
 	}
