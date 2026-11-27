@@ -820,7 +820,7 @@ func validHostnamePattern(host string) bool { return validHostname(host, true) }
 func validHostnameInput(host string) bool   { return validHostname(host, false) }
 
 // validHostname reports whether host is a valid hostname that can be matched or
-// matched against according to RFC 6125 2.2, with some leniency to accommodate
+// matched against according to RFC 9525, section 6.3, with some leniency to accommodate
 // legacy values.
 func validHostname(host string, isPattern bool) bool {
 	if !isPattern {
@@ -831,7 +831,7 @@ func validHostname(host string, isPattern bool) bool {
 	}
 	if host == "*" {
 		// Bare wildcards are not allowed, they are not valid DNS names,
-		// nor are they allowed per RFC 6125.
+		// nor are they allowed per RFC 9525, section 6.3.
 		return false
 	}
 
@@ -903,7 +903,7 @@ func matchHostnames(pattern string, hostParts []string) bool {
 	return true
 }
 
-// toLowerCaseASCII returns a lower-case version of in. See RFC 6125 6.4.1. We use
+// toLowerCaseASCII returns a lower-case version of in. See RFC 9525, section 6.3. We use
 // an explicitly ASCII function to avoid any sharp corners resulting from
 // performing Unicode operations on DNS labels.
 func toLowerCaseASCII(in string) string {
@@ -953,7 +953,7 @@ func (c *Certificate) VerifyHostname(h string) error {
 	// We use netip.ParseAddr() to allow IPv6 scoped addresses.
 	if addr, err := netip.ParseAddr(candidateIP); err == nil {
 		// We only match IP addresses against IP SANs.
-		// See RFC 6125, Appendix B.2.
+		// See RFC 9525, section 6.4.
 		ip := net.IP(addr.AsSlice())
 		for _, candidate := range c.IPAddresses {
 			if ip.Equal(candidate) {
@@ -968,7 +968,7 @@ func (c *Certificate) VerifyHostname(h string) error {
 	hostParts := splitHostname(candidateName)
 
 	for _, match := range c.DNSNames {
-		// Ideally, we'd only match valid hostnames according to RFC 6125 like
+		// Ideally, we'd only match valid hostnames according to RFC 9525 like
 		// browsers (more or less) do, but in practice Go is used in a wider
 		// array of contexts and can't even assume DNS resolution. Instead,
 		// always allow perfect matches, and only apply wildcard and trailing
