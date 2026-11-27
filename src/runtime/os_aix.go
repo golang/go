@@ -202,6 +202,17 @@ func unminit() {
 //
 //go:nowritebarrierrec
 func mdestroy(mp *m) {
+	if mp.waitsema != 0 {
+		// semacreate allocated the semaphore on the C heap and
+		// registered it with sem_init. On AIX, sem_init fails
+		// with ENOSPC once SEM_NSEMS_MAX semaphores exist (32768
+		// on AIX 7.3), so release both the semaphore and the
+		// storage when the M goes away.
+		sem := (*semt)(unsafe.Pointer(mp.waitsema))
+		sem_destroy(sem)
+		free(unsafe.Pointer(sem))
+		mp.waitsema = 0
+	}
 }
 
 // tstart is a function descriptor to _tstart defined in assembly.
