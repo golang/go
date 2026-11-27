@@ -44,3 +44,64 @@ func TestWriteOpcode(t *testing.T) {
 		}
 	}
 }
+
+// TestFloatConst checks F32Const and F64Const with integer constants.
+func TestFloatConst(t *testing.T) {
+	tests := []struct {
+		p    obj.Prog
+		want []byte
+	}{
+		{obj.Prog{As: AF32Const, From: obj.Addr{Type: obj.TYPE_FCONST, Val: 1.5}}, []byte{0x43, 0x00, 0x00, 0xC0, 0x3F}},
+		{obj.Prog{As: AF32Const, From: constAddr(0)}, []byte{0x43, 0x00, 0x00, 0x00, 0x00}},
+		{obj.Prog{As: AF32Const, From: constAddr(3)}, []byte{0x43, 0x00, 0x00, 0x40, 0x40}},
+		{obj.Prog{As: AF32Const, From: constAddr(-1)}, []byte{0x43, 0x00, 0x00, 0x80, 0xBF}},
+		{obj.Prog{As: AF32Const, From: constAddr(1<<60 + 1<<36 + 1)}, []byte{0x43, 0x01, 0x00, 0x80, 0x5D}},
+		{obj.Prog{As: AF64Const, From: obj.Addr{Type: obj.TYPE_FCONST, Val: 1.5}}, []byte{0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0x3F}},
+		{obj.Prog{As: AF64Const, From: constAddr(0)}, []byte{0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
+		{obj.Prog{As: AF64Const, From: constAddr(-2)}, []byte{0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC0}},
+	}
+	for _, test := range tests {
+		if got := encode(t, test.p); !bytes.Equal(got, test.want) {
+			t.Errorf("encode(%v) = % x, want % x", test.p.As, got, test.want)
+		}
+	}
+}
+
+// encode returns the encoding of p in a function, before a Drop.
+func encode(t *testing.T, p obj.Prog) []byte {
+	t.Helper()
+	drop := obj.Prog{As: ADrop}
+	fn := assembleFunc(t, p, drop)
+	ref := assembleFunc(t, drop)
+	i := 0
+	for i < len(ref) && i < len(fn) && fn[i] == ref[i] {
+		i++
+	}
+	n := len(fn) - len(ref)
+	if n <= 0 || !bytes.Equal(fn[i+n:], ref[i:]) {
+		t.Fatalf("%v: % x is not % x with one instruction added", p.As, fn, ref)
+	}
+	return fn[i : i+n]
+}
+
+// assembleFunc returns the encoding of a function with body as its code.
+func assembleFunc(t *testing.T, body ...obj.Prog) []byte {
+	t.Helper()
+	ctxt := obj.Linknew(&Linkwasm)
+	ctxt.DiagFunc = t.Errorf
+	instinit(ctxt)
+	s := ctxt.Lookup("test")
+	s.NewFuncInfo()
+	p := ctxt.NewProg()
+	p.As = obj.ATEXT
+	p.From = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: s}
+	p.To = obj.Addr{Type: obj.TYPE_TEXTSIZE, Val: int32(0)}
+	s.Func().Text = p
+	for _, b := range body {
+		p = obj.Appendp(p, ctxt.NewProg)
+		p.As, p.From, p.To = b.As, b.From, b.To
+	}
+	preprocess(ctxt, s, ctxt.NewProg)
+	assemble(ctxt, s, ctxt.NewProg)
+	return s.P
+}
