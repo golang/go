@@ -37,9 +37,10 @@ package math
 //      for n>x, a continued fraction approximation to
 //      j(n,x)/j(n-1,x) is evaluated and then backward
 //      recursion is used starting from a supposed value
-//      for j(n,x). The resulting value of j(0,x) is
-//      compared with the actual value to correct the
-//      supposed value of j(n,x).
+//      for j(n,x). The resulting estimates for j(0,x)
+//      and j(1,x) are compared in magnitude, and the
+//      larger estimate is matched with its reference value
+//      to correct the supposed value of j(n,x).
 //
 //      yn(n,x) is similar in all respects, except
 //      that forward recursion is used for all
@@ -214,7 +215,13 @@ func Jn(n int, x float64) float64 {
 					}
 				}
 			}
-			b = t * J0(x) / b
+			// a and b estimate J1(x) and J0(x) at the same scale.
+			// Use the larger denominator to avoid normalizing near a zero.
+			if Abs(a) > Abs(b) {
+				b = t * J1(x) / a
+			} else {
+				b = t * J0(x) / b
+			}
 		}
 	}
 	if sign {

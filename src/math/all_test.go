@@ -2846,6 +2846,26 @@ func TestJn(t *testing.T) {
 	}
 }
 
+func TestJnBackwardRecurrence(t *testing.T) {
+	for _, test := range []struct {
+		n       int
+		x, want float64
+	}{
+		// Expected values were computed from the power series for Jn.
+		{3, 1, 0.0195633539826684059},
+		// Three adjacent inputs near the first zero of J0.
+		{3, 0x1.33d152e971b3fp+1, 0.198999905357690750},
+		{3, 0x1.33d152e971b40p+1, 0.198999905357690832},
+		{3, 0x1.33d152e971b41p+1, 0.198999905357690913},
+		// Near the first positive zero of J1.
+		{4, 0x1.ea75575af6f09p+1, 0.255614451547079990},
+	} {
+		if got := Jn(test.n, test.x); !close(test.want, got) {
+			t.Errorf("Jn(%d, %g) = %.17g, want %.17g", test.n, test.x, got, test.want)
+		}
+	}
+}
+
 func TestLdexp(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Ldexp(frexp[i].f, frexp[i].i); !veryclose(vf[i], f) {
