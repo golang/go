@@ -1,0 +1,41 @@
+[!fuzz] skip
+
+# Check that []byte arguments have independent backing storage during fuzzing.
+# Regression test for golang/go#71831.
+
+[short] skip
+env GOCACHE=$WORK/cache
+
+go test -run=FuzzNoOverlap -fuzz=FuzzNoOverlap -fuzztime=1000x -parallel=1
+
+-- go.mod --
+module m
+
+go 1.20
+-- fuzz_test.go --
+package fuzz
+
+import (
+	"testing"
+	"unsafe"
+)
+
+// overlap reports whether the memory backing a and b, up to their
+// capacities, overlaps. Appending to one argument must not change another.
+func overlap(a, b []byte) bool {
+	if cap(a) == 0 || cap(b) == 0 {
+		return false
+	}
+	pa := uintptr(unsafe.Pointer(unsafe.SliceData(a)))
+	pb := uintptr(unsafe.Pointer(unsafe.SliceData(b)))
+	return pa < pb+uintptr(cap(b)) && pb < pa+uintptr(cap(a))
+}
+
+func FuzzNoOverlap(f *testing.F) {
+	f.Add([]byte("abc"), []byte("xyz"), []byte("123"))
+	f.Fuzz(func(t *testing.T, a, b, c []byte) {
+		if overlap(a, b) || overlap(a, c) || overlap(b, c) {
+			t.Fatalf("arguments share memory: a=%q b=%q c=%q", a, b, c)
+		}
+	})
+}
