@@ -963,6 +963,9 @@ func Trim(s, cutset string) string {
 	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
 		return trimLeftByte(trimRightByte(s, cutset[0]), cutset[0])
 	}
+	if len(cutset) == 2 && cutset[0] < utf8.RuneSelf && cutset[1] < utf8.RuneSelf {
+		return trimLeftTwoBytes(trimRightTwoBytes(s, cutset[0], cutset[1]), cutset[0], cutset[1])
+	}
 	if as, ok := makeASCIISet(cutset); ok {
 		return trimLeftASCII(trimRightASCII(s, &as), &as)
 	}
@@ -980,6 +983,9 @@ func TrimLeft(s, cutset string) string {
 	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
 		return trimLeftByte(s, cutset[0])
 	}
+	if len(cutset) == 2 && cutset[0] < utf8.RuneSelf && cutset[1] < utf8.RuneSelf {
+		return trimLeftTwoBytes(s, cutset[0], cutset[1])
+	}
 	if as, ok := makeASCIISet(cutset); ok {
 		return trimLeftASCII(s, &as)
 	}
@@ -988,6 +994,13 @@ func TrimLeft(s, cutset string) string {
 
 func trimLeftByte(s string, c byte) string {
 	for len(s) > 0 && s[0] == c {
+		s = s[1:]
+	}
+	return s
+}
+
+func trimLeftTwoBytes(s string, a, b byte) string {
+	for len(s) > 0 && (s[0] == a || s[0] == b) {
 		s = s[1:]
 	}
 	return s
@@ -1025,6 +1038,9 @@ func TrimRight(s, cutset string) string {
 	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
 		return trimRightByte(s, cutset[0])
 	}
+	if len(cutset) == 2 && cutset[0] < utf8.RuneSelf && cutset[1] < utf8.RuneSelf {
+		return trimRightTwoBytes(s, cutset[0], cutset[1])
+	}
 	if as, ok := makeASCIISet(cutset); ok {
 		return trimRightASCII(s, &as)
 	}
@@ -1036,6 +1052,14 @@ func trimRightByte(s string, c byte) string {
 		s = s[:len(s)-1]
 	}
 	return s
+}
+
+func trimRightTwoBytes(s string, a, b byte) string {
+	i := len(s)
+	for i > 0 && (s[i-1] == a || s[i-1] == b) {
+		i--
+	}
+	return s[:i]
 }
 
 func trimRightASCII(s string, as *asciiSet) string {

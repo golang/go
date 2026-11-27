@@ -915,6 +915,12 @@ var trimTests = []struct {
 	{"Trim", "\x80test\xff", "\xff", "test"},
 	{"Trim", " Ġ ", " ", "Ġ"},
 	{"Trim", " Ġİ0", "0 ", "Ġİ"},
+	{"Trim", " \t a \t ", " \t", "a"},
+	{"TrimLeft", "\r\n\r\nx\r\n", "\r\n", "x\r\n"},
+	{"TrimRight", "\r\nx\r\n\r\n", "\n\r", "\r\nx"},
+	{"Trim", "ĠaĠ", "Ġ", "a"},
+	{"Trim", "Ġa", "\xa0\xc4", "Ġa"},
+	{"Trim", "a\xff", "a\xff", ""},
 	//empty string tests
 	{"Trim", "abba", "", "abba"},
 	{"Trim", "", "123", ""},
@@ -2209,6 +2215,13 @@ func BenchmarkTrimByte(b *testing.B) {
 	x := "  the quick brown fox   "
 	for i := 0; i < b.N; i++ {
 		Trim(x, " ")
+	}
+}
+
+func BenchmarkTrimTwoBytes(b *testing.B) {
+	x := " \tthe quick brown fox\t \t"
+	for b.Loop() {
+		Trim(x, " \t")
 	}
 }
 
