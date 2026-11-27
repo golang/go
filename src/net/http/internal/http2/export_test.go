@@ -5,6 +5,7 @@
 package http2
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/textproto"
@@ -130,6 +131,45 @@ func (cc *ClientConn) TestSetNextStreamID(id uint32) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	cc.nextStreamID = id
+}
+
+// TestPanicOnResponseData makes the connection's read loop panic when it
+// buffers response body data for the stream.
+func (cc *ClientConn) TestPanicOnResponseData(streamID uint32) {
+	cc.mu.Lock()
+	cs := cc.streams[streamID]
+	cc.mu.Unlock()
+	cs.bufPipe.mu.Lock()
+	cs.bufPipe.b = panicPipeBuffer{}
+	cs.bufPipe.mu.Unlock()
+}
+
+type panicPipeBuffer struct{}
+
+func (panicPipeBuffer) Len() int                 { return 0 }
+func (panicPipeBuffer) Read([]byte) (int, error) { return 0, nil }
+func (panicPipeBuffer) Write([]byte) (int, error) {
+	panic("test: response body buffer write")
+}
+
+// TestPanicOnWrite makes the next write to the connection panic, while the
+// writer holds cc.wmu. Later writes fail with an error.
+func (cc *ClientConn) TestPanicOnWrite() {
+	cc.wmu.Lock()
+	cc.bw.Reset(&panicOnceWriter{})
+	cc.wmu.Unlock()
+}
+
+type panicOnceWriter struct {
+	panicked bool
+}
+
+func (w *panicOnceWriter) Write([]byte) (int, error) {
+	if !w.panicked {
+		w.panicked = true
+		panic("test: connection write")
+	}
+	return 0, errors.New("test: connection write after panic")
 }
 
 func (cc *ClientConn) TestRoundTrip(req *ClientRequest, f func(stremaID uint32)) (*ClientResponse, error) {

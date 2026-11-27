@@ -6282,3 +6282,123 @@ func TestTransportUnblockPendingRequestOnUnusableConn(t *testing.T) {
 		}
 	})
 }
+
+// A panic while the read loop buffers response data must fail the
+// connection. It used to leave the connection mutex locked: the read loop's
+// cleanup then blocked on it forever, and so did every request, health check
+// and Close on the connection.
+func TestTransportReadLoopPanic(t *testing.T) {
+	synctest.Test(t, testTransportReadLoopPanic)
+}
+func testTransportReadLoopPanic(t *testing.T) {
+	// Discard log output reporting the panic.
+	log.SetOutput(io.Discard)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) }) // after other cleanup is done
+
+	tc := newTestClientConn(t)
+	tc.greet()
+
+	req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
+	rt := tc.roundTrip(req)
+	tc.wantFrameType(FrameHeaders)
+	tc.writeHeaders(HeadersFrameParam{
+		StreamID:   rt.streamID(),
+		EndHeaders: true,
+		BlockFragment: tc.makeHeaderBlockFragment(
+			":status", "200",
+		),
+	})
+	rt.wantStatus(200)
+
+	tc.cc.TestPanicOnResponseData(rt.streamID())
+	tc.writeData(rt.streamID(), false, []byte("payload"))
+
+	if _, err := rt.readBody(); err == nil || !strings.Contains(err.Error(), "panic") {
+		t.Fatalf("reading response body: got error %v, want an error reporting the panic", err)
+	}
+	if !tc.isClosed() {
+		t.Fatalf("connection is not closed after a panic in the read loop")
+	}
+	if err := tc.roundTrip(req).err(); err == nil {
+		t.Fatalf("RoundTrip on the failed connection succeeded, want an error")
+	}
+}
+
+// A panic while the read loop writes a frame must fail the connection. It used
+// to leave the write mutex locked when writing a WINDOW_UPDATE: cleaning up the
+// connection's streams then blocked on it forever, so their response bodies
+// never returned an error. Each case covers a frame the read loop writes.
+func TestTransportReadLoopPanicWriting(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		// sendFrames sends frames that make the read loop write to the
+		// connection. streamID is the open stream.
+		sendFrames func(tc *testClientConn, streamID uint32)
+	}{{
+		name: "window_update_closed_stream",
+		sendFrames: func(tc *testClientConn, streamID uint32) {
+			// The client ignores data for a stream it no longer tracks,
+			// and returns the connection flow control right away.
+			closedStreamID := streamID - 2
+			tc.writeData(closedStreamID, false, make([]byte, InflowMinRefresh))
+		},
+	}, {
+		name: "window_update_padding",
+		sendFrames: func(tc *testClientConn, streamID uint32) {
+			// The client returns the flow control used by padding when it
+			// buffers the frame, once enough has accumulated.
+			pad := make([]byte, 255)
+			padded := 1 + len(pad) // pad length field and padding
+			for range InflowMinRefresh / padded {
+				tc.writeDataPadded(streamID, false, []byte("x"), pad)
+			}
+		},
+	}, {
+		name: "settings_ack",
+		sendFrames: func(tc *testClientConn, streamID uint32) {
+			tc.writeSettings()
+		},
+	}, {
+		name: "ping_ack",
+		sendFrames: func(tc *testClientConn, streamID uint32) {
+			tc.writePing(false, [8]byte{1, 2, 3, 4, 5, 6, 7, 8})
+		},
+	}} {
+		synctestSubtest(t, tt.name, func(t *testing.T) {
+			// Discard log output reporting the panic.
+			log.SetOutput(io.Discard)
+			t.Cleanup(func() { log.SetOutput(os.Stderr) }) // after other cleanup is done
+
+			tc := newTestClientConn(t)
+			tc.greet()
+			// Skip a stream ID, so the client treats DATA for it as data
+			// for a stream it has since closed.
+			tc.cc.TestSetNextStreamID(3)
+
+			req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
+			rt := tc.roundTrip(req)
+			tc.wantFrameType(FrameHeaders)
+			tc.writeHeaders(HeadersFrameParam{
+				StreamID:   rt.streamID(),
+				EndHeaders: true,
+				BlockFragment: tc.makeHeaderBlockFragment(
+					":status", "200",
+				),
+			})
+			rt.wantStatus(200)
+
+			tc.cc.TestPanicOnWrite()
+			tt.sendFrames(tc, rt.streamID())
+
+			if _, err := rt.readBody(); err == nil || !strings.Contains(err.Error(), "panic") {
+				t.Fatalf("reading response body: got error %v, want an error reporting the panic", err)
+			}
+			if !tc.isClosed() {
+				t.Fatalf("connection is not closed after a panic in the read loop")
+			}
+			if err := tc.roundTrip(req).err(); err == nil {
+				t.Fatalf("RoundTrip on the failed connection succeeded, want an error")
+			}
+		})
+	}
+}
