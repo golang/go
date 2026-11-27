@@ -74,7 +74,7 @@ func expandCalls(f *ssa.Func) {
 			case ssaop.OpInitMem:
 				m0 = v
 
-			case ssaop.OpClosureLECall, ssaop.OpInterLECall, ssaop.OpStaticLECall, ssaop.OpTailLECall, ssaop.OpTailLECallInter:
+			case ssaop.OpClosureLECall, ssaop.OpInterLECall, ssaop.OpStaticLECall, ssaop.OpStaticClosureLECall, ssaop.OpTailLECall, ssaop.OpTailLECallInter:
 				calls = append(calls, v)
 
 			case ssaop.OpArg:
@@ -201,6 +201,8 @@ func expandCalls(f *ssa.Func) {
 		switch v.Op {
 		case ssaop.OpStaticLECall:
 			rewriteCall(v, ssaop.OpStaticCall, 0)
+		case ssaop.OpStaticClosureLECall:
+			rewriteCall(v, ssaop.OpStaticClosureCall, 1)
 		case ssaop.OpTailLECall:
 			rewriteCall(v, ssaop.OpTailCall, 0)
 		case ssaop.OpTailLECallInter:

@@ -3538,7 +3538,8 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 
 	case ir.ORESULT:
 		n := n.(*ir.ResultExpr)
-		if s.prevCall == nil || s.prevCall.Op != ssaop.OpStaticLECall && s.prevCall.Op != ssaop.OpInterLECall && s.prevCall.Op != ssaop.OpClosureLECall {
+		if s.prevCall == nil || s.prevCall.Op != ssaop.OpStaticLECall && s.prevCall.Op != ssaop.OpInterLECall &&
+			s.prevCall.Op != ssaop.OpClosureLECall && s.prevCall.Op != ssaop.OpStaticClosureLECall {
 			panic("Expected to see a previous call")
 		}
 		which := n.Index
@@ -5206,6 +5207,9 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 		case k == callGo:
 			aux := ssa.StaticAuxCall(ir.Syms.Newproc, s.f.ABIDefault.ABIAnalyzeTypes(ACArgs, ACResults))
 			call = s.newValue0A(ssaop.OpStaticLECall, aux.LateExpansionResultType(), aux) // TODO paramResultInfo for Newproc
+		case closure != nil && n.ClosureTarget != nil:
+			aux := ssa.StaticAuxCall(callTargetLSym(n.ClosureTarget), params)
+			call = s.newValue1A(ssaop.OpStaticClosureLECall, aux.LateExpansionResultType(), aux, closure)
 		case closure != nil:
 			// rawLoad because loading the code pointer from a
 			// closure is always safe, but IsSanitizerSafeAddr

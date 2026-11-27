@@ -401,6 +401,7 @@
 // Lowering calls
 (StaticCall ...) => (CALLstatic ...)
 (ClosureCall ...) => (CALLclosure ...)
+(StaticClosureCall ...) => (CALLstaticClosure ...)
 (InterCall ...) => (CALLinter ...)
 (TailCall ...) => (CALLtail ...)
 (TailCallInter ...) => (CALLtailinter ...)

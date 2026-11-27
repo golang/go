@@ -2033,7 +2033,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			move8(s, srcReg, dstReg, tmpReg1, off+n-8)
 		}
 
-	case ssaop.OpARM64CALLstatic, ssaop.OpARM64CALLclosure, ssaop.OpARM64CALLinter:
+	case ssaop.OpARM64CALLstatic, ssaop.OpARM64CALLclosure, ssaop.OpARM64CALLstaticClosure, ssaop.OpARM64CALLinter:
 		s.Call(v)
 	case ssaop.OpARM64CALLtail, ssaop.OpARM64CALLtailinter:
 		s.TailCall(v)

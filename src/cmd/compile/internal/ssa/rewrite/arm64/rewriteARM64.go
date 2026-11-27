@@ -3041,6 +3041,9 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpStaticCall:
 		v.Op = ssaop.OpARM64CALLstatic
 		return true
+	case ssaop.OpStaticClosureCall:
+		v.Op = ssaop.OpARM64CALLstaticClosure
+		return true
 	case ssaop.OpStore:
 		return rewriteValue_OpStore(v)
 	case ssaop.OpStoreMasked8:

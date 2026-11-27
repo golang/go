@@ -184,11 +184,14 @@ func (n *BinaryExpr) SetOp(op Op) {
 // A CallExpr is a function call Fun(Args).
 type CallExpr struct {
 	miniExpr
-	Fun           Node
-	Args          Nodes
-	DeferAt       Node
-	RType         Node    `mknode:"-"` // see reflectdata/helpers.go
-	KeepAlive     []*Name // vars to be kept alive until call returns
+	Fun       Node
+	Args      Nodes
+	DeferAt   Node
+	RType     Node    `mknode:"-"` // see reflectdata/helpers.go
+	KeepAlive []*Name // vars to be kept alive until call returns
+	// ClosureTarget is the known entry point of a call whose Fun
+	// supplies the closure context.
+	ClosureTarget *Name `mknode:"-"`
 	IsDDD         bool
 	GoDefer       bool // whether this call is part of a go or defer statement
 	NoInline      bool // whether this call must not be inlined

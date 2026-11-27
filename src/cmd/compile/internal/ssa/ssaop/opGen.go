@@ -757,6 +757,7 @@ const (
 	OpAMD64CALLtail
 	OpAMD64CALLtailinter
 	OpAMD64CALLclosure
+	OpAMD64CALLstaticClosure
 	OpAMD64CALLinter
 	OpAMD64LoweredMove
 	OpAMD64LoweredMoveLoop
@@ -4709,6 +4710,7 @@ const (
 	OpARM64CALLtail
 	OpARM64CALLtailinter
 	OpARM64CALLclosure
+	OpARM64CALLstaticClosure
 	OpARM64CALLinter
 	OpARM64LoweredNilCheck
 	OpARM64LoweredMemEq
@@ -7400,11 +7402,13 @@ const (
 	OpPanicBounds
 	OpPanicExtend
 	OpClosureCall
+	OpStaticClosureCall
 	OpStaticCall
 	OpInterCall
 	OpTailCall
 	OpTailCallInter
 	OpClosureLECall
+	OpStaticClosureLECall
 	OpStaticLECall
 	OpInterLECall
 	OpTailLECall
@@ -21359,6 +21363,19 @@ var OpcodeTable = [...]OpInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 4, V2: 0}},     // DX
 				{0, RegMask{V1: 49151, V2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			Clobbers: RegMask{V1: 71776116913733615, V2: 0}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 g R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31 K1 K2 K3 K4 K5 K6 K7
+		},
+	},
+	{
+		Name:         "CALLstaticClosure",
+		AuxType:      AuxTypeCallOff,
+		ArgLen:       -1,
+		ClobberFlags: true,
+		Call:         true,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 4, V2: 0}}, // DX
 			},
 			Clobbers: RegMask{V1: 71776116913733615, V2: 0}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 g R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31 K1 K2 K3 K4 K5 K6 K7
 		},
@@ -85097,6 +85114,19 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:         "CALLstaticClosure",
+		AuxType:      AuxTypeCallOff,
+		ArgLen:       -1,
+		ClobberFlags: true,
+		Call:         true,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 33554432, V2: 0}}, // R26
+			},
+			Clobbers: RegMask{V1: 18446744071964721151, V2: 32767}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+		},
+	},
+	{
 		Name:         "CALLinter",
 		AuxType:      AuxTypeCallOff,
 		ArgLen:       -1,
@@ -121812,6 +121842,13 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "StaticClosureCall",
+		AuxType: AuxTypeCallOff,
+		ArgLen:  -1,
+		Call:    true,
+		Generic: true,
+	},
+	{
 		Name:    "StaticCall",
 		AuxType: AuxTypeCallOff,
 		ArgLen:  -1,
@@ -121841,6 +121878,13 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "ClosureLECall",
+		AuxType: AuxTypeCallOff,
+		ArgLen:  -1,
+		Call:    true,
+		Generic: true,
+	},
+	{
+		Name:    "StaticClosureLECall",
 		AuxType: AuxTypeCallOff,
 		ArgLen:  -1,
 		Call:    true,
