@@ -229,6 +229,7 @@ func (p *Parser) asmData(operands [][]lex.Token) {
 	name := symbolName(&nameAddr)
 
 	// Operand 1 is an immediate constant or address.
+	p.isFloat32 = sz == 4
 	valueAddr := p.address(operands[1])
 	switch valueAddr.Type {
 	case obj.TYPE_CONST, obj.TYPE_FCONST, obj.TYPE_SCONST, obj.TYPE_ADDR:
