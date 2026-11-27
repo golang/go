@@ -6,6 +6,7 @@ package walk
 
 import (
 	"go/constant"
+	"internal/buildcfg"
 	"unicode/utf8"
 
 	"cmd/compile/internal/base"
@@ -43,6 +44,7 @@ func (w *walkState) walkRange(nrange *ir.RangeStmt) ir.Node {
 	if isMapClear(nrange) {
 		return w.mapRangeClear(nrange)
 	}
+	batchAlloc := batchAllocRange(nrange)
 
 	nfor := ir.NewForStmt(nrange.Pos(), nil, nil, nil, nil, nrange.DistinctVars)
 	nfor.SetInit(nrange.Init())
@@ -383,6 +385,21 @@ func (w *walkState) walkRange(nrange *ir.RangeStmt) ir.Node {
 	var n ir.Node = nfor
 
 	n = w.walkStmt(n)
+	if batchAlloc != nil {
+		// Small and empty slices keep the scalar loop without entering
+		// the runtime helper.
+		ir.SetPos(batchAlloc)
+		dst := nrange.X
+		ptr := typecheck.Expr(w.curfunc, ir.NewUnaryExpr(base.Pos, ir.OSPTR, dst))
+		ptr = typecheck.ConvNop(w.curfunc, ptr, types.Types[types.TUNSAFEPTR])
+		length := ir.NewUnaryExpr(base.Pos, ir.OLEN, dst)
+		typ := reflectdata.TypePtrAt(w.curfunc, base.Pos, batchAlloc.Type().Elem())
+		call := w.mkcallstmt("allocSlice32", ptr, length, typ)
+		cond := typecheck.Expr(w.curfunc, ir.NewBinaryExpr(base.Pos, ir.OGE, ir.NewUnaryExpr(base.Pos, ir.OLEN, dst), ir.NewInt(base.Pos, 8)))
+		nif := ir.NewIfStmt(base.Pos, nil, []ir.Node{call}, []ir.Node{n})
+		nif.Cond = w.walkExpr(typecheck.DefaultLit(cond, nil), nif.PtrInit())
+		n = nif
+	}
 
 	base.Pos = lno
 	return n
@@ -657,4 +674,51 @@ func (w *walkState) arrayClear(wbPos src.XPos, a ir.Node, nrange *ir.RangeStmt) 
 	n.Cond = typecheck.DefaultLit(n.Cond, nil)
 	typecheck.Stmts(w.curfunc, n.Body)
 	return w.walkStmt(n)
+}
+
+// batchAllocRange recognizes the ordered form of
+// "for i := range dst { dst[i] = new(T) }".
+func batchAllocRange(loop *ir.RangeStmt) *ir.UnaryExpr {
+	if ssagen.Arch.LinkArch.Family != sys.AMD64 || buildcfg.Experiment.CgoCheck2 || buildcfg.Experiment.RuntimeFreegc {
+		return nil
+	}
+	if base.Flag.N != 0 || base.Flag.Cfg.Instrumenting || base.Debug.Checkptr != 0 || base.Flag.CompilingRuntime {
+		return nil
+	}
+	if loop.Label != nil || loop.Value != nil || len(loop.Init()) != 0 || len(loop.Body) != 2 || loop.Key == nil || !ir.DeclaredBy(loop.Key, loop) {
+		return nil
+	}
+	dst, ok := loop.X.(*ir.Name)
+	if !ok || !dst.Type().IsSlice() || !dst.OnStack() || dst.Addrtaken() {
+		return nil
+	}
+	key := loop.Key.(*ir.Name)
+	if key.Addrtaken() {
+		return nil
+	}
+	setTemp, ok := loop.Body[0].(*ir.AssignStmt)
+	if !ok || setTemp.Op() != ir.OAS || len(setTemp.Init()) != 0 {
+		return nil
+	}
+	temp, ok := setTemp.X.(*ir.Name)
+	if !ok || !temp.AutoTemp() {
+		return nil
+	}
+	alloc, ok := setTemp.Y.(*ir.UnaryExpr)
+	if !ok || alloc.Op() != ir.ONEW || alloc.X == nil || alloc.X.Op() != ir.OTYPE || alloc.Esc() != ir.EscHeap || len(alloc.Init()) != 0 {
+		return nil
+	}
+	store, ok := loop.Body[1].(*ir.AssignStmt)
+	if !ok || store.Op() != ir.OAS || len(store.Init()) != 0 || store.Y != temp {
+		return nil
+	}
+	index, ok := store.X.(*ir.IndexExpr)
+	if !ok || index.X != dst || index.Index != key || len(index.Init()) != 0 {
+		return nil
+	}
+	typ := alloc.Type().Elem()
+	if typ.NotInHeap() || typ.HasShape() || typ.HasPointers() || typ.Size() != 32 || !types.Identical(index.Type(), alloc.Type()) {
+		return nil
+	}
+	return alloc
 }

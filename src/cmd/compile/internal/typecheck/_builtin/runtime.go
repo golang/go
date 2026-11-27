@@ -314,3 +314,5 @@ func asanregisterglobals(unsafe.Pointer, uintptr)
 
 // used by testing.B.Loop
 func KeepAlive(interface{})
+
+func allocSlice32(p unsafe.Pointer, n int, typ *byte)
