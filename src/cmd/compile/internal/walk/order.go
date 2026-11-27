@@ -38,6 +38,61 @@ import (
 // Arrange that receive expressions only appear in direct assignments
 // x = <-c or as standalone statements <-c, never in larger expressions.
 
+// rangeBodyPreservesMemory reports whether the range's implicit assignments and
+// body cannot change existing memory, except for unaddressed local scalars.
+// No operation during iteration can then change the bytes through an alias,
+// so range string(bytes) can use the bytes directly.
+func rangeBodyPreservesMemory(n *ir.RangeStmt, fn *ir.Func) bool {
+	// This pragma lets a pointer to one argument expose the other arguments
+	// and results without setting their Addrtaken flags.
+	if fn.Pragma&ir.CgoUnsafeArgs != 0 {
+		return false
+	}
+	localScalar := func(n ir.Node) bool {
+		if n == nil || ir.IsBlank(n) {
+			return true
+		}
+		v, ok := n.(*ir.Name)
+		if !ok || v.Curfn != fn || v.Addrtaken() || !v.Type().IsScalar() {
+			return false
+		}
+		switch v.Class {
+		case ir.PAUTO, ir.PPARAM, ir.PPARAMOUT:
+			return true
+		}
+		return false
+	}
+	if !localScalar(n.Key) || !localScalar(n.Value) {
+		return false
+	}
+	mayWrite := func(n ir.Node) bool {
+		switch n.Op() {
+		case ir.OBLOCK, ir.ODCL, ir.OIF, ir.OFOR, ir.OBREAK, ir.OCONTINUE:
+			return false
+		case ir.OAS:
+			return !localScalar(n.(*ir.AssignStmt).X)
+		case ir.OASOP:
+			return !localScalar(n.(*ir.AssignOpStmt).X)
+		case ir.OAS2:
+			for _, lhs := range n.(*ir.AssignListStmt).Lhs {
+				if !localScalar(lhs) {
+					return true
+				}
+			}
+			return false
+		}
+		// This also rejects calls, communication and unrecognized operations.
+		// Any visits the children, including statement init lists.
+		return ir.IsSideEffect(n)
+	}
+	for _, stmt := range n.Body {
+		if ir.Any(stmt, mayWrite) {
+			return false
+		}
+	}
+	return true
+}
+
 // orderState holds state during the ordering process.
 type orderState struct {
 	out       []ir.Node             // list of generated statements
@@ -951,8 +1006,8 @@ func (o *orderState) stmt(walkstate *walkState, n ir.Node) {
 		// which must make a copy to avoid seeing updates made during
 		// the range body. Ranging over an array value is uncommon though.
 
-		// Mark []byte(str) range expression to reuse string backing storage.
-		// It is safe because the storage cannot be mutated.
+		// Mark conversions whose backing storage cannot be mutated during
+		// iteration so that they can reuse that storage.
 		n := n.(*ir.RangeStmt)
 		if x, ok := n.X.(*ir.ConvExpr); ok {
 			switch x.Op() {
@@ -961,6 +1016,10 @@ func (o *orderState) stmt(walkstate *walkState, n ir.Node) {
 				fallthrough
 			case ir.OSTR2BYTESTMP:
 				x.MarkNonNil() // "range []byte(nil)" is fine
+			case ir.OBYTES2STR:
+				if rangeBodyPreservesMemory(n, walkstate.curfunc) {
+					x.SetOp(ir.OBYTES2STRTMP)
+				}
 			}
 		}
 
