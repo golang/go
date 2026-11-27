@@ -270,12 +270,10 @@ func (p *Package) Translate(f *File) {
 		p.recordTypes(f, d, &conv)
 	}
 	p.prepareNames(f)
-	p.prewriteLits(f)
 	if p.rewriteCalls(f) {
 		// Add `import _cgo_unsafe "unsafe"` after the package statement.
 		f.Edit.Insert(f.offset(f.AST.Name.End()), "; import _cgo_unsafe \"unsafe\"")
 	}
-	p.rewriteLits(f)
 	p.rewriteRef(f)
 }
 
@@ -861,92 +859,6 @@ func (f *File) isMangledName(s string) bool {
 	})
 }
 
-// prewriteLits modifies the AST of the composite literal in case it is
-// emitted as part of a gofmt in call rewriting.
-func (p *Package) prewriteLits(f *File) {
-	for _, lit := range f.Lits {
-		p.prewriteLit(lit)
-	}
-}
-
-func typeFor(cType string) *Type {
-	ty := typedef["_Ctype_struct_"+cType]
-	if ty != nil {
-		return ty
-	}
-	ty = typedef["_Ctype_"+cType]
-	return ty
-}
-
-func (p *Package) prewriteLit(lit *Lit) {
-	sel := lit.Lit.Type.(*ast.SelectorExpr)
-	ty := typeFor(sel.Sel.Name)
-	goType, ok := (ty.Go).(*ast.StructType)
-	if !ok {
-		lit.Done = true
-		return
-	}
-
-	fields := goType.Fields.List
-	j := 0
-	// Before modifying fields, attempt to match non-underscore struct field names
-	// with fields in the literal.  If their lengths do not agree, do not modify
-	// the literal.
-	for _, fs := range fields {
-		for _, fieldName := range fs.Names {
-			if fieldName.Name == "_" {
-				continue
-			}
-			j++
-		}
-	}
-	if len(lit.Lit.Elts) != j {
-		return // lengths do not agree, do nothing.
-	}
-	j = 0
-	for _, fs := range fields {
-		for _, fieldName := range fs.Names {
-			if fieldName.Name == "_" {
-				continue
-			}
-			init := lit.Lit.Elts[j]
-			// prepend fieldName.Name+":"
-			lit.Lit.Elts[j] = &ast.KeyValueExpr{Key: ast.NewIdent(fieldName.Name), Colon: init.Pos(), Value: init}
-			j++
-		}
-	}
-}
-
-func (p *Package) rewriteLits(f *File) {
-	for _, lit := range f.Lits {
-		if lit.Done {
-			continue
-		}
-		p.rewriteLit(f, lit)
-		lit.Done = true
-	}
-}
-
-func (p *Package) rewriteLit(f *File, lit *Lit) {
-	sel := lit.Lit.Type.(*ast.SelectorExpr)
-	ty := typeFor(sel.Sel.Name)
-	fields := ty.Go.(*ast.StructType).Fields.List
-	j := 0
-	for _, fs := range fields {
-		for _, fieldName := range fs.Names {
-			if fieldName.Name == "_" {
-				continue
-			}
-
-			init := lit.Lit.Elts[j].(*ast.KeyValueExpr).Value // it got rewritten in place, in prewriteLit
-			j++
-			pos := f.offset(init.Pos())
-			// just splice in the tag.
-			f.Edit.Replace(pos, pos, fieldName.Name+":")
-		}
-	}
-}
-
 // rewriteCalls rewrites all calls that pass pointers to check that
 // they follow the rules for passing pointers between Go and C.
 // This reports whether the package needs to import unsafe as _cgo_unsafe.
@@ -965,7 +877,6 @@ func (p *Package) rewriteCalls(f *File) bool {
 			if nu {
 				needsUnsafe = true
 			}
-			f.walk(call.Call, ctxExpr, (*File).markLiteralDone)
 		}
 	}
 	return needsUnsafe

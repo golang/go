@@ -217,8 +217,6 @@ func (f *File) saveExprs(x any, context astContext) {
 		}
 	case *ast.CallExpr:
 		f.saveCall(x, context)
-	case *ast.CompositeLit:
-		f.saveLiteral(x, context)
 	}
 }
 
@@ -266,7 +264,7 @@ func (f *File) saveRef(n *ast.Expr, context astContext) {
 	})
 }
 
-// saveCall saves calls to C.xxx for later processing.
+// Save calls to C.xxx for later processing.
 func (f *File) saveCall(call *ast.CallExpr, context astContext) {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
@@ -277,38 +275,6 @@ func (f *File) saveCall(call *ast.CallExpr, context astContext) {
 	}
 	c := &Call{Call: call, Deferred: context == ctxDefer}
 	f.Calls = append(f.Calls, c)
-}
-
-// Save composite literals for later processing.
-func (f *File) saveLiteral(lit *ast.CompositeLit, context astContext) {
-	sel, ok := lit.Type.(*ast.SelectorExpr)
-	if !ok {
-		return
-	}
-	if l, ok := sel.X.(*ast.Ident); !ok || l.Name != "C" || len(lit.Elts) == 0 {
-		return
-	}
-	// if it's already in field:value form, no need to edit
-	for _, e := range lit.Elts {
-		if _, ok := e.(*ast.KeyValueExpr); ok {
-			return
-		}
-	}
-	c := &Lit{Lit: lit}
-	f.Lits = append(f.Lits, c)
-	f.LitMap[lit] = c
-}
-
-// markLiteralDone marks composite literals in an AST (fragment) as done.
-// This is used when a call has been rewritten, which will also cause
-// the literal to be processed (and it has to be processed as part of the
-// call, otherwise it will cause an "overlapping rewrite" error).
-func (f *File) markLiteralDone(x any, context astContext) {
-	if lit, ok := x.(*ast.CompositeLit); ok {
-		if c := f.LitMap[lit]; c != nil {
-			c.Done = true
-		}
-	}
 }
 
 // If a function should be exported add it to ExpFunc.

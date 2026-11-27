@@ -62,7 +62,7 @@ var ptrTests = []ptrTest{
 		// that (irrelevantly) contains a Go pointer.
 		name: "ok1",
 		c:    `struct s3 { int i; int *p; }; void f3(int *p) {}`,
-		body: `p := &C.struct_s3{0, new(C.int)}; C.f3(&p.i)`,
+		body: `p := &C.struct_s3{i: 0, p: new(C.int)}; C.f3(&p.i)`,
 		fail: false,
 	},
 	{

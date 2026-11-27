@@ -66,19 +66,17 @@ type typedefInfo struct {
 
 // A File collects information about a single Go input file.
 type File struct {
-	AST         *ast.File                  // parsed AST
-	Comments    []*ast.CommentGroup        // comments from file
-	Package     string                     // Package name
-	Preamble    string                     // C preamble (doc comment on import "C")
-	Ref         []*Ref                     // all references to C.xxx in AST
-	Calls       []*Call                    // all calls to C.xxx in AST
-	Lits        []*Lit                     // all  C.xxx{...} literals in AST
-	LitMap      map[*ast.CompositeLit]*Lit // composite literals can be rewritten in TWO WAYS, use this to find and mark done.
-	ExpFunc     []*ExpFunc                 // exported functions for this file
-	Name        map[string]*Name           // map from Go name to Name
-	NamePos     map[*Name]token.Pos        // map from Name to position of the first reference
-	NoCallbacks map[string]bool            // C function names with #cgo nocallback directive
-	NoEscapes   map[string]bool            // C function names with #cgo noescape directive
+	AST         *ast.File           // parsed AST
+	Comments    []*ast.CommentGroup // comments from file
+	Package     string              // Package name
+	Preamble    string              // C preamble (doc comment on import "C")
+	Ref         []*Ref              // all references to C.xxx in AST
+	Calls       []*Call             // all calls to C.xxx in AST
+	ExpFunc     []*ExpFunc          // exported functions for this file
+	Name        map[string]*Name    // map from Go name to Name
+	NamePos     map[*Name]token.Pos // map from Name to position of the first reference
+	NoCallbacks map[string]bool     // C function names with #cgo nocallback directive
+	NoEscapes   map[string]bool     // C function names with #cgo noescape directive
 	Edit        *edit.Buffer
 
 	debugs []*debug // debug data from iterations of gccDebug. Initialized by File.loadDebug.
@@ -104,12 +102,6 @@ type Call struct {
 	Call     *ast.CallExpr
 	Deferred bool
 	Done     bool
-}
-
-// A Lit refers to a composite literal of a C.xxx type in the AST.
-type Lit struct {
-	Lit  *ast.CompositeLit
-	Done bool
 }
 
 // A Ref refers to an expression of the form C.xxx in the AST.
@@ -485,7 +477,6 @@ func main() {
 				return
 			}
 			f.Edit = edit.NewBuffer(b)
-			f.LitMap = make(map[*ast.CompositeLit]*Lit)
 			f.ParseGo(input, b)
 			if *genBinding {
 				f.useGenBindingPragmas(input, origDir, b)
