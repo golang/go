@@ -7,6 +7,7 @@ package subtle
 import (
 	"internal/cpu"
 	"internal/runtime/sys"
+	"iter"
 	"testing"
 )
 
@@ -84,4 +85,64 @@ func TestDITGoroutineInheritance(t *testing.T) {
 			t.Fatal("dit unset after returning from goroutine started in WithDataIndependentTiming closure")
 		}
 	})
+}
+
+func TestDITCoroutine(t *testing.T) {
+	if !cpu.ARM64.HasDIT {
+		t.Skip("CPU does not support DIT")
+	}
+
+	ditAlreadyEnabled := sys.DITEnabled()
+
+	next, stop := iter.Pull(func(yield func(bool) bool) {
+		WithDataIndependentTiming(func() {
+			yield(sys.DITEnabled())
+		})
+		yield(sys.DITEnabled())
+	})
+	defer stop()
+
+	if enabled, _ := next(); !enabled {
+		t.Error("dit not enabled in coroutine within WithDataIndependentTiming closure")
+	}
+	if !ditAlreadyEnabled && sys.DITEnabled() {
+		t.Error("dit not unset after switching from coroutine within WithDataIndependentTiming closure")
+	}
+
+	WithDataIndependentTiming(func() {
+		if enabled, _ := next(); !ditAlreadyEnabled && enabled {
+			t.Error("dit not unset in coroutine after returning from its WithDataIndependentTiming closure")
+		}
+		if !sys.DITEnabled() {
+			t.Error("dit not enabled after switching from coroutine within WithDataIndependentTiming closure")
+		}
+	})
+
+	if !ditAlreadyEnabled && sys.DITEnabled() {
+		t.Error("dit not unset after returning from WithDataIndependentTiming closure")
+	}
+}
+
+func TestDITCoroutineInheritance(t *testing.T) {
+	if !cpu.ARM64.HasDIT {
+		t.Skip("CPU does not support DIT")
+	}
+
+	ditAlreadyEnabled := sys.DITEnabled()
+
+	var next func() (bool, bool)
+	var stop func()
+	WithDataIndependentTiming(func() {
+		next, stop = iter.Pull(func(yield func(bool) bool) {
+			yield(sys.DITEnabled())
+		})
+	})
+	defer stop()
+
+	if enabled, _ := next(); !enabled {
+		t.Error("DIT not enabled in coroutine created in WithDataIndependentTiming closure")
+	}
+	if !ditAlreadyEnabled && sys.DITEnabled() {
+		t.Error("dit not unset after switching from coroutine created in WithDataIndependentTiming closure")
+	}
 }
