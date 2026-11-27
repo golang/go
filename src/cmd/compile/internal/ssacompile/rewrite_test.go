@@ -46,6 +46,20 @@ func TestSubFlags(t *testing.T) {
 	}
 }
 
+func TestNoovFlags(t *testing.T) {
+	numbers := []int64{0, 1, -1, math.MaxInt64, math.MinInt64}
+	for _, x := range numbers {
+		for _, y := range numbers {
+			fc, z := ssa.AddFlags64(x, y), x+y
+			got := [4]bool{fc.LtNoov(), fc.LeNoov(), fc.GtNoov(), fc.GeNoov()}
+			want := [4]bool{z < 0, z <= 0, z > 0, z >= 0}
+			if got != want {
+				t.Errorf("AddFlags64(%d, %d) LtNoov, LeNoov, GtNoov, GeNoov = %v, want %v", x, y, got, want)
+			}
+		}
+	}
+}
+
 //go:noinline
 func unopt(f func(float64) float64, x float32) float32 {
 	return float32(f(float64(x)))
