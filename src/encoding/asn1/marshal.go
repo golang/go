@@ -538,7 +538,9 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
 			return bytesEncoder(v.Bytes()), nil
 		}
 
-		var fp fieldParameters
+		// String encodings describe the sequence elements, while tags,
+		// optional and set apply only to the sequence itself.
+		fp := fieldParameters{stringType: params.stringType}
 
 		switch l := v.Len(); l {
 		case 0:
@@ -630,7 +632,8 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 		return nil, StructuralError{"explicit time type given to non-time member"}
 	}
 
-	if params.stringType != 0 && tag != TagPrintableString {
+	stringSlice := v.Kind() == reflect.Slice && v.Type().Elem().Kind() == reflect.String
+	if params.stringType != 0 && tag != TagPrintableString && !stringSlice {
 		return nil, StructuralError{"explicit string type given to non-string member"}
 	}
 
