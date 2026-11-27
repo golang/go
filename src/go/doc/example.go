@@ -53,6 +53,8 @@ func Examples(testFiles ...*ast.File) []*Example {
 		hasTests := false // file contains tests, fuzz test, or benchmarks
 		numDecl := 0      // number of non-import declarations in the file
 		var flist []*Example
+		var topDecls map[*ast.Object]ast.Decl
+		var typMethods map[string][]ast.Decl
 		for _, decl := range file.Decls {
 			if g, ok := decl.(*ast.GenDecl); ok && g.Tok != token.IMPORT {
 				numDecl++
@@ -85,11 +87,19 @@ func Examples(testFiles ...*ast.File) []*Example {
 				doc = f.Doc.Text()
 			}
 			output, unordered, hasOutput := exampleOutput(f.Body, file.Comments)
+			var play *ast.File
+			if strings.HasSuffix(file.Name.Name, "_test") {
+				// Collect declarations once for all playable examples in this file.
+				if topDecls == nil {
+					topDecls, typMethods = collectExampleDecls(file)
+				}
+				play = playExample(file, f, topDecls, typMethods)
+			}
 			flist = append(flist, &Example{
 				Name:        name[len("Example"):],
 				Doc:         doc,
 				Code:        f.Body,
-				Play:        playExample(file, f),
+				Play:        play,
 				Comments:    file.Comments,
 				Output:      output,
 				Unordered:   unordered,
@@ -150,18 +160,9 @@ func isTest(name, prefix string) bool {
 	return !unicode.IsLower(rune)
 }
 
-// playExample synthesizes a new *ast.File based on the provided
-// file with the provided function body as the body of main.
-func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
-	body := f.Body
-
-	if !strings.HasSuffix(file.Name.Name, "_test") {
-		// We don't support examples that are part of the
-		// greater package (yet).
-		return nil
-	}
-
-	// Collect top-level declarations in the file.
+// collectExampleDecls collects the top-level declarations and methods used to
+// resolve dependencies of playable examples in file.
+func collectExampleDecls(file *ast.File) (map[*ast.Object]ast.Decl, map[string][]ast.Decl) {
 	topDecls := make(map[*ast.Object]ast.Decl)
 	typMethods := make(map[string][]ast.Decl)
 
@@ -190,6 +191,14 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 			}
 		}
 	}
+
+	return topDecls, typMethods
+}
+
+// playExample synthesizes a new *ast.File based on the provided
+// file with the provided function body as the body of main.
+func playExample(file *ast.File, f *ast.FuncDecl, topDecls map[*ast.Object]ast.Decl, typMethods map[string][]ast.Decl) *ast.File {
+	body := f.Body
 
 	// Find unresolved identifiers and uses of top-level declarations.
 	depDecls, unresolved := findDeclsAndUnresolved(body, topDecls, typMethods)
