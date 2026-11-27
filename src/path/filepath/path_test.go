@@ -500,6 +500,11 @@ var winjointests = []JoinTest{
 	{[]string{`//`, `a`}, `\\a`},
 	{[]string{`a:\b\c`, `x\..\y:\..\..\z`}, `a:\b\z`},
 	{[]string{`\`, `??\a`}, `\.\??\a`},
+	{[]string{`\\?\C:`, `a`}, `\\?\C:\a`},
+	{[]string{`\\?\C:`, `a`, `b`}, `\\?\C:\a\b`},
+	{[]string{`\\?\C:`, `\a`}, `\\?\C:\a`},
+	{[]string{`\\.\C:`, `a`}, `\\.\C:\a`},
+	{[]string{`//?/C:`, `a`}, `\\?\C:\a`},
 }
 
 func TestJoin(t *testing.T) {

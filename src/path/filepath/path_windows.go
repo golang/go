@@ -90,13 +90,16 @@ func join(elem []string) string {
 			if b.Len() == 1 && strings.HasPrefix(e, "??") && (len(e) == len("??") || os.IsPathSeparator(e[2])) {
 				b.WriteString(`.\`)
 			}
-		case lastChar == ':':
+		case lastChar == ':' && !isUNCOrDevice(b.String()):
 			// If the path ends in a colon, keep the path relative to the current directory
 			// on a drive and don't add a separator. Preserve leading slashes in the next
 			// path element, which may make the path absolute.
 			//
 			// 	Join(`C:`, `f`) = `C:f`
 			//	Join(`C:`, `\f`) = `C:\f`
+			//
+			// UNC and device paths such as `\\?\C:` are always absolute,
+			// so they take the default case below.
 		default:
 			// In all other cases, add a separator between elements.
 			b.WriteByte('\\')
@@ -111,6 +114,12 @@ func join(elem []string) string {
 		return ""
 	}
 	return Clean(b.String())
+}
+
+// isUNCOrDevice reports whether path begins with two separators,
+// as UNC paths (\\host\share) and device paths (\\?\C:, \\.\C:) do.
+func isUNCOrDevice(path string) bool {
+	return len(path) >= 2 && os.IsPathSeparator(path[0]) && os.IsPathSeparator(path[1])
 }
 
 func sameWord(a, b string) bool {
