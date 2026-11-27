@@ -446,7 +446,20 @@ goodm:
 	get_tls(CX)		// Set G in TLS
 	MOVQ	R14, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(R14), SP	// sp = g0.sched.sp
+#ifdef GOOS_windows
+	// Don't leave BP pointing into the caller's stack, as the caller may
+	// execute on another M. Don't set BP to 0 either: mcall's SEH unwind
+	// info declares BP as its frame pointer, so the Windows native unwinder
+	// would load the return address from address 0 and fault. Point BP
+	// at an empty frame (saved BP 0, return PC 0) instead, which ends both
+	// frame pointer unwinding and native unwinding here.
+	// See go.dev/issue/81885.
+	PUSHQ	$0	// return PC
+	PUSHQ	$0	// saved BP
+	MOVQ	SP, BP
+#else
 	MOVQ	$0, BP	// clear frame pointer, as caller may execute on another M
+#endif
 	PUSHQ	AX	// open up space for fn's arg spill slot
 	MOVQ	0(DX), R12
 	CALL	R12		// fn(g)
@@ -455,6 +468,9 @@ goodm:
 	// Add a NOP to work around this issue. See go.dev/issue/67007.
 	BYTE	$0x90
 	POPQ	AX
+#ifdef GOOS_windows
+	ADJSP	$-16	// pop the empty frame
+#endif
 	JMP	runtime·badmcall2(SB)
 	RET
 
