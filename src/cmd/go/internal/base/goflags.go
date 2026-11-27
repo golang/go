@@ -144,6 +144,29 @@ func SetFromGOFLAGS(flags *flag.FlagSet) {
 	}
 }
 
+// LookupGOFLAGS returns the value of the given flag, such as "-mod", in $GOFLAGS.
+// Unlike GOFLAGS, it does not reject flags unknown to this toolchain.
+func LookupGOFLAGS(flag string) (value string, ok bool) {
+	goflags, err := quoted.Split(cfg.Getenv("GOFLAGS"))
+	if err != nil {
+		return "", false
+	}
+	for _, goflag := range goflags {
+		name, val, hasValue := strings.Cut(goflag, "=")
+		if strings.HasPrefix(name, "--") {
+			name = name[1:]
+		}
+		if name != flag {
+			continue
+		}
+		if !hasValue {
+			val = "true"
+		}
+		value, ok = val, true
+	}
+	return value, ok
+}
+
 // InGOFLAGS returns whether GOFLAGS contains the given flag, such as "-mod".
 func InGOFLAGS(flag string) bool {
 	for _, goflag := range GOFLAGS() {
