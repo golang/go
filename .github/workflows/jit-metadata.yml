@@ -3,6 +3,8 @@
 # license that can be found in the LICENSE file.
 name: JIT metadata lifetimes
 on:
+  push:
+    branches: [jit-foreign-frames-master, jit-foreign-frames-go1.27.0]
   pull_request:
     branches: [jit-foreign-frames-master, jit-foreign-frames-go1.27.0]
   workflow_dispatch:
@@ -32,8 +34,10 @@ jobs:
           printf '%s\n' "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
           printf 'GOROOT=%s\n' "$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
           printf 'GOEXPERIMENT=jit\n' >> "$GITHUB_ENV"
-      - name: Check registry balance and stable stackmap blocks
-        run: go test runtime -run '^TestUserFrame(PersistentTree|StableStackMapBlocks)$' -count=3
+      - name: Check registry, profiling transitions and zombie diagnostics
+        run: go test runtime -run '^Test(UserFrame(PersistentTree|StableStackMapBlocks|MorestackTraceback)|GcZombieReporting)$' -count=3
+      - name: Check CPU profiling
+        run: go test runtime/pprof -run '^TestCPUProfile(Recursion|Multithreaded)?$' -count=3
       - name: Check GC lifetimes and active JIT frames
         env:
           GOGC: '1'
