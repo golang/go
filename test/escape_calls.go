@@ -59,3 +59,15 @@ func strmin(a, b, c string) string { // ERROR "leaking param: a to result ~r0 le
 func strmax(a, b, c string) string { // ERROR "leaking param: a to result ~r0 level=0" "leaking param: b to result ~r0 level=0" "leaking param: c to result ~r0 level=0"
 	return max(a, b, c)
 }
+
+type methodValue struct{}
+
+func (methodValue) pick(p, q *int) *int { // ERROR "p does not escape" "leaking param: q to result ~r0 level=0"
+	return q
+}
+
+func methodValueResult() *int {
+	var p, q int               // ERROR "moved to heap: q"
+	pick := methodValue{}.pick // ERROR "methodValue{}.pick does not escape"
+	return pick(&p, &q)
+}

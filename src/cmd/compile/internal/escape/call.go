@@ -40,19 +40,29 @@ func (e *escape) call(ks []hole, call ir.Node) {
 		// generated eq/hash functions) don't have it set. Investigate
 		// whether that's a concern.
 		var fns []*ir.Name
+		var boundMethod bool
 		switch call.Op() {
 		case ir.OCALLFUNC:
 			ro := e.reassignOracle(e.curfn)
 			v := ro.StaticValue(call.Fun)
 			if fn := ir.StaticCalleeName(v); fn != nil {
 				fns = []*ir.Name{fn}
+			} else if sel, ok := v.(*ir.SelectorExpr); ok && sel.Op() == ir.OMETHVALUE && !sel.X.Type().IsInterface() {
+				// The wrapper forwards the explicit arguments to the
+				// concrete method. The receiver flow is already modeled
+				// where the method value is created.
+				if fn := ir.MethodExprName(sel); fn != nil && !hasUintptrPragma(fn) {
+					fns = []*ir.Name{fn}
+					boundMethod = true
+				}
 			} else if name, ok := v.(*ir.Name); ok {
 				fns = resolveAssignedCallees(ro.FuncAssignments(name.Canonical()))
 			}
 		}
 
+		// A bound method value's call signature excludes the receiver.
 		fntype := call.Fun.Type()
-		if len(fns) == 1 {
+		if len(fns) == 1 && !boundMethod {
 			fntype = fns[0].Type()
 		}
 
@@ -439,12 +449,16 @@ func resolveAssignedCallees(assigns []*ir.AssignStmt) []*ir.Name {
 		if callee == nil {
 			return nil
 		}
-		if callee.Func != nil && callee.Func.Pragma&(ir.UintptrKeepAlive|ir.UintptrEscapes) != 0 {
+		if hasUintptrPragma(callee) {
 			return nil
 		}
 		fns = append(fns, callee)
 	}
 	return fns
+}
+
+func hasUintptrPragma(fn *ir.Name) bool {
+	return fn.Func != nil && fn.Func.Pragma&(ir.UintptrKeepAlive|ir.UintptrEscapes) != 0
 }
 
 func isEscapeNonString(fns []*ir.Name, fntype *types.Type) bool {
