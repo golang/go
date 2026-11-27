@@ -15,6 +15,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"internal/nettest"
 	"io"
 	"log"
 	"maps"
@@ -4288,6 +4289,7 @@ func testTransportRoundtripCloseOnWriteError(t *testing.T) {
 	tc.closeWriteWithError(writeErr)
 
 	body.writeBytes(1)
+	time.Sleep(PostWriteErrorWaitTime) // transport waits briefly for a read error
 	if err := rt.err(); !errors.Is(err, writeErr) {
 		t.Fatalf("RoundTrip error %v, want %v", err, writeErr)
 	}
@@ -4295,6 +4297,80 @@ func testTransportRoundtripCloseOnWriteError(t *testing.T) {
 	rt2 := tc.roundTrip(req)
 	if err := rt2.err(); err != ErrClientConnUnusable {
 		t.Fatalf("RoundTrip error %v, want errClientConnUnusable", err)
+	}
+}
+
+// Issue 76671: RoundTrip reports the error which closed the conn before the first request.
+func TestTransportConnClosedBeforeFirstRequest(t *testing.T) {
+	synctest.Test(t, testTransportConnClosedBeforeFirstRequest)
+}
+func testTransportConnClosedBeforeFirstRequest(t *testing.T) {
+	tc := newTestClientConn(t)
+	readErr := errors.New("read error")
+	tc.netconn.Peer().SetReadError(readErr)
+	synctest.Wait()
+
+	req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
+	rt := tc.roundTrip(req)
+	if err := rt.err(); !errors.Is(err, readErr) {
+		t.Fatalf("RoundTrip error %v, want %v", err, readErr)
+	}
+}
+
+// Issue 76671: RoundTrip prefers a read error shortly following a write error.
+func TestTransportRoundTripWriteErrorThenReadError(t *testing.T) {
+	synctest.Test(t, testTransportRoundTripWriteErrorThenReadError)
+}
+func testTransportRoundTripWriteErrorThenReadError(t *testing.T) {
+	tc := newTestClientConn(t)
+	tc.greet()
+
+	writeErr := errors.New("write error")
+	tc.closeWriteWithError(writeErr)
+	req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
+	rt := tc.roundTrip(req)
+	if rt.done() {
+		t.Fatalf("RoundTrip done immediately after write error, want it to wait for a read error")
+	}
+
+	readErr := errors.New("read error")
+	tc.netconn.Peer().SetReadError(readErr)
+	if err := rt.err(); !errors.Is(err, readErr) {
+		t.Fatalf("RoundTrip error %v, want %v", err, readErr)
+	}
+}
+
+// Issue 76671: If writing the client preface fails, newClientConn prefers a read error.
+func TestTransportNewClientConnWriteErrorThenReadError(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		testTransportNewClientConnWriteError(t, true)
+	})
+}
+func TestTransportNewClientConnWriteErrorNoReadError(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		testTransportNewClientConnWriteError(t, false)
+	})
+}
+func testTransportNewClientConnWriteError(t *testing.T, withReadErr bool) {
+	tr := transportFromH1Transport(&http.Transport{}).(*Transport)
+	cli, srv := nettest.NewConnPair()
+	defer srv.Close()
+
+	writeErr := errors.New("write error")
+	readErr := errors.New("read error")
+	cli.SetWriteError(writeErr)
+	wantErr := writeErr
+	if withReadErr {
+		cli.SetReadError(readErr)
+		wantErr = readErr
+	}
+
+	_, err := tr.TestNewClientConn(cli, nil)
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("NewClientConn error %v, want %v", err, wantErr)
+	}
+	if !cli.IsClosed() {
+		t.Errorf("connection not closed after NewClientConn error")
 	}
 }
 

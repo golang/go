@@ -9,6 +9,7 @@ package http2
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/rand"
 	"crypto/tls"
@@ -117,6 +118,7 @@ type ClientConn struct {
 	inflow           inflow      // peer's conn-level flow control
 	draining         bool        // do not use for future requests, close when drained
 	closed           bool
+	closeErr         error                    // if non-nil, the read loop error which caused the conn to close
 	seenSettings     bool                     // true if we've seen a settings frame, false otherwise
 	seenSettingsChan chan struct{}            // closed when seenSettings is true or frame reading fails
 	wantSettingsAck  bool                     // we sent a SETTINGS frame and haven't heard back
@@ -447,13 +449,35 @@ func (t *Transport) newClientConn(c net.Conn, internalStateHook func() error) (*
 	cc.fr.WriteWindowUpdate(0, uint32(conf.MaxReceiveBufferPerConnection))
 	cc.inflow.init(int32(conf.MaxReceiveBufferPerConnection) + initialWindowSize)
 	cc.bw.Flush()
-	if cc.werr != nil {
+	if werr := cc.werr; werr != nil {
+		// The read loop may know why the write failed.
+		go cc.readLoop()
+		cc.awaitReadLoopAfterWriteError()
+		cc.mu.Lock()
+		err := cmp.Or(cc.closeErr, werr)
+		cc.mu.Unlock()
 		cc.Close()
-		return nil, cc.werr
+		return nil, err
 	}
 
 	go cc.readLoop()
 	return cc, nil
+}
+
+// postWriteErrorWaitTime is how long to wait for the read loop to exit
+// after a write error. The read side may have a more informative error,
+// such as a TLS alert sent by the peer before closing the connection
+// (go.dev/issue/76671). It matches net/http's postRequestWriteErrorWaitTime.
+const postWriteErrorWaitTime = 50 * time.Millisecond
+
+// awaitReadLoopAfterWriteError waits up to postWriteErrorWaitTime for the read loop to exit.
+func (cc *ClientConn) awaitReadLoopAfterWriteError() {
+	timer := time.NewTimer(postWriteErrorWaitTime)
+	defer timer.Stop()
+	select {
+	case <-cc.readerDone:
+	case <-timer.C:
+	}
 }
 
 func (cc *ClientConn) healthCheck() {
@@ -1239,6 +1263,13 @@ func (cs *clientStream) cleanupWriteRequest(err error) {
 		}
 	}
 	if err != nil {
+		cc.wmu.Lock()
+		werr := cc.werr
+		cc.wmu.Unlock()
+		if werr != nil && errors.Is(err, werr) {
+			// If the read loop exits meanwhile, it aborts the stream with its error.
+			cc.awaitReadLoopAfterWriteError()
+		}
 		cs.abortStream(err) // possibly redundant, but harmless
 		if ce, ok := err.(ConnectionError); ok {
 			cc.goAwayAndClose(ErrCode(ce))
@@ -1354,6 +1385,9 @@ func (cc *ClientConn) awaitOpenSlotForStreamLocked(cs *clientStream) error {
 		if cc.closed && cc.nextStreamID == 1 {
 			// No requests have been sent to this connection, but it's closed.
 			// Return a fatal error which aborts the retry loop.
+			if cc.closeErr != nil {
+				return cc.closeErr
+			}
 			return errClientConnNotEstablished
 		}
 		if !cc.isUsableLocked() {
@@ -1771,6 +1805,10 @@ func (rl *clientConnReadLoop) cleanup() {
 		}
 	} else if err == io.EOF {
 		err = io.ErrUnexpectedEOF
+	}
+	if !cc.closed && err != io.ErrUnexpectedEOF {
+		// Report this to requests which never got a stream on the conn.
+		cc.closeErr = err
 	}
 	cc.closed = true
 
@@ -2813,6 +2851,9 @@ func (cc NetHTTPClientConn) Reserve() error {
 	cc.cc.mu.Lock()
 	defer cc.cc.mu.Unlock()
 	if !cc.cc.canReserveLocked() {
+		if cc.cc.closed && cc.cc.closeErr != nil {
+			return cc.cc.closeErr
+		}
 		return errors.New("connection is unavailable")
 	}
 	cc.cc.streamsReserved++

@@ -44,6 +44,8 @@ type (
 	HeaderFieldValueError = headerFieldValueError
 )
 
+const PostWriteErrorWaitTime = postWriteErrorWaitTime
+
 const (
 	StateIdle             = stateIdle
 	StateOpen             = stateOpen
