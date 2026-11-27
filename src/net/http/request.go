@@ -168,7 +168,9 @@ type Request struct {
 	//
 	// For client requests, certain headers such as Content-Length
 	// and Connection are automatically written when needed and
-	// values in Header may be ignored. See the documentation
+	// values in Header may be ignored. In particular, a "Host"
+	// entry in Header is not used; set the Request.Host field to
+	// override the Host header sent. See the documentation
 	// for the Request.Write method.
 	Header Header
 
@@ -241,8 +243,8 @@ type Request struct {
 	//
 	// For client requests, Host optionally overrides the Host
 	// header to send. If empty, the Request.Write method uses
-	// the value of URL.Host. Host may contain an international
-	// domain name.
+	// the value of URL.Host. A "Host" value in the Header map is
+	// ignored. Host may contain an international domain name.
 	Host string
 
 	// Form contains the parsed form data, including both the URL
@@ -608,8 +610,9 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 		}
 	}()
 
-	// Find the target host. Prefer the Host: header, but if that
-	// is not given, use the host from the request URL.
+	// Find the target host. Prefer the Request.Host field, but if
+	// that is not given, use the host from the request URL.
+	// A Host entry in r.Header is never used.
 	//
 	// Clean the host, in case it arrives with unexpected stuff in it.
 	host := r.Host
