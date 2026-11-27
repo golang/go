@@ -323,8 +323,8 @@ func matchAfterPrefix(buf, prefix []byte, readErr error) int {
 }
 
 func (p *Part) Close() error {
-	io.Copy(io.Discard, p)
-	return nil
+	_, err := io.Copy(io.Discard, p)
+	return err
 }
 
 // Reader is an iterator over parts in a MIME multipart body.
