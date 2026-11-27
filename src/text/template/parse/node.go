@@ -626,7 +626,9 @@ type NumberNode struct {
 	Int64      int64      // The signed integer value.
 	Uint64     uint64     // The unsigned integer value.
 	Float64    float64    // The floating-point value.
+	Float32    float32    // The float32 value.
 	Complex128 complex128 // The complex value.
+	Complex64  complex64  // The complex64 value.
 	Text       string     // The original textual representation from the input.
 }
 
@@ -646,6 +648,7 @@ func (t *Tree) newNumber(pos Pos, text string, typ itemType) (*NumberNode, error
 		n.Uint64 = uint64(rune)
 		n.IsUint = true
 		n.Float64 = float64(rune) // odd but those are the rules.
+		n.Float32 = float32(rune)
 		n.IsFloat = true
 		return n, nil
 	case itemComplex:
@@ -654,6 +657,8 @@ func (t *Tree) newNumber(pos Pos, text string, typ itemType) (*NumberNode, error
 			return nil, err
 		}
 		n.IsComplex = true
+		c, _ := strconv.ParseComplex(text, 64)
+		n.Complex64 = complex64(c)
 		n.simplifyComplex()
 		return n, nil
 	}
@@ -663,6 +668,8 @@ func (t *Tree) newNumber(pos Pos, text string, typ itemType) (*NumberNode, error
 		if err == nil {
 			n.IsComplex = true
 			n.Complex128 = complex(0, f)
+			c, _ := strconv.ParseComplex(text, 64)
+			n.Complex64 = complex64(c)
 			n.simplifyComplex()
 			return n, nil
 		}
@@ -686,9 +693,11 @@ func (t *Tree) newNumber(pos Pos, text string, typ itemType) (*NumberNode, error
 	if n.IsInt {
 		n.IsFloat = true
 		n.Float64 = float64(n.Int64)
+		n.Float32 = float32(n.Int64)
 	} else if n.IsUint {
 		n.IsFloat = true
 		n.Float64 = float64(n.Uint64)
+		n.Float32 = float32(n.Uint64)
 	} else {
 		f, err := strconv.ParseFloat(text, 64)
 		if err == nil {
@@ -699,6 +708,9 @@ func (t *Tree) newNumber(pos Pos, text string, typ itemType) (*NumberNode, error
 			}
 			n.IsFloat = true
 			n.Float64 = f
+			// Parse again rather than narrow f, which would round twice.
+			f32, _ := strconv.ParseFloat(text, 32)
+			n.Float32 = float32(f32)
 			// If a floating-point extraction succeeded, extract the int if needed.
 			if !n.IsInt && float64(int64(f)) == f {
 				n.IsInt = true
@@ -722,6 +734,7 @@ func (n *NumberNode) simplifyComplex() {
 	n.IsFloat = imag(n.Complex128) == 0
 	if n.IsFloat {
 		n.Float64 = real(n.Complex128)
+		n.Float32 = real(n.Complex64)
 		n.IsInt = float64(int64(n.Float64)) == n.Float64
 		if n.IsInt {
 			n.Int64 = int64(n.Float64)

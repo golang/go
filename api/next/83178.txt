@@ -1,0 +1,2 @@
+pkg text/template/parse, type NumberNode struct, Complex64 complex64 #83178
+pkg text/template/parse, type NumberNode struct, Float32 float32 #83178

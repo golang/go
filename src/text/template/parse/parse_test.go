@@ -22,57 +22,59 @@ type numberTest struct {
 	int64
 	uint64
 	float64
+	float32
 	complex128
+	complex64
 }
 
 var numberTests = []numberTest{
 	// basics
-	{"0", true, true, true, false, 0, 0, 0, 0},
-	{"-0", true, true, true, false, 0, 0, 0, 0}, // check that -0 is a uint.
-	{"73", true, true, true, false, 73, 73, 73, 0},
-	{"7_3", true, true, true, false, 73, 73, 73, 0},
-	{"0b10_010_01", true, true, true, false, 73, 73, 73, 0},
-	{"0B10_010_01", true, true, true, false, 73, 73, 73, 0},
-	{"073", true, true, true, false, 073, 073, 073, 0},
-	{"0o73", true, true, true, false, 073, 073, 073, 0},
-	{"0O73", true, true, true, false, 073, 073, 073, 0},
-	{"0x73", true, true, true, false, 0x73, 0x73, 0x73, 0},
-	{"0X73", true, true, true, false, 0x73, 0x73, 0x73, 0},
-	{"0x7_3", true, true, true, false, 0x73, 0x73, 0x73, 0},
-	{"-73", true, false, true, false, -73, 0, -73, 0},
-	{"+73", true, false, true, false, 73, 0, 73, 0},
-	{"100", true, true, true, false, 100, 100, 100, 0},
-	{"1e9", true, true, true, false, 1e9, 1e9, 1e9, 0},
-	{"-1e9", true, false, true, false, -1e9, 0, -1e9, 0},
-	{"-1.2", false, false, true, false, 0, 0, -1.2, 0},
-	{"1e19", false, true, true, false, 0, 1e19, 1e19, 0},
-	{"1e1_9", false, true, true, false, 0, 1e19, 1e19, 0},
-	{"1E19", false, true, true, false, 0, 1e19, 1e19, 0},
-	{"-1e19", false, false, true, false, 0, 0, -1e19, 0},
-	{"0x_1p4", true, true, true, false, 16, 16, 16, 0},
-	{"0X_1P4", true, true, true, false, 16, 16, 16, 0},
-	{"0x_1p-4", false, false, true, false, 0, 0, 1 / 16., 0},
-	{"4i", false, false, false, true, 0, 0, 0, 4i},
-	{"-1.2+4.2i", false, false, false, true, 0, 0, 0, -1.2 + 4.2i},
-	{"073i", false, false, false, true, 0, 0, 0, 73i}, // not octal!
+	{"0", true, true, true, false, 0, 0, 0, 0, 0, 0},
+	{"-0", true, true, true, false, 0, 0, 0, 0, 0, 0}, // check that -0 is a uint.
+	{"73", true, true, true, false, 73, 73, 73, 73, 0, 0},
+	{"7_3", true, true, true, false, 73, 73, 73, 73, 0, 0},
+	{"0b10_010_01", true, true, true, false, 73, 73, 73, 73, 0, 0},
+	{"0B10_010_01", true, true, true, false, 73, 73, 73, 73, 0, 0},
+	{"073", true, true, true, false, 073, 073, 073, 073, 0, 0},
+	{"0o73", true, true, true, false, 073, 073, 073, 073, 0, 0},
+	{"0O73", true, true, true, false, 073, 073, 073, 073, 0, 0},
+	{"0x73", true, true, true, false, 0x73, 0x73, 0x73, 0x73, 0, 0},
+	{"0X73", true, true, true, false, 0x73, 0x73, 0x73, 0x73, 0, 0},
+	{"0x7_3", true, true, true, false, 0x73, 0x73, 0x73, 0x73, 0, 0},
+	{"-73", true, false, true, false, -73, 0, -73, -73, 0, 0},
+	{"+73", true, false, true, false, 73, 0, 73, 73, 0, 0},
+	{"100", true, true, true, false, 100, 100, 100, 100, 0, 0},
+	{"1e9", true, true, true, false, 1e9, 1e9, 1e9, 1e9, 0, 0},
+	{"-1e9", true, false, true, false, -1e9, 0, -1e9, -1e9, 0, 0},
+	{"-1.2", false, false, true, false, 0, 0, -1.2, -1.2, 0, 0},
+	{"1e19", false, true, true, false, 0, 1e19, 1e19, 1e19, 0, 0},
+	{"1e1_9", false, true, true, false, 0, 1e19, 1e19, 1e19, 0, 0},
+	{"1E19", false, true, true, false, 0, 1e19, 1e19, 1e19, 0, 0},
+	{"-1e19", false, false, true, false, 0, 0, -1e19, -1e19, 0, 0},
+	{"0x_1p4", true, true, true, false, 16, 16, 16, 16, 0, 0},
+	{"0X_1P4", true, true, true, false, 16, 16, 16, 16, 0, 0},
+	{"0x_1p-4", false, false, true, false, 0, 0, 1 / 16., 1 / 16., 0, 0},
+	{"4i", false, false, false, true, 0, 0, 0, 0, 4i, 4i},
+	{"-1.2+4.2i", false, false, false, true, 0, 0, 0, 0, -1.2 + 4.2i, -1.2 + 4.2i},
+	{"073i", false, false, false, true, 0, 0, 0, 0, 73i, 73i}, // not octal!
 	// complex with 0 imaginary are float (and maybe integer)
-	{"0i", true, true, true, true, 0, 0, 0, 0},
-	{"-1.2+0i", false, false, true, true, 0, 0, -1.2, -1.2},
-	{"-12+0i", true, false, true, true, -12, 0, -12, -12},
-	{"13+0i", true, true, true, true, 13, 13, 13, 13},
+	{"0i", true, true, true, true, 0, 0, 0, 0, 0, 0},
+	{"-1.2+0i", false, false, true, true, 0, 0, -1.2, -1.2, -1.2, -1.2},
+	{"-12+0i", true, false, true, true, -12, 0, -12, -12, -12, -12},
+	{"13+0i", true, true, true, true, 13, 13, 13, 13, 13, 13},
 	// funny bases
-	{"0123", true, true, true, false, 0123, 0123, 0123, 0},
-	{"-0x0", true, true, true, false, 0, 0, 0, 0},
-	{"0xdeadbeef", true, true, true, false, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef, 0},
+	{"0123", true, true, true, false, 0123, 0123, 0123, 0123, 0, 0},
+	{"-0x0", true, true, true, false, 0, 0, 0, 0, 0, 0},
+	{"0xdeadbeef", true, true, true, false, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef, 0, 0},
 	// character constants
-	{`'a'`, true, true, true, false, 'a', 'a', 'a', 0},
-	{`'\n'`, true, true, true, false, '\n', '\n', '\n', 0},
-	{`'\\'`, true, true, true, false, '\\', '\\', '\\', 0},
-	{`'\''`, true, true, true, false, '\'', '\'', '\'', 0},
-	{`'\xFF'`, true, true, true, false, 0xFF, 0xFF, 0xFF, 0},
-	{`'パ'`, true, true, true, false, 0x30d1, 0x30d1, 0x30d1, 0},
-	{`'\u30d1'`, true, true, true, false, 0x30d1, 0x30d1, 0x30d1, 0},
-	{`'\U000030d1'`, true, true, true, false, 0x30d1, 0x30d1, 0x30d1, 0},
+	{`'a'`, true, true, true, false, 'a', 'a', 'a', 'a', 0, 0},
+	{`'\n'`, true, true, true, false, '\n', '\n', '\n', '\n', 0, 0},
+	{`'\\'`, true, true, true, false, '\\', '\\', '\\', '\\', 0, 0},
+	{`'\''`, true, true, true, false, '\'', '\'', '\'', '\'', 0, 0},
+	{`'\xFF'`, true, true, true, false, 0xFF, 0xFF, 0xFF, 0xFF, 0, 0},
+	{`'パ'`, true, true, true, false, 0x30d1, 0x30d1, 0x30d1, 0x30d1, 0, 0},
+	{`'\u30d1'`, true, true, true, false, 0x30d1, 0x30d1, 0x30d1, 0x30d1, 0, 0},
+	{`'\U000030d1'`, true, true, true, false, 0x30d1, 0x30d1, 0x30d1, 0x30d1, 0, 0},
 	// some broken syntax
 	{text: "+-2"},
 	{text: "0x123."},
@@ -83,7 +85,18 @@ var numberTests = []numberTest{
 	{text: "'xx'"},
 	{text: "'433937734937734969526500969526500'"}, // Integer too large - issue 10634.
 	// Issue 8622 - 0xe parsed as floating point. Very embarrassing.
-	{"0xef", true, true, true, false, 0xef, 0xef, 0xef, 0},
+	{"0xef", true, true, true, false, 0xef, 0xef, 0xef, 0xef, 0, 0},
+	// Issue 83178 - float32 and complex64 rounded twice.
+	{"1.000000059604644775390625000001", false, false, true, false, 0, 0, 1.000000059604644775390625000001, 1.000000059604644775390625000001, 0, 0},
+	{"0x1.0000010000000000001p0", false, false, true, false, 0, 0, 0x1.0000010000000000001p0, 0x1.0000010000000000001p0, 0, 0},
+	{"3.4028235677973366e38", false, false, true, false, 0, 0, 3.4028235677973366e38, 3.4028235677973366e38, 0, 0},
+	{"70983546339329", true, true, true, false, 70983546339329, 70983546339329, 70983546339329, 70983546339329, 0, 0},
+	{"1152921573326323713", true, true, true, false, 1152921573326323713, 1152921573326323713, 1152921573326323713, 1152921573326323713, 0, 0},
+	{"-1152921573326323713", true, false, true, false, -1152921573326323713, 0, -1152921573326323713, -1152921573326323713, 0, 0},
+	{"18446744073709551615", false, true, true, false, 0, 18446744073709551615, 18446744073709551615, 18446744073709551615, 0, 0},
+	{"1.000000059604644775390625000001i", false, false, false, true, 0, 0, 0, 0, 1.000000059604644775390625000001i, 1.000000059604644775390625000001i},
+	{"1+1.000000059604644775390625000001i", false, false, false, true, 0, 0, 0, 0, 1 + 1.000000059604644775390625000001i, 1 + 1.000000059604644775390625000001i},
+	{"1.000000059604644775390625000001+0i", false, false, true, true, 0, 0, 1.000000059604644775390625000001, 1.000000059604644775390625000001, 1.000000059604644775390625000001, 1.000000059604644775390625000001},
 }
 
 func init() {
@@ -152,6 +165,9 @@ func TestNumberParse(t *testing.T) {
 			if n.Float64 != test.float64 {
 				t.Errorf("float64 for %q should be %g Is %g", test.text, test.float64, n.Float64)
 			}
+			if n.Float32 != test.float32 {
+				t.Errorf("float32 for %q should be %g Is %g", test.text, test.float32, n.Float32)
+			}
 		} else if n.IsFloat {
 			t.Errorf("did not expect float for %q", test.text)
 		}
@@ -161,6 +177,9 @@ func TestNumberParse(t *testing.T) {
 			}
 			if n.Complex128 != test.complex128 {
 				t.Errorf("complex128 for %q should be %g Is %g", test.text, test.complex128, n.Complex128)
+			}
+			if n.Complex64 != test.complex64 {
+				t.Errorf("complex64 for %q should be %g Is %g", test.text, test.complex64, n.Complex64)
 			}
 		} else if n.IsComplex {
 			t.Errorf("did not expect complex for %q", test.text)
