@@ -43,4 +43,20 @@ func TestTransitiveReduction(t *testing.T) {
 		g.TransitiveReduction()
 		wantEdges(t, g, "e->d d->c c->b b->a")
 	})
+	t.Run("unordered_chain", func(t *testing.T) {
+		g := newGraph()
+		for _, n := range []string{"0", "1", "2", "3"} {
+			g.addNode(n)
+		}
+		// Add the transitive closure of 1 -> 0 -> 2 -> 3.
+		g.AddEdge("1", "0")
+		g.AddEdge("1", "2")
+		g.AddEdge("1", "3")
+		g.AddEdge("0", "2")
+		g.AddEdge("0", "3")
+		g.AddEdge("2", "3")
+
+		g.TransitiveReduction()
+		wantEdges(t, g, "1->0 0->2 2->3")
+	})
 }
