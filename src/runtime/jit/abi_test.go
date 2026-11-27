@@ -263,3 +263,32 @@ func TestCallingConventionTextAndErrorResults(t *testing.T) {
 		}
 	}
 }
+
+// Appends retain independent batches for diagnostics while the runtime owns
+// stable GC-visible blocks. Neither caller mutation nor a failed append may
+// change already published metadata, including across block boundaries.
+func TestMetadataSnapshotAcrossAppendBatches(t *testing.T) {
+	h := jit.Register(jit.Region{Start: 0x100000, End: 0x200000, Unwind: jit.UnwindSkip})
+	defer h.Unregister()
+	const count = 1100
+	for i := 0; i < count; i++ {
+		mask := []byte{1}
+		h.AddStackMaps(jit.StackMap{PCOffset: uintptr(i + 1), FrameWords: 1, PointerMask: mask, HasUnwind: true, CallerSPOffset: 16})
+		mask[0] = 0
+	}
+	snapshot := h.Snapshot()
+	if len(snapshot.StackMaps) != count {
+		t.Fatalf("snapshot has %d maps, want %d", len(snapshot.StackMaps), count)
+	}
+	for i, m := range snapshot.StackMaps {
+		if m.PCOffset != uintptr(i+1) || len(m.PointerMask) != 1 || m.PointerMask[0] != 1 {
+			t.Fatalf("snapshot lost map %d: %+v", i, m)
+		}
+		m.PointerMask[0] = 0
+	}
+	for i, m := range h.Snapshot().StackMaps {
+		if m.PointerMask[0] != 1 {
+			t.Fatalf("snapshot changed published map %d", i)
+		}
+	}
+}
