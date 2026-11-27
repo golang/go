@@ -722,6 +722,9 @@ func newSpanSPMC(cap uint32) *spanSPMC {
 
 	r.cap = cap
 	ring := sysAlloc(uintptr(cap)*unsafe.Sizeof(objptr(0)), &memstats.gcMiscSys, "GC span queue")
+	if ring == nil {
+		throw("out of memory allocating GC span queue")
+	}
 	atomic.StorepNoWB(unsafe.Pointer(&r.ring), ring)
 	return r
 }
