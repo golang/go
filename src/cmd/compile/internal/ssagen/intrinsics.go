@@ -2569,7 +2569,7 @@ func opLen4Imm8(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.Cal
 //go:noinline
 func simdBroadcast(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-		return s.newValue2(op, n.Type(), args[0], s.mem())
+		return s.newValue1(op, n.Type(), args[0])
 	}
 }
 
