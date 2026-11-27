@@ -49,7 +49,9 @@ func (g *Graph) Topo() []string {
 // reachable. g must be transitively closed.
 func (g *Graph) TransitiveReduction() {
 	// For i -> j -> k, if i -> k exists, delete it.
-	for _, i := range g.Nodes {
+	// Process sources in topological order so each successor still has
+	// its original outgoing edges when used to find redundant edges.
+	for _, i := range g.Topo() {
 		for _, j := range g.Nodes {
 			if g.HasEdge(i, j) {
 				for _, k := range g.Nodes {
