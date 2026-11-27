@@ -36,6 +36,10 @@ func TestConsumeValue(t *testing.T) {
 		{"foo bar", "foo", " bar"},
 		{"bar", "bar", ""},
 		{" bar ", "", " bar "},
+		{`""; next=value`, "", "; next=value"},
+		{`"`, "", `"`},
+		{`"report.pdf`, "", `"report.pdf`},
+		{`"report\`, "", `"report\`},
 		{`"My value"end`, "My value", "end"},
 		{`"My value" end`, "My value", " end"},
 		{`"\\" rest`, "\\", " rest"},
@@ -43,6 +47,13 @@ func TestConsumeValue(t *testing.T) {
 		{`"\" rest`, "", `"\" rest`},
 		{`"C:\dev\go\robots.txt"`, `C:\dev\go\robots.txt`, ""},
 		{`"C:\新建文件夹\中文第二次测试.mp4"`, `C:\新建文件夹\中文第二次测试.mp4`, ""},
+		{`"C:\tmp\\report.pdf"; x=y`, `C:\tmp\report.pdf`, "; x=y"},
+		{"\"a\xff\xc0b\"; x=y", "a\xff\xc0b", "; x=y"},
+		{"\"a\rb\"", "", "\"a\rb\""},
+		{"\"a\nb\"", "", "\"a\nb\""},
+		{"\"a\\\rb\"", "", "\"a\\\rb\""},
+		{"\"a\\;b\rc\"", "", "\"a\\;b\rc\""},
+		{"\"a\\;b\nc\"", "", "\"a\\;b\nc\""},
 	}
 	for _, test := range tests {
 		value, rest := consumeValue(test[0])
@@ -460,6 +471,32 @@ func BenchmarkParseMediaType(b *testing.B) {
 		for _, test := range parseMediaTypeTests {
 			ParseMediaType(test.in)
 		}
+	}
+}
+
+func BenchmarkParseMediaTypeQuoted(b *testing.B) {
+	tests := []struct{ name, input string }{
+		{"Filename", `attachment; filename="report.pdf"`},
+		{"LongFilename", `attachment; filename="` + strings.Repeat("report-", 128) + `.pdf"`},
+		{"FormData", `form-data; name="file"; filename="report.pdf"`},
+		{"MultipleParameters", `text/plain; charset="utf-8"; name="отчёт.txt"; format="flowed"`},
+		{"Empty", `form-data; name=""`},
+		{"Short", `form-data; name="a"`},
+		{"Boundary", `multipart/form-data; boundary="` + strings.Repeat("0123456789", 6) + `"`},
+		{"MSIEPath", `attachment; filename="C:\dev\go\robots.txt"`},
+		{"LateEscape", `attachment; filename="` + strings.Repeat("a", 31) + `\".pdf"`},
+		{"Escaped", `attachment; filename="report \"final\".pdf"`},
+		{"DenseEscaped", `attachment; filename="` + strings.Repeat(`\;`, 128) + `"`},
+		{"Unquoted", `attachment; filename=report.pdf`},
+		{"Invalid", `attachment; filename="report.pdf`},
+	}
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				ParseMediaType(tt.input)
+			}
+		})
 	}
 }
 
