@@ -95,6 +95,10 @@ type printer struct {
 	// Cache of most recently computed line position.
 	cachedPos  token.Pos
 	cachedLine int // line corresponding to cachedPos
+
+	// Cache of the position of the next expression on a left spine; see exprPos.
+	spineNext ast.Expr
+	spinePos  token.Pos // spineNext.Pos()
 }
 
 func (p *printer) internalError(msg ...any) {
