@@ -96,6 +96,13 @@ func (c *Conn) handleLongHeader(now time.Time, dgram *datagram, ptype packetType
 	if n < 0 {
 		return -1
 	}
+	if !validPacketNumber(p.num) {
+		c.abort(now, localTransportError{
+			code:   errProtocolViolation,
+			reason: "packet number out of range",
+		})
+		return -1
+	}
 	if buf[0]&reservedLongBits != 0 {
 		// Reserved header bits must be 0.
 		// https://www.rfc-editor.org/rfc/rfc9000#section-17.2-8.2.1
@@ -153,6 +160,13 @@ func (c *Conn) handle1RTT(now time.Time, dgram *datagram, buf []byte) int {
 		if _, ok := err.(localTransportError); ok {
 			c.abort(now, err)
 		}
+		return -1
+	}
+	if !validPacketNumber(p.num) {
+		c.abort(now, localTransportError{
+			code:   errProtocolViolation,
+			reason: "packet number out of range",
+		})
 		return -1
 	}
 	if buf[0]&reserved1RTTBits != 0 {
