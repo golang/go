@@ -238,7 +238,7 @@ An argument is a simple value, denoted by one of the following.
 	  The result is the value of invoking the function, fun(). The return
 	  types and values behave as in methods. Functions and function
 	  names are described below.
-	- A parenthesized instance of one the above, for grouping. The result
+	- A parenthesized pipeline, for grouping. The result
 	  may be accessed by a field or map key invocation.
 
 		print (.F1 arg1) (.F2 arg2)
@@ -329,7 +329,7 @@ All produce the quoted word "output":
 		A function call whose final argument comes from the previous
 		command.
 	{{printf "%q" (print "out" "put")}}
-		A parenthesized argument.
+		A parenthesized pipeline.
 	{{"put" | printf "%s%s" "out" | printf "%q"}}
 		A more elaborate call.
 	{{"output" | printf "%s" | printf "%q"}}
