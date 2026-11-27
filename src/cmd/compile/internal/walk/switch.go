@@ -323,6 +323,9 @@ func (s *exprSwitch) tryJumpTable(cc []exprClause, out *ir.Nodes) bool {
 		// i.e. for switch x {case 0: case 1000: case 2000:} we don't want to use a jump table.
 		return false
 	}
+	if m := ssagen.Arch.LinkArch.MaxJumpTable; m != 0 && constant.Compare(width, token.GTR, constant.MakeInt64(m)) {
+		return false // too big for the architecture
+	}
 	jt := ir.NewJumpTableStmt(base.Pos, s.exprname)
 	for _, c := range cc {
 		jmp := c.jmp.(*ir.BranchStmt)
@@ -1130,6 +1133,9 @@ func (s *typeSwitch) tryJumpTable(walkstate *walkState, cc []typeClause, out *ir
 	// bits possible, but try a few larger sizes if needed.
 	b0 := bits.Len(uint(len(cc) - 1))
 	for b := b0; b < b0+3; b++ {
+		if m := ssagen.Arch.LinkArch.MaxJumpTable; m != 0 && 1<<b > m {
+			break // too big for the architecture
+		}
 	pickI:
 		for i := 0; i <= 32-b; i++ { // starting bit position
 			// Compute the hash we'd get from all the cases,
