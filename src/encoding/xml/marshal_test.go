@@ -2571,6 +2571,48 @@ var closeTests = []struct {
 	want: `<!foo>`,
 }}
 
+func TestMarshalCDATAInvalidCharacters(t *testing.T) {
+	for _, data := range []string{"\x00", "\x1b[1;33mWARN", "\xff", "\xed\xa0\x80", "\ufffe", "\uffff", "ok]]>\x01"} {
+		t.Run(fmt.Sprintf("%q", data), func(t *testing.T) {
+			for _, value := range []any{
+				struct {
+					XMLName Name   `xml:"root"`
+					Data    string `xml:",cdata"`
+				}{Data: data},
+				struct {
+					XMLName Name   `xml:"root"`
+					Data    []byte `xml:",cdata"`
+				}{Data: []byte(data)},
+			} {
+				if out, err := Marshal(value); err == nil {
+					t.Errorf("Marshal(%#v) = %q, want an error", value, out)
+				}
+			}
+		})
+	}
+}
+
+func TestMarshalCDATAValidCharacters(t *testing.T) {
+	var value struct {
+		XMLName Name   `xml:"root"`
+		Data    string `xml:",cdata"`
+	}
+	value.Data = "\t\n\ufffd\u4e16\U0001f642]]>"
+	out, err := Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded struct {
+		Data string `xml:",chardata"`
+	}
+	if err := Unmarshal(out, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded.Data != value.Data {
+		t.Errorf("CDATA round trip = %q, want %q", decoded.Data, value.Data)
+	}
+}
+
 func TestClose(t *testing.T) {
 	for _, tt := range closeTests {
 		t.Run(tt.desc, func(t *testing.T) {
