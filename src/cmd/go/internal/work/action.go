@@ -568,9 +568,11 @@ func (c cgoCompileActor) Act(b *Builder, ctx context.Context, a *Action) error {
 
 	a.actionID = b.cgoCompileActionID(a, c.file, c.getFlagsFunc(pr))
 	targetBase := filepath.Base(a.Target)
-	if err := b.loadCachedObjdirFile(a, cache.Default(), targetBase); err == nil {
-		a.built = a.Target
-		return nil
+	if !cfg.BuildA {
+		if err := b.loadCachedObjdirFile(a, cache.Default(), targetBase); err == nil {
+			a.built = a.Target
+			return nil
+		}
 	}
 	defer b.flushOutput(a)
 
