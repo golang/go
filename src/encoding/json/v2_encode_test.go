@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"runtime/debug"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"testing/synctest"
@@ -1639,4 +1640,31 @@ func TestSynctestMarshal(t *testing.T) {
 		})
 	}
 	wg.Wait()
+}
+
+func TestMarshalSelfReferentialPointerType(t *testing.T) {
+	type P *P
+
+	var p P
+	p = &p
+
+	_, err := Marshal(p)
+	if err == nil {
+		t.Fatal("Marshal() unexpectedly succeeded; want cycle error")
+	}
+	if !strings.Contains(err.Error(), "cycle") {
+		t.Fatalf("Marshal() error = %q, want cycle error", err)
+	}
+}
+
+func BenchmarkMarshalPointer(b *testing.B) {
+	v := 42
+	p := &v
+
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := Marshal(p); err != nil {
+			b.Fatal(err)
+		}
+	}
 }
