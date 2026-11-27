@@ -3716,6 +3716,7 @@ top:
 	// file.
 	wasSpinning := mp.spinning
 	if mp.spinning {
+		schedTestSpinExit(mp.id)
 		mp.spinning = false
 		if sched.nmspinning.Add(-1) < 0 {
 			throw("findRunnable: negative nmspinning")
@@ -3752,6 +3753,7 @@ top:
 		unlock(&sched.lock)
 
 		pp := checkRunqsNoP(allpSnapshot, idlepMaskSnapshot)
+		schedTestSpinExitChecked(mp.id, pp != nil)
 		if pp != nil {
 			acquirep(pp)
 			mp.becomeSpinning()
