@@ -4,7 +4,14 @@
 
 // Package cookiejar implements an in-memory [RFC 6265]-compliant [http.CookieJar].
 //
+// The jar also follows this rule of [RFC 6265bis] (draft 22), the revision
+// of RFC 6265: a Secure cookie set from an insecure origin is ignored. So
+// is a cookie that is not Secure, set from an insecure origin, if it would
+// overwrite or shadow a Secure cookie of the same name. HTTPS URLs are
+// secure origins, and so are localhost and loopback addresses over HTTP.
+//
 // [RFC 6265]: https://www.rfc-editor.org/info/rfc6265
+// [RFC 6265bis]: https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22
 package cookiejar
 
 import (
@@ -152,27 +159,26 @@ func (e *entry) pathMatch(requestPath string) bool {
 }
 
 // secureMatch checks whether a cookie should be sent based on the protocol
-// and the Secure flag. Localhost is considered a secure origin regardless
-// of protocol, matching browser behavior.
+// and the Secure flag.
 func (e *entry) secureMatch(https bool) bool {
-	if !e.Secure {
-		// Cookies not marked secure are always sent.
-		return true
-	}
-	// Everything below is about cookies marked secure.
+	// Cookies not marked secure are always sent.
+	return !e.Secure || isSecureOrigin(https, e.Domain)
+}
+
+// isSecureOrigin reports whether host is a secure origin, which may set and
+// receive Secure cookies; https reports whether the request uses HTTPS.
+// Localhost is considered a secure origin regardless of protocol, matching
+// browser behavior.
+func isSecureOrigin(https bool, host string) bool {
 	if https {
-		// HTTPS request matches secure cookies.
 		return true
 	}
 	// Consider localhost to be secure like browsers.
-	if isLocalhost(e.Domain) {
+	if isLocalhost(host) {
 		return true
 	}
-	ip, err := netip.ParseAddr(e.Domain)
-	if err == nil && ip.IsLoopback() {
-		return true
-	}
-	return false
+	ip, err := netip.ParseAddr(host)
+	return err == nil && ip.IsLoopback()
 }
 
 func isLocalhost(host string) bool {
@@ -283,16 +289,28 @@ func (j *Jar) setCookies(u *url.URL, cookies []*http.Cookie, now time.Time) {
 	}
 	key := jarKey(host, j.psList)
 	defPath := defaultPath(u.Path)
+	secure := isSecureOrigin(u.Scheme == "https", host)
 
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
 	submap := j.entries[key]
 
+	// An insecure origin can neither set a Secure cookie nor overwrite,
+	// delete or shadow one that has not expired, so these stay the same
+	// while its cookies are set.
+	var secureCookies map[string][]entry
+	if !secure {
+		secureCookies = secureByName(submap, now)
+	}
+
 	modified := false
 	for _, cookie := range cookies {
-		e, remove, err := j.newEntry(cookie, now, defPath, host)
+		e, remove, err := j.newEntry(cookie, now, defPath, host, secure)
 		if err != nil {
+			continue
+		}
+		if !secure && shadowsSecure(secureCookies[e.Name], &e) {
 			continue
 		}
 		id := e.id()
@@ -329,6 +347,32 @@ func (j *Jar) setCookies(u *url.URL, cookies []*http.Cookie, now time.Time) {
 			j.entries[key] = submap
 		}
 	}
+}
+
+// secureByName returns the Secure cookies in submap that have not expired at
+// now, by name.
+func secureByName(submap map[string]entry, now time.Time) map[string][]entry {
+	m := make(map[string][]entry)
+	for _, e := range submap {
+		if e.Secure && (!e.Persistent || e.Expires.After(now)) {
+			m[e.Name] = append(m[e.Name], e)
+		}
+	}
+	return m
+}
+
+// shadowsSecure reports whether e, a cookie from an insecure origin, would
+// overwrite or shadow one of secure, the unexpired Secure cookies with e's
+// name: one whose domain domain-matches e's domain or the other way round,
+// and whose path e's path path-matches. See RFC 6265bis section 5.7 step 16.
+func shadowsSecure(secure []entry, e *entry) bool {
+	for _, old := range secure {
+		if (old.Domain == e.Domain || hasDotSuffix(old.Domain, e.Domain) || hasDotSuffix(e.Domain, old.Domain)) &&
+			old.pathMatch(e.Path) {
+			return true
+		}
+	}
+	return false
 }
 
 // canonicalHost strips port from host if present and returns the canonicalized
@@ -424,14 +468,17 @@ func defaultPath(path string) string {
 
 // newEntry creates an entry from an http.Cookie c. now is the current time and
 // is compared to c.Expires to determine deletion of c. defPath and host are the
-// default-path and the canonical host name of the URL c was received from.
+// default-path and the canonical host name of the URL c was received from, and
+// secure reports whether that URL is a secure origin.
 //
 // remove records whether the jar should delete this cookie, as it has already
 // expired with respect to now. In this case, e may be incomplete, but it will
-// be valid to call e.id (which depends on e's Name, Domain and Path).
+// be valid to call e.id (which depends on e's Name, Domain and Path), and
+// e.Secure is set.
 //
-// A malformed c.Domain will result in an error.
-func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e entry, remove bool, err error) {
+// A malformed c.Domain, or a Secure c from an insecure origin, will result in
+// an error.
+func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string, secure bool) (e entry, remove bool, err error) {
 	e.Name = c.Name
 
 	if c.Path == "" || c.Path[0] != '/' {
@@ -443,6 +490,13 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 	e.Domain, e.HostOnly, err = j.domainAndType(host, c.Domain)
 	if err != nil {
 		return e, false, err
+	}
+
+	// Only a secure origin may set a Secure cookie, even an expired one
+	// that deletes a cookie. See RFC 6265bis section 5.7 step 13.
+	e.Secure = c.Secure
+	if e.Secure && !secure {
+		return e, false, errInsecureOrigin
 	}
 
 	// MaxAge takes precedence over Expires.
@@ -466,7 +520,6 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 
 	e.Value = c.Value
 	e.Quoted = c.Quoted
-	e.Secure = c.Secure
 	e.HttpOnly = c.HttpOnly
 
 	switch c.SameSite {
@@ -484,6 +537,7 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 var (
 	errIllegalDomain   = errors.New("cookiejar: illegal cookie domain attribute")
 	errMalformedDomain = errors.New("cookiejar: malformed cookie domain attribute")
+	errInsecureOrigin  = errors.New("cookiejar: Secure cookie from an insecure origin")
 )
 
 // endOfTime is the time when session (non-persistent) cookies expire.
