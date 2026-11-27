@@ -44,6 +44,32 @@ func requestHeader(h http.Header) http.Header {
 	return minimalHeader
 }
 
+func TestServerTruncatedQPACK(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		data []byte
+	}{
+		{"integer continuation", []byte{0xff}},
+		{"delta base", []byte{0}},
+		{"value length", []byte{0, 0, 0x20}},
+		{"name length continuation", []byte{0, 0, 0x27}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				ts := newTestServer(t, nil)
+				tc := ts.connect()
+				tc.greet()
+				st := tc.newStream(streamTypeRequest)
+				st.writeVarint(int64(frameTypeHeaders))
+				st.writeVarint(int64(len(test.data)))
+				st.Write(test.data)
+				st.Flush()
+				tc.wantClosed("truncated QPACK field section", errH3FrameError)
+			})
+		})
+	}
+}
+
 func TestServerReceivePushStream(t *testing.T) {
 	// "[...] if a server receives a client-initiated push stream,
 	// this MUST be treated as a connection error of type H3_STREAM_CREATION_ERROR."
