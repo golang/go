@@ -22,6 +22,9 @@ func (s *Server) serveHTTP2Conn(ctx context.Context, nc net.Conn, h Handler, saw
 }
 
 type http2Server struct{}
+
+func (s *http2Server) ShutdownIdleConns() {}
+
 type http2ExternalServerConfig interface {
 	unimplementable()
 }

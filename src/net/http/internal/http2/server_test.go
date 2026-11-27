@@ -4519,6 +4519,33 @@ func testServerGracefulShutdown(t *testing.T) {
 	<-shutdownc
 }
 
+// Issue 26303: Server.SetKeepAlivesEnabled(false) shuts down
+// HTTP/2 connections which are already idle.
+func TestServerSetKeepAlivesDisabledShutsDownIdleConn(t *testing.T) {
+	synctest.Test(t, testServerSetKeepAlivesDisabledShutsDownIdleConn)
+}
+func testServerSetKeepAlivesDisabledShutsDownIdleConn(t *testing.T) {
+	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {})
+	defer st.Close()
+
+	st.greet()
+	st.bodylessReq1()
+	st.wantHeaders(wantHeader{
+		streamID:  1,
+		endStream: true,
+		header: http.Header{
+			":status":        []string{"200"},
+			"content-length": []string{"0"},
+		},
+	})
+	st.sync()
+	st.wantIdle()
+
+	st.h1server.SetKeepAlivesEnabled(false)
+	st.sync()
+	st.wantGoAway(1, ErrCodeNo)
+}
+
 // Issue 31753: don't sniff when Content-Encoding is set
 func TestContentEncodingNoSniffing(t *testing.T) {
 	type resp struct {

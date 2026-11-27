@@ -117,6 +117,21 @@ func (s *Server) GracefulShutdown() {
 	}
 }
 
+// ShutdownIdleConns gracefully shuts down connections which have
+// no active streams. Connections which are in use are left alone;
+// they shut down when they become idle if keep-alives are disabled.
+func (s *Server) ShutdownIdleConns() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for sc := range s.activeConns {
+		sc.sendServeMsg(func(sc *serverConn) {
+			if len(sc.streams) == 0 {
+				sc.startGracefulShutdownInternal()
+			}
+		})
+	}
+}
+
 // errChanPool is a pool of reusable channels for reporting the result
 // of a blocking frame write.
 //

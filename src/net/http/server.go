@@ -4011,7 +4011,11 @@ func (s *Server) SetKeepAlivesEnabled(v bool) {
 	// Close idle HTTP/1 conns:
 	s.closeIdleConns()
 
-	// TODO: Issue 26303: close HTTP/2 conns as soon as they become idle.
+	// Gracefully shut down idle HTTP/2 conns. Busy ones
+	// shut down once their last stream completes.
+	if s.h2 != nil {
+		s.h2.ShutdownIdleConns()
+	}
 }
 
 func (s *Server) logf(format string, args ...any) {
