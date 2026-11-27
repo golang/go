@@ -6,6 +6,12 @@
 
 package filepath
 
+import "io/fs"
+
 func evalSymlinks(path string) (string, error) {
 	return walkSymlinks(path)
+}
+
+func isDirReparsePoint(fs.FileInfo) bool {
+	return false
 }

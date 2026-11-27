@@ -5,9 +5,21 @@
 package filepath
 
 import (
+	"io/fs"
 	"strings"
 	"syscall"
 )
+
+// isDirReparsePoint reports whether fi, as returned by [os.Lstat],
+// describes a reparse point for a directory that is reported as
+// neither a directory nor a symbolic link, such as a directory
+// junction or another mount point. EvalSymlinks does not evaluate
+// these, but a path may go through them.
+func isDirReparsePoint(fi fs.FileInfo) bool {
+	d, ok := fi.Sys().(*syscall.Win32FileAttributeData)
+	return ok && d.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 &&
+		d.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0
+}
 
 // normVolumeName is like VolumeName, but makes drive letter upper case.
 // result of EvalSymlinks must be unique, so we have

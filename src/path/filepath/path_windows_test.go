@@ -586,6 +586,57 @@ func TestEvalSymlinksMountPointRecursion(t *testing.T) {
 	}
 }
 
+func TestEvalSymlinksThroughJunction(t *testing.T) {
+	// Test that EvalSymlinks accepts paths that go through
+	// a directory junction, without evaluating the junction.
+	// See go.dev/issue/82447.
+	if winsymlink.Value() == "0" {
+		t.Skip("skipping test because winsymlink is not enabled")
+	}
+	t.Parallel()
+
+	output, _ := exec.Command("cmd", "/c", "mklink", "/?").Output()
+	if !strings.Contains(string(output), " /J ") {
+		t.Skip("skipping test because mklink command does not support junctions")
+	}
+
+	tmpdir := tempDirCanonical(t)
+	target := filepath.Join(tmpdir, "target")
+	if err := os.MkdirAll(filepath.Join(target, "dir"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(target, "dir", "file"), nil, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	dirlink := filepath.Join(tmpdir, "dirlink")
+	output, err := testenv.Command(t, "cmd", "/c", "mklink", "/J", dirlink, target).CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to run mklink %v %v: %v %q", dirlink, target, err, output)
+	}
+
+	for _, path := range []string{
+		dirlink + `\`,
+		filepath.Join(dirlink, "dir"),
+		filepath.Join(dirlink, "dir", "file"),
+	} {
+		got, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			t.Errorf("EvalSymlinks(%q): %v", path, err)
+			continue
+		}
+		if want := filepath.Clean(path); got != want {
+			t.Errorf("EvalSymlinks(%q): got %q, want %q", path, got, want)
+		}
+	}
+
+	// A regular file in the middle of the path is still an error.
+	path := filepath.Join(dirlink, "dir", "file", "x")
+	if got, err := filepath.EvalSymlinks(path); err == nil {
+		t.Errorf("EvalSymlinks(%q): got %q, want error", path, got)
+	}
+}
+
 func TestNTNamespaceSymlink(t *testing.T) {
 	output, _ := exec.Command("cmd", "/c", "mklink", "/?").Output()
 	if !strings.Contains(string(output), " /J ") {

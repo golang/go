@@ -5,10 +5,15 @@
 package filepath
 
 import (
+	"io/fs"
 	"os"
 	"strings"
 	"syscall"
 )
+
+func isDirReparsePoint(fs.FileInfo) bool {
+	return false
+}
 
 func evalSymlinks(path string) (string, error) {
 	// Plan 9 doesn't have symbolic links, so no need for substitutions.
