@@ -30,10 +30,10 @@ var cmdUse = &base.Command{
 directories, optionally recursively, to a go.work file.
 
 A use directive will be added to the go.work file for each argument
-directory listed on the command line go.work file, if it exists,
-or removed from the go.work file if it does not exist.
-Use fails if any remaining use directives refer to modules that
-do not exist.
+directory listed on the command line that contains a go.mod file,
+or removed from the go.work file if the directory has no go.mod file.
+Use fails if an argument is not an existing directory, or if any
+remaining use directives refer to modules that do not exist.
 
 Use updates the go line in go.work to specify a version at least as
 new as all the go lines in the used modules, both preexisting ones
@@ -42,8 +42,9 @@ thing that go work use does.
 
 The -r flag searches recursively for modules in the argument
 directories, and the use command operates as if each of the directories
-were specified as arguments. When -r is used, symlinks to directories
-within the argument tree are ignored.
+were specified as arguments. Use directives for directories within
+the argument tree that no longer exist are removed. When -r is used,
+symlinks to directories within the argument tree are ignored.
 
 The go command matches use paths to module directories without resolving
 symbolic links. A use directive that names a symlink to a directory is
