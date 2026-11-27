@@ -1,0 +1,91 @@
+# -gcflags patterns that match on a package's directory or on whether it is in
+# the standard library must also apply to packages that only the test loads:
+# the test's own imports and the generated test main's dependencies.
+
+[!compiler:gc] skip 'using -gcflags'
+
+# std= overrides all= for test-only standard-library packages.
+go test -a -c -n -gcflags=all=-e -gcflags=std= ./z
+stderr 'compile.* -p example.com/z .* -e '
+stderr 'compile.* -p example.com/z/helper .* -e '
+stderr 'compile.* -p testing .*'
+! stderr 'compile.* -p fmt .* -e '
+! stderr 'compile.* -p testing .* -e '
+
+# std= applies to test-only standard-library packages.
+go test -a -c -n -gcflags=std=-e ./z
+stderr 'compile.* -p testing .* -e '
+! stderr 'compile.* -p example.com/z/helper .* -e '
+
+# A relative pattern applies to packages only the test imports.
+go test -a -c -n -gcflags=./...=-e ./z
+stderr 'compile.* -p example.com/z/helper .* -e '
+! stderr 'compile.* -p testing .* -e '
+
+# The same holds for the test of a package with only _test.go files.
+go test -a -c -n -gcflags=all=-e -gcflags=std= ./onlytest
+stderr 'compile.* -p example.com/z/helper .* -e '
+! stderr 'compile.* -p runtime .* -e '
+! stderr 'compile.* -p testing .* -e '
+
+# The work pattern depends on the module that p.load sets.
+go test -a -c -n -gcflags=work=-e ./z
+stderr 'compile.* -p example.com/z/helper .* -e '
+! stderr 'compile.* -p testing .* -e '
+
+# go vet compiles the same packages.
+go vet -a -n -gcflags=all=-e -gcflags=std= ./z
+stderr 'compile.* -p testing '
+! stderr 'compile.* -p testing .* -e '
+
+# sync/atomic is loaded by EnsureImport when building with atomic coverage,
+# and nothing else in this library imports it.
+go build -a -n -cover -covermode=atomic -gcflags=all=-e -gcflags=std= ./lib
+stderr 'compile.* -p sync/atomic '
+! stderr 'compile.* -p sync/atomic .* -e '
+stderr 'compile.* -p example.com/lib .* -e '
+
+go build -a -n -cover -covermode=atomic -gcflags=std=-e ./lib
+stderr 'compile.* -p sync/atomic .* -e '
+! stderr 'compile.* -p example.com/lib .* -e '
+
+-- go.mod --
+module example.com
+
+go 1.25
+-- z/z.go --
+package z
+
+import "fmt"
+
+func Hello() { fmt.Println("hello") }
+-- z/z_test.go --
+package z
+
+import (
+	"testing"
+
+	"example.com/z/helper"
+)
+
+func TestHello(t *testing.T) { helper.Check(t) }
+-- z/helper/helper.go --
+package helper
+
+import "testing"
+
+func Check(t *testing.T) { t.Log("checked") }
+-- lib/lib.go --
+package lib
+
+func F() int { return 1 }
+-- onlytest/x_test.go --
+package onlytest
+
+import (
+	"testing"
+
+	"example.com/z/helper"
+)
+
+func TestX(t *testing.T) { helper.Check(t) }
