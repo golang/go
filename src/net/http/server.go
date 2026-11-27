@@ -2041,6 +2041,9 @@ func (c *conn) serve(ctx context.Context) {
 		if !c.hijacked() && !c.http2HandedOff {
 			if inFlightResponse != nil {
 				inFlightResponse.conn.r.abortPendingRead()
+				// Don't block draining a body the client may never send.
+				// Set this after abortPendingRead, which can clear the deadline.
+				c.rwc.SetReadDeadline(aLongTimeAgo)
 				inFlightResponse.reqBody.Close()
 			}
 			c.close()
