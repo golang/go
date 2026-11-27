@@ -5218,6 +5218,85 @@ func testServerRequestCancelOnError(t *testing.T) {
 	<-donec
 }
 
+// Issue 52183
+func TestServerRequestCancelOnDisconnect(t *testing.T) {
+	synctest.Test(t, testServerRequestCancelOnDisconnect)
+}
+func testServerRequestCancelOnDisconnect(t *testing.T) {
+	st := newServerTester(t, nil)
+	defer st.Close()
+	st.greet()
+
+	st.writeHeaders(HeadersFrameParam{
+		StreamID:      1,
+		BlockFragment: st.encodeHeader(),
+		EndStream:     true,
+		EndHeaders:    true,
+	})
+	call := st.nextHandlerCall()
+	st.testconn.Peer().SetReadError(io.EOF)
+	for {
+		if _, err := call.w.Write([]byte("some data.\n")); err != nil {
+			break
+		}
+	}
+	if call.req.Context().Err() == nil {
+		t.Errorf("Write failed after client disconnect, but r.Context().Err() = nil; want non-nil")
+	}
+}
+
+// Issue 52183
+func TestServerRequestCancelOnConnReadError(t *testing.T) {
+	synctest.Test(t, testServerRequestCancelOnConnReadError)
+}
+func testServerRequestCancelOnConnReadError(t *testing.T) {
+	st := newServerTester(t, nil)
+	defer st.Close()
+	st.greet()
+
+	st.writeHeaders(HeadersFrameParam{
+		StreamID:      1,
+		BlockFragment: st.encodeHeader(":method", "POST"),
+		EndStream:     false,
+		EndHeaders:    true,
+	})
+	call := st.nextHandlerCall()
+	st.testconn.Peer().SetReadError(errors.New("connection reset"))
+	if _, err := call.req.Body.Read(make([]byte, 1)); err == nil {
+		t.Errorf("Body.Read succeeded after connection read error; want error")
+	}
+	if call.req.Context().Err() == nil {
+		t.Errorf("Body.Read failed after client disconnect, but r.Context().Err() = nil; want non-nil")
+	}
+}
+
+// Issue 52183
+func TestServerRequestCancelOnConnWriteError(t *testing.T) {
+	synctest.Test(t, testServerRequestCancelOnConnWriteError)
+}
+func testServerRequestCancelOnConnWriteError(t *testing.T) {
+	st := newServerTester(t, nil)
+	defer st.Close()
+	st.greet()
+
+	st.writeHeaders(HeadersFrameParam{
+		StreamID:      1,
+		BlockFragment: st.encodeHeader(),
+		EndStream:     true,
+		EndHeaders:    true,
+	})
+	call := st.nextHandlerCall()
+	st.testconn.Peer().SetWriteError(errors.New("write error"))
+	for {
+		if _, err := call.w.Write([]byte("some data.\n")); err != nil {
+			break
+		}
+	}
+	if call.req.Context().Err() == nil {
+		t.Errorf("Write failed on a broken connection, but r.Context().Err() = nil; want non-nil")
+	}
+}
+
 func TestServerSetReadWriteDeadlineRace(t *testing.T) {
 	synctest.Test(t, testServerSetReadWriteDeadlineRace)
 }
