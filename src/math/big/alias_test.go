@@ -241,6 +241,102 @@ func checkAliasingTwoResults(t *testing.T, f func(v, x, y, w *big.Int) (*big.Int
 	return equal(x, x1) && equal(y, y1)
 }
 
+// checkAliasingResults checks if f computes the same results no matter which
+// of its results alias which of its arguments.
+//
+// checkAliasingTwoResults enumerates the aliasing patterns of a method with
+// two results by hand, which does not extend to Int.GCD: it writes three
+// results, z, x and y, so there are more combinations than are practical to
+// spell out, including ones where two results alias two different arguments
+// at the same time.
+//
+// f sets outs from ins and must not modify ins. checkAliasingResults calls f
+// once with every result distinct from every argument to obtain a reference,
+// then once for each way of pointing the results at the arguments. Results
+// that are not aliased are filled with a value f must overwrite, to test for
+// improper buffer reuse.
+func checkAliasingResults(t *testing.T, nOut int, f func(outs, ins []*big.Int), ins ...*big.Int) bool {
+	nIn := len(ins)
+	orig := make([]*big.Int, nIn)
+	for i, x := range ins {
+		orig[i] = new(big.Int).Set(x)
+	}
+	freshIns := func() []*big.Int {
+		s := make([]*big.Int, nIn)
+		for i := range s {
+			s[i] = new(big.Int).Set(orig[i])
+		}
+		return s
+	}
+	junk := func() *big.Int { return new(big.Int).Lsh(big.NewInt(1), 500) }
+
+	// Calculate a reference result without any aliasing.
+	refIns := freshIns()
+	ref := make([]*big.Int, nOut)
+	for k := range ref {
+		ref[k] = junk()
+	}
+	f(ref, refIns)
+	for i := range refIns {
+		if !equal(refIns[i], orig[i]) {
+			t.Logf("f modified argument %d", i)
+			return false
+		}
+	}
+
+	combinations := 1
+	for k := 0; k < nOut; k++ {
+		combinations *= nIn + 1
+	}
+	for c := 0; c < combinations; c++ {
+		// at[k] is the argument that output k aliases, or -1 for none.
+		at := make([]int, nOut)
+		taken := make(map[int]bool, nOut)
+		anyAliased, shared := false, false
+		for k, rest := 0, c; k < nOut; k++ {
+			at[k] = rest%(nIn+1) - 1
+			rest /= nIn + 1
+			if at[k] >= 0 {
+				anyAliased = true
+				if taken[at[k]] {
+					// Two outputs sharing one Int cannot hold two results.
+					shared = true
+				}
+				taken[at[k]] = true
+			}
+		}
+		if !anyAliased || shared {
+			continue
+		}
+
+		args := freshIns()
+		outs := make([]*big.Int, nOut)
+		for k := range outs {
+			if at[k] < 0 {
+				outs[k] = junk()
+			} else {
+				outs[k] = args[at[k]]
+			}
+		}
+		f(outs, args)
+
+		for k := range outs {
+			if !equal(outs[k], ref[k]) {
+				t.Logf("aliasing %v: result %d is %v, want %v", at, k, outs[k], ref[k])
+				return false
+			}
+		}
+		// Arguments no output aliases must be unchanged.
+		for i := range args {
+			if !taken[i] && !equal(args[i], orig[i]) {
+				t.Logf("aliasing %v: f modified argument %d", at, i)
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func TestAliasing(t *testing.T) {
 	for name, f := range map[string]any{
 		"Abs": func(v, x bigInt) bool {
@@ -294,6 +390,11 @@ func TestAliasing(t *testing.T) {
 				a.GCD(b, v, x, y)
 				return v
 			}, v.Int, x.Int, y.Int)
+		},
+		"GCD-ZXY": func(a, b bigInt) bool {
+			return checkAliasingResults(t, 3, func(o, i []*big.Int) {
+				o[0].GCD(o[1], o[2], i[0], i[1])
+			}, a.Int, b.Int)
 		},
 		"Lsh": func(v, x bigInt, n smallUint) bool {
 			return checkAliasingOneArg(t, func(v, x *big.Int) *big.Int {
