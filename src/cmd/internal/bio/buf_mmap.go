@@ -7,7 +7,10 @@
 package bio
 
 import (
+	"os"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"syscall"
 )
@@ -20,7 +23,7 @@ import (
 //	Darwin    unlimited
 //	DragonFly   1000000 (vm.max_proc_mmap)
 //	FreeBSD   unlimited
-//	Linux         65530 (vm.max_map_count) // TODO: query /proc/sys/vm/max_map_count?
+//	Linux         reads from /proc/sys/vm/max_map_count
 //	NetBSD    unlimited
 //	OpenBSD   unlimited
 var mmapLimit int32 = 1<<31 - 1
@@ -28,8 +31,22 @@ var mmapLimit int32 = 1<<31 - 1
 func init() {
 	// Linux is the only practically concerning OS.
 	if runtime.GOOS == "linux" {
-		mmapLimit = 30000
+		mmapLimit = getLinuxMaxMapCount()
 	}
+}
+
+func getLinuxMaxMapCount() int32 {
+	data, err := os.ReadFile("/proc/sys/vm/max_map_count")
+	if err != nil {
+		return 1<<31 - 1
+	}
+
+	maxMapCount, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		return 1<<31 - 1
+	}
+
+	return int32(maxMapCount)
 }
 
 func (r *Reader) sliceOS(length uint64) ([]byte, bool) {
