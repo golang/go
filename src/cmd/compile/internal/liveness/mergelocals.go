@@ -524,6 +524,12 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
 							// Might be stored to memory. Give up.
 							continue
 						}
+						if nc.n.Type().HasPointers() {
+							// Liveness gives the variable a stack
+							// object, which must not share a slot.
+							// Give up.
+							continue
+						}
 						// Some sort of address arithmetic.
 						if _, ok := pendingUses[v.ID]; ok {
 							// v has used multiple addresses, which is something

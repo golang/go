@@ -1431,6 +1431,7 @@ func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs, retL
 	// Construct the global liveness state.
 	vars, idx := getvariables(curfn)
 	lv := newliveness(curfn, f, vars, idx, stkptrsize)
+	lv.markAddrtaken()
 
 	// Run the dataflow framework.
 	lv.prologue()
@@ -1493,6 +1494,29 @@ func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs, retL
 	}
 
 	return lv.livenessMap, lv.partLiveArgs, retLv
+}
+
+// markAddrtaken marks as address-taken each tracked variable whose
+// address may propagate in SSA, so that it gets a stack object.
+// See issue 82026.
+//
+// TODO: This is deliberately conservative. Tracking derived addresses
+// in the dataflow would be more precise.
+func (lv *Liveness) markAddrtaken() {
+	for _, b := range lv.f.Blocks {
+		for _, v := range b.Values {
+			for i, a := range v.Args {
+				n, e := affectedVar(a)
+				if n == nil || e&ssaop.SymAddr == 0 || n.Addrtaken() || v.AddrSinkArg(i) {
+					continue
+				}
+				if _, ok := lv.idx[n]; !ok {
+					continue
+				}
+				n.SetAddrtaken(true)
+			}
+		}
+	}
 }
 
 func (lv *Liveness) emitStackObjects() *obj.LSym {
