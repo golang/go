@@ -226,6 +226,10 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 		default:
 			panic(c.urlPart.String())
 		}
+	case stateMetaContentDelay:
+		// The action may produce all or part of a refresh delay, so the text
+		// after it is read as general meta content.
+		c.state = stateMetaContent
 	case stateMetaContent:
 		// Handled below in delim check.
 	case stateMetaContentURL:
@@ -484,6 +488,25 @@ func join(a, b context, node parse.Node, nodeName string) context {
 	}
 	if a.eq(b) {
 		return a
+	}
+
+	// A branch that leaves a meta content delay unread joins the other
+	// branch's meta content state: a URL if the other branch reached one, so
+	// that an action after the branch is still filtered, and general meta
+	// content otherwise.
+	if a.state == stateMetaContentDelay || b.state == stateMetaContentDelay {
+		to := stateMetaContent
+		if a.state == stateMetaContentURL || b.state == stateMetaContentURL {
+			to = stateMetaContentURL
+		}
+		c, d := a, b
+		if c.state == stateMetaContentDelay {
+			c.state = to
+		}
+		if d.state == stateMetaContentDelay {
+			d.state = to
+		}
+		return join(c, d, node, nodeName)
 	}
 
 	c := a
