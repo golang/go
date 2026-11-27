@@ -28,18 +28,19 @@ func ldexp(frac float64, exp int) float64 {
 		return frac
 	}
 	frac, e := normalize(frac)
-	exp += e
 	x := Float64bits(frac)
-	exp += int(x>>shift)&mask - bias
-	if exp < -1075 {
+	fracExp := e + (int(x>>shift)&mask - bias)
+	// Check the bounds before adding fracExp to avoid overflowing int.
+	if exp < -1075-fracExp {
 		return Copysign(0, frac) // underflow
 	}
-	if exp > 1023 { // overflow
+	if exp > 1023-fracExp { // overflow
 		if frac < 0 {
 			return Inf(-1)
 		}
 		return Inf(1)
 	}
+	exp += fracExp
 	var m float64 = 1
 	if exp < -1022 { // denormal
 		exp += 53
