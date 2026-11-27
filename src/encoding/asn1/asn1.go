@@ -336,10 +336,15 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error) 
 func parseUTCTime(bytes []byte) (ret time.Time, err error) {
 	s := string(bytes)
 
-	formatStr := "0601021504Z0700"
+	zoneFormat := "Z0700"
+	if strings.HasSuffix(s, "+0000") {
+		// Preserve an explicit zero offset when checking the round trip.
+		zoneFormat = "-0700"
+	}
+	formatStr := "0601021504" + zoneFormat
 	ret, err = time.Parse(formatStr, s)
 	if err != nil {
-		formatStr = "060102150405Z0700"
+		formatStr = "060102150405" + zoneFormat
 		ret, err = time.Parse(formatStr, s)
 	}
 	if err != nil {
