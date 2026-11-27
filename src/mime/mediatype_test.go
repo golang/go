@@ -546,6 +546,21 @@ var formatTests = []formatTest{
 	{"foo/bar", map[string]string{"a": "av", "b": "bv", "c": "cv"}, "foo/bar; a=av; b=bv; c=cv"},
 	{"foo/bar", map[string]string{"0": "'", "9": "'"}, "foo/bar; 0='; 9='"},
 	{"foo", map[string]string{"bar": ""}, `foo; bar=""`},
+
+	// Values that would need an extended form ParseMediaType ignores.
+	{"text/plain", map[string]string{"charset": "ünïcode"}, ""},
+	{"text/plain", map[string]string{"charset": "utf-8\n"}, ""},
+	{"TEXT/PLAIN", map[string]string{"Charset": "ü"}, ""},
+	{"application/x-foo", map[string]string{"boundary": "bø"}, ""},
+	{"multipart/form-data", map[string]string{"boundary": "bøundary"}, ""},
+	{"multipart/mixed", map[string]string{"boundary": "x", "note": "café"}, ""},
+	{"MULTIPART/Mixed", map[string]string{"boundary": "x", "Note": "café"}, ""},
+	{"multipart/mixed", map[string]string{"boundary": "x", "note": "with space"}, `multipart/mixed; boundary=x; note="with space"`},
+	{"multipart/form-data", map[string]string{"boundary": `a"b\c`}, `multipart/form-data; boundary="a\"b\\c"`},
+	{"text/plain", map[string]string{"charset": "utf-8", "title": "café"}, "text/plain; charset=utf-8; title*=utf-8''caf%C3%A9"},
+	{"text/plain", map[string]string{"charset": "with\ttab"}, "text/plain; charset=\"with\ttab\""},
+	{"multipart", map[string]string{"note": "café"}, "multipart; note*=utf-8''caf%C3%A9"},
+	{"x-multipart/mixed", map[string]string{"note": "café"}, "x-multipart/mixed; note*=utf-8''caf%C3%A9"},
 }
 
 func TestFormatMediaType(t *testing.T) {
@@ -564,10 +579,77 @@ func TestFormatMediaType(t *testing.T) {
 		if typ != strings.ToLower(tt.typ) {
 			t.Errorf("%d. ParseMediaType(%q) typ = %q; want %q", i, got, typ, tt.typ)
 		}
-		for k, v := range tt.params {
-			k = strings.ToLower(k)
-			if params[k] != v {
-				t.Errorf("%d. ParseMediaType(%q) params[%s] = %q; want %q", i, got, k, params[k], v)
+		if !maps.Equal(params, lowerKeys(tt.params)) {
+			t.Errorf("%d. ParseMediaType(%q) params = %q; want %q", i, got, params, lowerKeys(tt.params))
+		}
+	}
+}
+
+func lowerKeys(m map[string]string) map[string]string {
+	l := make(map[string]string, len(m))
+	for k, v := range m {
+		l[strings.ToLower(k)] = v
+	}
+	return l
+}
+
+// TestFormatMediaTypeRoundTrip checks that ParseMediaType recovers exactly
+// the type and parameters given to FormatMediaType, unless FormatMediaType
+// rejects them by returning the empty string.
+func TestFormatMediaTypeRoundTrip(t *testing.T) {
+	types := []string{
+		"text/plain", "TEXT/Plain", "application/octet-stream",
+		"multipart/mixed", "Multipart/Form-Data", "MULTIPART/X-Foo",
+		"multipart", "x-multipart/mixed", "attachment", "form-data",
+	}
+	names := []string{
+		"charset", "Charset", "boundary", "BOUNDARY",
+		"filename", "name", "note", "x",
+	}
+	values := []string{
+		"", "a", "utf-8", "with space", `q"uote`, `b\slash`, "tab\there",
+		"'", "%41", "*", ";", "=", "a'b'c", "utf-8''x",
+		"café", "数据", "nl\n", "cr\r", "nul\x00", "del\x7f", "bad\xff",
+	}
+	printable := func(s string) bool {
+		for _, c := range []byte(s) {
+			if (c < ' ' || c > '~') && c != '\t' {
+				return false
+			}
+		}
+		return true
+	}
+	check := func(typ string, param map[string]string) {
+		t.Helper()
+		got := FormatMediaType(typ, param)
+		if got == "" {
+			for _, v := range param {
+				if !printable(v) {
+					return
+				}
+			}
+			t.Errorf("FormatMediaType(%q, %q) = \"\"; want non-empty", typ, param)
+			return
+		}
+		mt, params, err := ParseMediaType(got)
+		if err != nil {
+			t.Errorf("ParseMediaType(FormatMediaType(%q, %q) = %q) error: %v", typ, param, got, err)
+			return
+		}
+		if mt != strings.ToLower(typ) || !maps.Equal(params, lowerKeys(param)) {
+			t.Errorf("ParseMediaType(FormatMediaType(%q, %q) = %q) = %q, %q; want %q, %q",
+				typ, param, got, mt, params, strings.ToLower(typ), lowerKeys(param))
+		}
+	}
+	for _, typ := range types {
+		check(typ, nil)
+		for _, name := range names {
+			for _, v := range values {
+				check(typ, map[string]string{name: v})
+				// Pair with a second parameter, either plain or needing encoding.
+				for _, other := range []string{"plain", "ünïcode"} {
+					check(typ, map[string]string{name: v, "other": other})
+				}
 			}
 		}
 	}
