@@ -66,9 +66,12 @@ func atan2(y, x float64) float64 {
 	}
 
 	// Call atan and determine the quadrant.
+	// y is nonzero here, so branch on its sign: the sign of q is
+	// unreliable when y/x underflows to +0 (then q is +0 even for
+	// y < 0, which would wrongly yield +Pi instead of -Pi).
 	q := Atan(y / x)
 	if x < 0 {
-		if q <= 0 {
+		if y > 0 {
 			return q + Pi
 		}
 		return q - Pi

@@ -837,6 +837,10 @@ var vfatan2SC = [][2]float64{
 	{Inf(1), Inf(1)},
 	{Inf(1), NaN()},
 	{NaN(), NaN()},
+	{-1e-300, -1e300},             // Issue 82498: y/x underflows to +0, third quadrant.
+	{-SmallestNonzeroFloat64, -2}, // Issue 82498: smallest subnormal y, third quadrant.
+	{-1e-200, -1e200},             // Issue 82498: y/x underflows to +0, third quadrant.
+	{1e-300, -1e300},              // Control: y/x underflows to -0, second quadrant.
 }
 var atan2SC = []float64{
 	-3 * Pi / 4,     // atan2(-Inf, -Inf)
@@ -876,6 +880,10 @@ var atan2SC = []float64{
 	Pi / 4,          // atan2(+Inf, +Inf)
 	NaN(),           // atan2(+Inf, NaN)
 	NaN(),           // atan2(NaN, NaN)
+	-Pi,             // atan2(-1e-300, -1e300)
+	-Pi,             // atan2(-5e-324, -2)
+	-Pi,             // atan2(-1e-200, -1e200)
+	Pi,              // atan2(+1e-300, -1e300)
 }
 
 var vfcbrtSC = []float64{
