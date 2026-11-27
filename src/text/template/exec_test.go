@@ -675,6 +675,14 @@ var execTests = []execTest{
 	{"HEX float", "{{print +0X1.EP+2}}", "7.5", tVal, true},
 	{"print multi", "{{print 1_2_3_4 7.5_00_00_00}}", "1234 7.5", tVal, true},
 	{"print multi2", "{{print 1234 0x0_1.e_0p+02}}", "1234 7.5", tVal, true},
+	{"float32 arg", "{{float32Arg 1.000000059604644775390625000001}}", "1.0000001", tVal, true},
+	{"float32 arg octal", "{{float32Arg 017}}", "15", tVal, true},
+	{"float32 arg hex", "{{float32Arg 0x1e}}", "30", tVal, true},
+	{"float32 arg max", "{{float32Arg 3.4028235677973366e38}}", "3.4028235e+38", tVal, true},
+	{"float32 arg int", "{{float32Arg 1152921573326323713}}", "1.1529216e+18", tVal, true},
+	{"float32 arg int47", "{{float32Arg 70983546339329}}", "7.0983545e+13", tVal, true},
+	{"complex64 arg", "{{complexArg 1.000000059604644775390625000001+1.000000059604644775390625000001i}}", "(1.0000001+1.0000001i)", tVal, true},
+	{"complex64 arg overflow", "{{complexArg 1.000000059604644775390625000001+1e39i}}", "(1.0000001+Infi)", tVal, true},
 
 	// Fixed bugs.
 	// Must separate dot and receiver; otherwise args are evaluated with dot set to variable.
@@ -797,6 +805,14 @@ func dddArg(a int, b ...string) string {
 	return fmt.Sprintln(a, b)
 }
 
+func float32Arg(f float32) float32 {
+	return f
+}
+
+func complexArg(c complex64) complex64 {
+	return c
+}
+
 // count returns a channel that will deliver n sequential 1-letter strings starting at "a"
 func count(n int) chan string {
 	if n == 0 {
@@ -862,10 +878,12 @@ func testExecute(execTests []execTest, template *Template, t *testing.T) {
 	b := new(strings.Builder)
 	funcs := FuncMap{
 		"add":         add,
+		"complexArg":  complexArg,
 		"count":       count,
 		"dddArg":      dddArg,
 		"die":         func() bool { panic("die") },
 		"echo":        echo,
+		"float32Arg":  float32Arg,
 		"makemap":     makemap,
 		"mapOfThree":  mapOfThree,
 		"oneArg":      oneArg,
