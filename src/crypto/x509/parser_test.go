@@ -340,7 +340,7 @@ func TestParseExtensionTrailingData(t *testing.T) {
 		{
 			name:  "SubjectAltName",
 			value: []byte{0x30, 0x05, 0x82, 0x03, 'a', 'b', 'c'},
-			parse: func(der []byte) error { _, _, _, _, err := parseSANExtension(der); return err },
+			parse: func(der []byte) error { _, _, _, _, _, err := parseSANExtension(der); return err },
 			want:  "x509: trailing data after subject alternative names",
 		},
 		{
