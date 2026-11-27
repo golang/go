@@ -13,6 +13,7 @@ import (
 	"internal/testenv"
 	"io"
 	"io/fs"
+	"math"
 	"mime"
 	"mime/multipart"
 	"net"
@@ -251,6 +252,28 @@ func TestServeFileDirPanicEmptyPath(t *testing.T) {
 }
 
 // Tests that ranges are ignored with serving empty content. (Issue 54794)
+func TestServeContentRangeSizeOverflow(t *testing.T) {
+	for _, rangeHeader := range []string{
+		"bytes=0-,0-",
+		"bytes=0-4611686018427387903,4611686018427387904-",
+	} {
+		t.Run(rangeHeader, func(t *testing.T) {
+			request := httptest.NewRequest(MethodHead, "/file", nil)
+			request.Header.Set("Range", rangeHeader)
+			response := httptest.NewRecorder()
+			response.Header().Set("Content-Type", "application/octet-stream")
+			content := io.NewSectionReader(bytes.NewReader(nil), 0, math.MaxInt64)
+			ServeContent(response, request, "file", time.Time{}, content)
+			if response.Code != StatusOK {
+				t.Errorf("status = %d, want %d", response.Code, StatusOK)
+			}
+			if got, want := response.Header().Get("Content-Length"), strconv.FormatInt(math.MaxInt64, 10); got != want {
+				t.Errorf("Content-Length = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
 func TestServeContentWithEmptyContentIgnoreRanges(t *testing.T) {
 	for _, r := range []string{
 		"bytes=0-128",
