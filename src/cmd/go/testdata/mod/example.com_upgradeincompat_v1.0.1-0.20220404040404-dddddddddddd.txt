@@ -1,0 +1,16 @@
+example.com/upgradeincompat v1.0.1-0.20220404040404-dddddddddddd is an
+untagged pseudo-version above v1.0.0; it is not listed by the proxy.
+-- .info --
+{"Version":"v1.0.1-0.20220404040404-dddddddddddd","Time":"2022-04-04T04:04:04Z"}
+-- .mod --
+module example.com/upgradeincompat
+
+go 1.12
+-- go.mod --
+module example.com/upgradeincompat
+
+go 1.12
+-- upgradeincompat.go --
+package upgradeincompat
+
+const X = 1

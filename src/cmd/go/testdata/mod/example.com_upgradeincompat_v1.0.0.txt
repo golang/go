@@ -1,0 +1,16 @@
+example.com/upgradeincompat v1.0.0 has a go.mod file, so the module is
+module-aware at its latest compatible release.
+-- .info --
+{"Version":"v1.0.0","Time":"2022-01-01T01:01:01Z"}
+-- .mod --
+module example.com/upgradeincompat
+
+go 1.12
+-- go.mod --
+module example.com/upgradeincompat
+
+go 1.12
+-- upgradeincompat.go --
+package upgradeincompat
+
+const X = 1
