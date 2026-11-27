@@ -519,3 +519,977 @@ enc128:
 	PXOR       X8, X0
 	MOVUPS     X0, 112(DX)
 	RET
+
+// func ctrBlocksBulkAsm(nr int, xk *[60]uint32, dst *byte, src *byte, n int, ivlo uint64, ivhi uint64, vaes bool)
+// Requires: AES, AVX, AVX2, SSE2, SSE4.1, SSSE3, VAES
+TEXT ·ctrBlocksBulkAsm(SB), $0-57
+	MOVQ   nr+0(FP), AX
+	MOVQ   xk+8(FP), BX
+	MOVQ   dst+16(FP), DX
+	MOVQ   src+24(FP), SI
+	MOVQ   n+32(FP), DI
+	MOVQ   ivlo+40(FP), R8
+	MOVQ   ivhi+48(FP), R9
+	MOVB   vaes+56(FP), R10
+	TESTB  R10, R10
+	JNZ    vaes
+	MOVQ   R8, X9
+	PINSRQ $0x01, R9, X9
+	MOVOU  bswapMask<>+0(SB), X10
+	CMPQ   DI, $0x00000008
+	JB     aesni_tail2
+	MOVOU  ctrOffsets<>+128(SB), X11
+
+aesni_loop1:
+	MOVO   X9, X0
+	PSHUFB X10, X0
+	MOVO   X9, X1
+	PADDQ  ctrOffsets<>+16(SB), X1
+	PSHUFB X10, X1
+	MOVO   X9, X2
+	PADDQ  ctrOffsets<>+32(SB), X2
+	PSHUFB X10, X2
+	MOVO   X9, X3
+	PADDQ  ctrOffsets<>+48(SB), X3
+	PSHUFB X10, X3
+	MOVO   X9, X4
+	PADDQ  ctrOffsets<>+64(SB), X4
+	PSHUFB X10, X4
+	MOVO   X9, X5
+	PADDQ  ctrOffsets<>+80(SB), X5
+	PSHUFB X10, X5
+	MOVO   X9, X6
+	PADDQ  ctrOffsets<>+96(SB), X6
+	PSHUFB X10, X6
+	MOVO   X9, X7
+	PADDQ  ctrOffsets<>+112(SB), X7
+	PSHUFB X10, X7
+	MOVOU  (BX), X8
+	PXOR   X8, X0
+	PXOR   X8, X1
+	PXOR   X8, X2
+	PXOR   X8, X3
+	PXOR   X8, X4
+	PXOR   X8, X5
+	PXOR   X8, X6
+	PXOR   X8, X7
+	MOVQ   BX, CX
+	CMPQ   AX, $0x0c
+	JB     aesni_r1284
+	JE     aesni_r1923
+	MOVOU  16(CX), X8
+	AESENC X8, X0
+	AESENC X8, X1
+	AESENC X8, X2
+	AESENC X8, X3
+	AESENC X8, X4
+	AESENC X8, X5
+	AESENC X8, X6
+	AESENC X8, X7
+	MOVOU  32(CX), X8
+	AESENC X8, X0
+	AESENC X8, X1
+	AESENC X8, X2
+	AESENC X8, X3
+	AESENC X8, X4
+	AESENC X8, X5
+	AESENC X8, X6
+	AESENC X8, X7
+	ADDQ   $0x20, CX
+
+aesni_r1923:
+	MOVOU  16(CX), X8
+	AESENC X8, X0
+	AESENC X8, X1
+	AESENC X8, X2
+	AESENC X8, X3
+	AESENC X8, X4
+	AESENC X8, X5
+	AESENC X8, X6
+	AESENC X8, X7
+	MOVOU  32(CX), X8
+	AESENC X8, X0
+	AESENC X8, X1
+	AESENC X8, X2
+	AESENC X8, X3
+	AESENC X8, X4
+	AESENC X8, X5
+	AESENC X8, X6
+	AESENC X8, X7
+	ADDQ   $0x20, CX
+
+aesni_r1284:
+	MOVOU      16(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	AESENC     X8, X4
+	AESENC     X8, X5
+	AESENC     X8, X6
+	AESENC     X8, X7
+	MOVOU      32(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	AESENC     X8, X4
+	AESENC     X8, X5
+	AESENC     X8, X6
+	AESENC     X8, X7
+	MOVOU      48(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	AESENC     X8, X4
+	AESENC     X8, X5
+	AESENC     X8, X6
+	AESENC     X8, X7
+	MOVOU      64(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	AESENC     X8, X4
+	AESENC     X8, X5
+	AESENC     X8, X6
+	AESENC     X8, X7
+	MOVOU      80(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	AESENC     X8, X4
+	AESENC     X8, X5
+	AESENC     X8, X6
+	AESENC     X8, X7
+	MOVOU      96(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	AESENC     X8, X4
+	AESENC     X8, X5
+	AESENC     X8, X6
+	AESENC     X8, X7
+	MOVOU      112(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	AESENC     X8, X4
+	AESENC     X8, X5
+	AESENC     X8, X6
+	AESENC     X8, X7
+	MOVOU      128(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	AESENC     X8, X4
+	AESENC     X8, X5
+	AESENC     X8, X6
+	AESENC     X8, X7
+	MOVOU      144(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	AESENC     X8, X4
+	AESENC     X8, X5
+	AESENC     X8, X6
+	AESENC     X8, X7
+	MOVOU      160(CX), X8
+	MOVOU      (SI), X12
+	PXOR       X8, X12
+	AESENCLAST X12, X0
+	MOVOU      X0, (DX)
+	MOVOU      16(SI), X12
+	PXOR       X8, X12
+	AESENCLAST X12, X1
+	MOVOU      X1, 16(DX)
+	MOVOU      32(SI), X12
+	PXOR       X8, X12
+	AESENCLAST X12, X2
+	MOVOU      X2, 32(DX)
+	MOVOU      48(SI), X12
+	PXOR       X8, X12
+	AESENCLAST X12, X3
+	MOVOU      X3, 48(DX)
+	MOVOU      64(SI), X12
+	PXOR       X8, X12
+	AESENCLAST X12, X4
+	MOVOU      X4, 64(DX)
+	MOVOU      80(SI), X12
+	PXOR       X8, X12
+	AESENCLAST X12, X5
+	MOVOU      X5, 80(DX)
+	MOVOU      96(SI), X12
+	PXOR       X8, X12
+	AESENCLAST X12, X6
+	MOVOU      X6, 96(DX)
+	MOVOU      112(SI), X12
+	PXOR       X8, X12
+	AESENCLAST X12, X7
+	MOVOU      X7, 112(DX)
+	ADDQ       $0x00000080, SI
+	ADDQ       $0x00000080, DX
+	PADDQ      X11, X9
+	SUBQ       $0x00000008, DI
+	CMPQ       DI, $0x00000008
+	JAE        aesni_loop1
+
+aesni_tail2:
+	TESTQ  $0x00000004, DI
+	JZ     aesni_skip5
+	MOVO   X9, X0
+	PSHUFB X10, X0
+	MOVO   X9, X1
+	PADDQ  ctrOffsets<>+16(SB), X1
+	PSHUFB X10, X1
+	MOVO   X9, X2
+	PADDQ  ctrOffsets<>+32(SB), X2
+	PSHUFB X10, X2
+	MOVO   X9, X3
+	PADDQ  ctrOffsets<>+48(SB), X3
+	PSHUFB X10, X3
+	MOVOU  (BX), X8
+	PXOR   X8, X0
+	PXOR   X8, X1
+	PXOR   X8, X2
+	PXOR   X8, X3
+	MOVQ   BX, CX
+	CMPQ   AX, $0x0c
+	JB     aesni_r1287
+	JE     aesni_r1926
+	MOVOU  16(CX), X8
+	AESENC X8, X0
+	AESENC X8, X1
+	AESENC X8, X2
+	AESENC X8, X3
+	MOVOU  32(CX), X8
+	AESENC X8, X0
+	AESENC X8, X1
+	AESENC X8, X2
+	AESENC X8, X3
+	ADDQ   $0x20, CX
+
+aesni_r1926:
+	MOVOU  16(CX), X8
+	AESENC X8, X0
+	AESENC X8, X1
+	AESENC X8, X2
+	AESENC X8, X3
+	MOVOU  32(CX), X8
+	AESENC X8, X0
+	AESENC X8, X1
+	AESENC X8, X2
+	AESENC X8, X3
+	ADDQ   $0x20, CX
+
+aesni_r1287:
+	MOVOU      16(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	MOVOU      32(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	MOVOU      48(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	MOVOU      64(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	MOVOU      80(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	MOVOU      96(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	MOVOU      112(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	MOVOU      128(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	MOVOU      144(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	AESENC     X8, X2
+	AESENC     X8, X3
+	MOVOU      160(CX), X8
+	MOVOU      (SI), X12
+	PXOR       X8, X12
+	AESENCLAST X12, X0
+	MOVOU      X0, (DX)
+	MOVOU      16(SI), X12
+	PXOR       X8, X12
+	AESENCLAST X12, X1
+	MOVOU      X1, 16(DX)
+	MOVOU      32(SI), X12
+	PXOR       X8, X12
+	AESENCLAST X12, X2
+	MOVOU      X2, 32(DX)
+	MOVOU      48(SI), X12
+	PXOR       X8, X12
+	AESENCLAST X12, X3
+	MOVOU      X3, 48(DX)
+	ADDQ       $0x00000040, SI
+	ADDQ       $0x00000040, DX
+	PADDQ      ctrOffsets<>+64(SB), X9
+
+aesni_skip5:
+	TESTQ  $0x00000002, DI
+	JZ     aesni_skip8
+	MOVO   X9, X0
+	PSHUFB X10, X0
+	MOVO   X9, X1
+	PADDQ  ctrOffsets<>+16(SB), X1
+	PSHUFB X10, X1
+	MOVOU  (BX), X8
+	PXOR   X8, X0
+	PXOR   X8, X1
+	MOVQ   BX, CX
+	CMPQ   AX, $0x0c
+	JB     aesni_r12810
+	JE     aesni_r1929
+	MOVOU  16(CX), X8
+	AESENC X8, X0
+	AESENC X8, X1
+	MOVOU  32(CX), X8
+	AESENC X8, X0
+	AESENC X8, X1
+	ADDQ   $0x20, CX
+
+aesni_r1929:
+	MOVOU  16(CX), X8
+	AESENC X8, X0
+	AESENC X8, X1
+	MOVOU  32(CX), X8
+	AESENC X8, X0
+	AESENC X8, X1
+	ADDQ   $0x20, CX
+
+aesni_r12810:
+	MOVOU      16(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	MOVOU      32(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	MOVOU      48(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	MOVOU      64(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	MOVOU      80(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	MOVOU      96(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	MOVOU      112(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	MOVOU      128(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	MOVOU      144(CX), X8
+	AESENC     X8, X0
+	AESENC     X8, X1
+	MOVOU      160(CX), X8
+	MOVOU      (SI), X12
+	PXOR       X8, X12
+	AESENCLAST X12, X0
+	MOVOU      X0, (DX)
+	MOVOU      16(SI), X12
+	PXOR       X8, X12
+	AESENCLAST X12, X1
+	MOVOU      X1, 16(DX)
+	ADDQ       $0x00000020, SI
+	ADDQ       $0x00000020, DX
+	PADDQ      ctrOffsets<>+32(SB), X9
+
+aesni_skip8:
+	TESTQ  $0x00000001, DI
+	JZ     aesni_skip11
+	MOVO   X9, X0
+	PSHUFB X10, X0
+	MOVOU  (BX), X8
+	PXOR   X8, X0
+	MOVQ   BX, CX
+	CMPQ   AX, $0x0c
+	JB     aesni_r12813
+	JE     aesni_r19212
+	MOVOU  16(CX), X8
+	AESENC X8, X0
+	MOVOU  32(CX), X8
+	AESENC X8, X0
+	ADDQ   $0x20, CX
+
+aesni_r19212:
+	MOVOU  16(CX), X8
+	AESENC X8, X0
+	MOVOU  32(CX), X8
+	AESENC X8, X0
+	ADDQ   $0x20, CX
+
+aesni_r12813:
+	MOVOU      16(CX), X8
+	AESENC     X8, X0
+	MOVOU      32(CX), X8
+	AESENC     X8, X0
+	MOVOU      48(CX), X8
+	AESENC     X8, X0
+	MOVOU      64(CX), X8
+	AESENC     X8, X0
+	MOVOU      80(CX), X8
+	AESENC     X8, X0
+	MOVOU      96(CX), X8
+	AESENC     X8, X0
+	MOVOU      112(CX), X8
+	AESENC     X8, X0
+	MOVOU      128(CX), X8
+	AESENC     X8, X0
+	MOVOU      144(CX), X8
+	AESENC     X8, X0
+	MOVOU      160(CX), X8
+	MOVOU      (SI), X12
+	PXOR       X8, X12
+	AESENCLAST X12, X0
+	MOVOU      X0, (DX)
+
+aesni_skip11:
+	RET
+
+vaes:
+	VMOVQ          R8, X9
+	VPINSRQ        $0x01, R9, X9, X9
+	VINSERTI128    $0x01, X9, Y9, Y9
+	VBROADCASTI128 bswapMask<>+0(SB), Y10
+	CMPQ           DI, $0x00000010
+	JB             vaes_tail15
+	VBROADCASTI128 ctrOffsets<>+256(SB), Y11
+
+vaes_loop14:
+	VPADDQ         ctrOffsets<>+0(SB), Y9, Y0
+	VPSHUFB        Y10, Y0, Y0
+	VPADDQ         ctrOffsets<>+32(SB), Y9, Y1
+	VPSHUFB        Y10, Y1, Y1
+	VPADDQ         ctrOffsets<>+64(SB), Y9, Y2
+	VPSHUFB        Y10, Y2, Y2
+	VPADDQ         ctrOffsets<>+96(SB), Y9, Y3
+	VPSHUFB        Y10, Y3, Y3
+	VPADDQ         ctrOffsets<>+128(SB), Y9, Y4
+	VPSHUFB        Y10, Y4, Y4
+	VPADDQ         ctrOffsets<>+160(SB), Y9, Y5
+	VPSHUFB        Y10, Y5, Y5
+	VPADDQ         ctrOffsets<>+192(SB), Y9, Y6
+	VPSHUFB        Y10, Y6, Y6
+	VPADDQ         ctrOffsets<>+224(SB), Y9, Y7
+	VPSHUFB        Y10, Y7, Y7
+	VBROADCASTI128 (BX), Y8
+	VPXOR          Y8, Y0, Y0
+	VPXOR          Y8, Y1, Y1
+	VPXOR          Y8, Y2, Y2
+	VPXOR          Y8, Y3, Y3
+	VPXOR          Y8, Y4, Y4
+	VPXOR          Y8, Y5, Y5
+	VPXOR          Y8, Y6, Y6
+	VPXOR          Y8, Y7, Y7
+	MOVQ           BX, CX
+	CMPQ           AX, $0x0c
+	JB             vaes_r12817
+	JE             vaes_r19216
+	VBROADCASTI128 16(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VAESENC        Y8, Y4, Y4
+	VAESENC        Y8, Y5, Y5
+	VAESENC        Y8, Y6, Y6
+	VAESENC        Y8, Y7, Y7
+	VBROADCASTI128 32(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VAESENC        Y8, Y4, Y4
+	VAESENC        Y8, Y5, Y5
+	VAESENC        Y8, Y6, Y6
+	VAESENC        Y8, Y7, Y7
+	ADDQ           $0x20, CX
+
+vaes_r19216:
+	VBROADCASTI128 16(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VAESENC        Y8, Y4, Y4
+	VAESENC        Y8, Y5, Y5
+	VAESENC        Y8, Y6, Y6
+	VAESENC        Y8, Y7, Y7
+	VBROADCASTI128 32(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VAESENC        Y8, Y4, Y4
+	VAESENC        Y8, Y5, Y5
+	VAESENC        Y8, Y6, Y6
+	VAESENC        Y8, Y7, Y7
+	ADDQ           $0x20, CX
+
+vaes_r12817:
+	VBROADCASTI128 16(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VAESENC        Y8, Y4, Y4
+	VAESENC        Y8, Y5, Y5
+	VAESENC        Y8, Y6, Y6
+	VAESENC        Y8, Y7, Y7
+	VBROADCASTI128 32(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VAESENC        Y8, Y4, Y4
+	VAESENC        Y8, Y5, Y5
+	VAESENC        Y8, Y6, Y6
+	VAESENC        Y8, Y7, Y7
+	VBROADCASTI128 48(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VAESENC        Y8, Y4, Y4
+	VAESENC        Y8, Y5, Y5
+	VAESENC        Y8, Y6, Y6
+	VAESENC        Y8, Y7, Y7
+	VBROADCASTI128 64(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VAESENC        Y8, Y4, Y4
+	VAESENC        Y8, Y5, Y5
+	VAESENC        Y8, Y6, Y6
+	VAESENC        Y8, Y7, Y7
+	VBROADCASTI128 80(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VAESENC        Y8, Y4, Y4
+	VAESENC        Y8, Y5, Y5
+	VAESENC        Y8, Y6, Y6
+	VAESENC        Y8, Y7, Y7
+	VBROADCASTI128 96(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VAESENC        Y8, Y4, Y4
+	VAESENC        Y8, Y5, Y5
+	VAESENC        Y8, Y6, Y6
+	VAESENC        Y8, Y7, Y7
+	VBROADCASTI128 112(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VAESENC        Y8, Y4, Y4
+	VAESENC        Y8, Y5, Y5
+	VAESENC        Y8, Y6, Y6
+	VAESENC        Y8, Y7, Y7
+	VBROADCASTI128 128(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VAESENC        Y8, Y4, Y4
+	VAESENC        Y8, Y5, Y5
+	VAESENC        Y8, Y6, Y6
+	VAESENC        Y8, Y7, Y7
+	VBROADCASTI128 144(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VAESENC        Y8, Y4, Y4
+	VAESENC        Y8, Y5, Y5
+	VAESENC        Y8, Y6, Y6
+	VAESENC        Y8, Y7, Y7
+	VBROADCASTI128 160(CX), Y8
+	VPXOR          (SI), Y8, Y12
+	VAESENCLAST    Y12, Y0, Y0
+	VMOVDQU        Y0, (DX)
+	VPXOR          32(SI), Y8, Y12
+	VAESENCLAST    Y12, Y1, Y1
+	VMOVDQU        Y1, 32(DX)
+	VPXOR          64(SI), Y8, Y12
+	VAESENCLAST    Y12, Y2, Y2
+	VMOVDQU        Y2, 64(DX)
+	VPXOR          96(SI), Y8, Y12
+	VAESENCLAST    Y12, Y3, Y3
+	VMOVDQU        Y3, 96(DX)
+	VPXOR          128(SI), Y8, Y12
+	VAESENCLAST    Y12, Y4, Y4
+	VMOVDQU        Y4, 128(DX)
+	VPXOR          160(SI), Y8, Y12
+	VAESENCLAST    Y12, Y5, Y5
+	VMOVDQU        Y5, 160(DX)
+	VPXOR          192(SI), Y8, Y12
+	VAESENCLAST    Y12, Y6, Y6
+	VMOVDQU        Y6, 192(DX)
+	VPXOR          224(SI), Y8, Y12
+	VAESENCLAST    Y12, Y7, Y7
+	VMOVDQU        Y7, 224(DX)
+	ADDQ           $0x00000100, SI
+	ADDQ           $0x00000100, DX
+	VPADDQ         Y11, Y9, Y9
+	SUBQ           $0x00000010, DI
+	CMPQ           DI, $0x00000010
+	JAE            vaes_loop14
+
+vaes_tail15:
+	TESTQ          $0x00000008, DI
+	JZ             vaes_skip18
+	VPADDQ         ctrOffsets<>+0(SB), Y9, Y0
+	VPSHUFB        Y10, Y0, Y0
+	VPADDQ         ctrOffsets<>+32(SB), Y9, Y1
+	VPSHUFB        Y10, Y1, Y1
+	VPADDQ         ctrOffsets<>+64(SB), Y9, Y2
+	VPSHUFB        Y10, Y2, Y2
+	VPADDQ         ctrOffsets<>+96(SB), Y9, Y3
+	VPSHUFB        Y10, Y3, Y3
+	VBROADCASTI128 (BX), Y8
+	VPXOR          Y8, Y0, Y0
+	VPXOR          Y8, Y1, Y1
+	VPXOR          Y8, Y2, Y2
+	VPXOR          Y8, Y3, Y3
+	MOVQ           BX, CX
+	CMPQ           AX, $0x0c
+	JB             vaes_r12820
+	JE             vaes_r19219
+	VBROADCASTI128 16(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VBROADCASTI128 32(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	ADDQ           $0x20, CX
+
+vaes_r19219:
+	VBROADCASTI128 16(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VBROADCASTI128 32(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	ADDQ           $0x20, CX
+
+vaes_r12820:
+	VBROADCASTI128 16(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VBROADCASTI128 32(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VBROADCASTI128 48(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VBROADCASTI128 64(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VBROADCASTI128 80(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VBROADCASTI128 96(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VBROADCASTI128 112(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VBROADCASTI128 128(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VBROADCASTI128 144(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VAESENC        Y8, Y2, Y2
+	VAESENC        Y8, Y3, Y3
+	VBROADCASTI128 160(CX), Y8
+	VPXOR          (SI), Y8, Y12
+	VAESENCLAST    Y12, Y0, Y0
+	VMOVDQU        Y0, (DX)
+	VPXOR          32(SI), Y8, Y12
+	VAESENCLAST    Y12, Y1, Y1
+	VMOVDQU        Y1, 32(DX)
+	VPXOR          64(SI), Y8, Y12
+	VAESENCLAST    Y12, Y2, Y2
+	VMOVDQU        Y2, 64(DX)
+	VPXOR          96(SI), Y8, Y12
+	VAESENCLAST    Y12, Y3, Y3
+	VMOVDQU        Y3, 96(DX)
+	ADDQ           $0x00000080, SI
+	ADDQ           $0x00000080, DX
+	VBROADCASTI128 ctrOffsets<>+128(SB), Y13
+	VPADDQ         Y13, Y9, Y9
+
+vaes_skip18:
+	TESTQ          $0x00000004, DI
+	JZ             vaes_skip21
+	VPADDQ         ctrOffsets<>+0(SB), Y9, Y0
+	VPSHUFB        Y10, Y0, Y0
+	VPADDQ         ctrOffsets<>+32(SB), Y9, Y1
+	VPSHUFB        Y10, Y1, Y1
+	VBROADCASTI128 (BX), Y8
+	VPXOR          Y8, Y0, Y0
+	VPXOR          Y8, Y1, Y1
+	MOVQ           BX, CX
+	CMPQ           AX, $0x0c
+	JB             vaes_r12823
+	JE             vaes_r19222
+	VBROADCASTI128 16(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VBROADCASTI128 32(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	ADDQ           $0x20, CX
+
+vaes_r19222:
+	VBROADCASTI128 16(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VBROADCASTI128 32(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	ADDQ           $0x20, CX
+
+vaes_r12823:
+	VBROADCASTI128 16(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VBROADCASTI128 32(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VBROADCASTI128 48(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VBROADCASTI128 64(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VBROADCASTI128 80(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VBROADCASTI128 96(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VBROADCASTI128 112(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VBROADCASTI128 128(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VBROADCASTI128 144(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VAESENC        Y8, Y1, Y1
+	VBROADCASTI128 160(CX), Y8
+	VPXOR          (SI), Y8, Y12
+	VAESENCLAST    Y12, Y0, Y0
+	VMOVDQU        Y0, (DX)
+	VPXOR          32(SI), Y8, Y12
+	VAESENCLAST    Y12, Y1, Y1
+	VMOVDQU        Y1, 32(DX)
+	ADDQ           $0x00000040, SI
+	ADDQ           $0x00000040, DX
+	VBROADCASTI128 ctrOffsets<>+64(SB), Y13
+	VPADDQ         Y13, Y9, Y9
+
+vaes_skip21:
+	TESTQ          $0x00000002, DI
+	JZ             vaes_skip24
+	VPADDQ         ctrOffsets<>+0(SB), Y9, Y0
+	VPSHUFB        Y10, Y0, Y0
+	VBROADCASTI128 (BX), Y8
+	VPXOR          Y8, Y0, Y0
+	MOVQ           BX, CX
+	CMPQ           AX, $0x0c
+	JB             vaes_r12826
+	JE             vaes_r19225
+	VBROADCASTI128 16(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VBROADCASTI128 32(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	ADDQ           $0x20, CX
+
+vaes_r19225:
+	VBROADCASTI128 16(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VBROADCASTI128 32(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	ADDQ           $0x20, CX
+
+vaes_r12826:
+	VBROADCASTI128 16(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VBROADCASTI128 32(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VBROADCASTI128 48(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VBROADCASTI128 64(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VBROADCASTI128 80(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VBROADCASTI128 96(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VBROADCASTI128 112(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VBROADCASTI128 128(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VBROADCASTI128 144(CX), Y8
+	VAESENC        Y8, Y0, Y0
+	VBROADCASTI128 160(CX), Y8
+	VPXOR          (SI), Y8, Y12
+	VAESENCLAST    Y12, Y0, Y0
+	VMOVDQU        Y0, (DX)
+	ADDQ           $0x00000020, SI
+	ADDQ           $0x00000020, DX
+	VBROADCASTI128 ctrOffsets<>+32(SB), Y13
+	VPADDQ         Y13, Y9, Y9
+
+vaes_skip24:
+	TESTQ   $0x00000001, DI
+	JZ      vaes_skip27
+	VPADDQ  ctrOffsets<>+0(SB), X9, X0
+	VPSHUFB X10, X0, X0
+	VMOVDQU (BX), X8
+	VPXOR   X8, X0, X0
+	MOVQ    BX, CX
+	CMPQ    AX, $0x0c
+	JB      vaes_r12829
+	JE      vaes_r19228
+	VMOVDQU 16(CX), X8
+	VAESENC X8, X0, X0
+	VMOVDQU 32(CX), X8
+	VAESENC X8, X0, X0
+	ADDQ    $0x20, CX
+
+vaes_r19228:
+	VMOVDQU 16(CX), X8
+	VAESENC X8, X0, X0
+	VMOVDQU 32(CX), X8
+	VAESENC X8, X0, X0
+	ADDQ    $0x20, CX
+
+vaes_r12829:
+	VMOVDQU     16(CX), X8
+	VAESENC     X8, X0, X0
+	VMOVDQU     32(CX), X8
+	VAESENC     X8, X0, X0
+	VMOVDQU     48(CX), X8
+	VAESENC     X8, X0, X0
+	VMOVDQU     64(CX), X8
+	VAESENC     X8, X0, X0
+	VMOVDQU     80(CX), X8
+	VAESENC     X8, X0, X0
+	VMOVDQU     96(CX), X8
+	VAESENC     X8, X0, X0
+	VMOVDQU     112(CX), X8
+	VAESENC     X8, X0, X0
+	VMOVDQU     128(CX), X8
+	VAESENC     X8, X0, X0
+	VMOVDQU     144(CX), X8
+	VAESENC     X8, X0, X0
+	VMOVDQU     160(CX), X8
+	VPXOR       (SI), X8, X12
+	VAESENCLAST X12, X0, X0
+	VMOVDQU     X0, (DX)
+
+vaes_skip27:
+	VZEROUPPER
+	RET
+
+DATA ctrOffsets<>+0(SB)/8, $0x0000000000000000
+DATA ctrOffsets<>+8(SB)/8, $0x0000000000000000
+DATA ctrOffsets<>+16(SB)/8, $0x0000000000000001
+DATA ctrOffsets<>+24(SB)/8, $0x0000000000000000
+DATA ctrOffsets<>+32(SB)/8, $0x0000000000000002
+DATA ctrOffsets<>+40(SB)/8, $0x0000000000000000
+DATA ctrOffsets<>+48(SB)/8, $0x0000000000000003
+DATA ctrOffsets<>+56(SB)/8, $0x0000000000000000
+DATA ctrOffsets<>+64(SB)/8, $0x0000000000000004
+DATA ctrOffsets<>+72(SB)/8, $0x0000000000000000
+DATA ctrOffsets<>+80(SB)/8, $0x0000000000000005
+DATA ctrOffsets<>+88(SB)/8, $0x0000000000000000
+DATA ctrOffsets<>+96(SB)/8, $0x0000000000000006
+DATA ctrOffsets<>+104(SB)/8, $0x0000000000000000
+DATA ctrOffsets<>+112(SB)/8, $0x0000000000000007
+DATA ctrOffsets<>+120(SB)/8, $0x0000000000000000
+DATA ctrOffsets<>+128(SB)/8, $0x0000000000000008
+DATA ctrOffsets<>+136(SB)/8, $0x0000000000000000
+DATA ctrOffsets<>+144(SB)/8, $0x0000000000000009
+DATA ctrOffsets<>+152(SB)/8, $0x0000000000000000
+DATA ctrOffsets<>+160(SB)/8, $0x000000000000000a
+DATA ctrOffsets<>+168(SB)/8, $0x0000000000000000
+DATA ctrOffsets<>+176(SB)/8, $0x000000000000000b
+DATA ctrOffsets<>+184(SB)/8, $0x0000000000000000
+DATA ctrOffsets<>+192(SB)/8, $0x000000000000000c
+DATA ctrOffsets<>+200(SB)/8, $0x0000000000000000
+DATA ctrOffsets<>+208(SB)/8, $0x000000000000000d
+DATA ctrOffsets<>+216(SB)/8, $0x0000000000000000
+DATA ctrOffsets<>+224(SB)/8, $0x000000000000000e
+DATA ctrOffsets<>+232(SB)/8, $0x0000000000000000
+DATA ctrOffsets<>+240(SB)/8, $0x000000000000000f
+DATA ctrOffsets<>+248(SB)/8, $0x0000000000000000
+DATA ctrOffsets<>+256(SB)/8, $0x0000000000000010
+DATA ctrOffsets<>+264(SB)/8, $0x0000000000000000
+GLOBL ctrOffsets<>(SB), RODATA|NOPTR, $272

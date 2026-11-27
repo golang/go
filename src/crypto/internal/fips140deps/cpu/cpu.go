@@ -57,4 +57,5 @@ var (
 	X86HasSHA       = cpu.X86.HasSHA
 	X86HasSSE41     = cpu.X86.HasSSE41
 	X86HasSSSE3     = cpu.X86.HasSSSE3
+	X86HasVAES      = cpu.X86.HasVAES
 )
