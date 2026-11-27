@@ -83,6 +83,11 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
 		}
 	}
 
+	// Header-only types have no data section, so force Size to 0.
+	if isHeaderOnlyType(tw.hdr.Typeflag) {
+		tw.hdr.Size = 0
+	}
+
 	// Round ModTime and ignore AccessTime and ChangeTime unless
 	// the format is explicitly chosen.
 	// This ensures nominal usage of WriteHeader (without specifying the format)
