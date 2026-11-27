@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"runtime"
@@ -324,6 +325,57 @@ func TestHTTP(t *testing.T) {
 	testHTTPRPC(t, "")
 	newOnce.Do(startNewServer)
 	testHTTPRPC(t, newHttpPath)
+}
+
+func TestDialHTTPPathStatus(t *testing.T) {
+	server := NewServer()
+	if err := server.Register(new(Arith)); err != nil {
+		t.Fatal(err)
+	}
+	for _, status := range []string{"200 OK", "200 Connected to Go RPC", "201 Created", "204 No Content", "299 Custom", "300 Multiple Choices", "500 Internal Server Error"} {
+		t.Run(status, func(t *testing.T) {
+			ok := strings.HasPrefix(status, "2")
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != "CONNECT" || r.URL.Path != "/rpc" {
+					t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+				}
+				conn, rw, err := w.(http.Hijacker).Hijack()
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				defer conn.Close()
+				fmt.Fprintf(rw, "HTTP/1.0 %s\r\n\r\n", status)
+				if err := rw.Flush(); err != nil {
+					t.Error(err)
+					return
+				}
+				if ok {
+					server.ServeConn(conn)
+				}
+			}))
+			defer ts.Close()
+			client, err := DialHTTPPath("tcp", ts.Listener.Addr().String(), "/rpc")
+			if !ok {
+				if err == nil {
+					client.Close()
+					t.Fatal("DialHTTPPath succeeded for an unsuccessful response")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer client.Close()
+			var reply Reply
+			if err := client.Call("Arith.Add", &Args{7, 8}, &reply); err != nil {
+				t.Fatal(err)
+			}
+			if reply.C != 15 {
+				t.Errorf("Arith.Add returned %d, want 15", reply.C)
+			}
+		})
+	}
 }
 
 func testHTTPRPC(t *testing.T, path string) {
