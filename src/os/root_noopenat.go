@@ -211,6 +211,10 @@ func rootRemoveAll(r *Root, name string) error {
 		return &PathError{Op: "RemoveAll", Path: name, Err: err}
 	}
 	if err := RemoveAll(joinPath(r.root.name, name)); err != nil {
+		if pe, ok := err.(*PathError); ok {
+			pe.Path = stringslite.TrimPrefix(pe.Path, joinPath(r.root.name, ""))
+			return pe
+		}
 		return &PathError{Op: "RemoveAll", Path: name, Err: underlyingError(err)}
 	}
 	return nil

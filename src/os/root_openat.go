@@ -227,8 +227,14 @@ func rootRemoveAll(r *Root, name string) error {
 		// Consistency with os.RemoveAll: Return EINVAL when trying to remove .
 		return &PathError{Op: "RemoveAll", Path: name, Err: syscall.EINVAL}
 	}
-	_, err := doInRoot(r, name, 0, nil, func(parent sysfdType, name string, endsInSlash bool) (struct{}, error) {
-		return struct{}{}, removeAllFrom(parent, name)
+	removeErr, err := doInRoot(r, name, 0, nil, func(parent sysfdType, base string, endsInSlash bool) (error, error) {
+		err := removeAllFrom(parent, base)
+		if pe, ok := err.(*PathError); ok {
+			pe.Path = name + pe.Path[len(base):]
+		}
+		// Return the removal error as the result so doInRoot does not
+		// replace its path with the path of the directory being removed.
+		return err, nil
 	})
 	if IsNotExist(err) {
 		return nil
@@ -236,7 +242,7 @@ func rootRemoveAll(r *Root, name string) error {
 	if err != nil {
 		return &PathError{Op: "RemoveAll", Path: name, Err: underlyingError(err)}
 	}
-	return err
+	return removeErr
 }
 
 func rootRename(r *Root, oldname, newname string) error {
