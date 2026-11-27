@@ -119,8 +119,8 @@ type MainModuleSet struct {
 	workFile *modfile.WorkFile
 
 	workFileReplaceMap map[module.Version]module.Version
-	// highest replaced version of each module path; empty string for wildcard-only replacements
-	highestReplaced map[string]string
+	// Replacement versions by module path, highest first, with any wildcard last.
+	replacedVersions map[string][]string
 
 	indexMu sync.RWMutex
 	indices map[module.Version]*modFileIndex
@@ -240,10 +240,6 @@ func (mms *MainModuleSet) Len() int {
 // directory.
 func (mms *MainModuleSet) ModContainingCWD() module.Version {
 	return mms.modContainingCWD
-}
-
-func (mms *MainModuleSet) HighestReplaced() map[string]string {
-	return mms.highestReplaced
 }
 
 // GoVersion returns the go version set on the single module, in module mode,
@@ -1379,15 +1375,14 @@ func makeMainModules(ld *Loader, ms []module.Version, rootDirs []string, modFile
 	}
 	modRootContainingCWD := findModuleRoot(base.Cwd())
 	mainModules := &MainModuleSet{
-		versions:        slices.Clip(ms),
-		inGorootSrc:     map[module.Version]bool{},
-		pathPrefix:      map[module.Version]string{},
-		modRoot:         map[module.Version]string{},
-		modFiles:        map[module.Version]*modfile.File{},
-		indices:         map[module.Version]*modFileIndex{},
-		highestReplaced: map[string]string{},
-		tools:           map[string]bool{},
-		workFile:        workFile,
+		versions:    slices.Clip(ms),
+		inGorootSrc: map[module.Version]bool{},
+		pathPrefix:  map[module.Version]string{},
+		modRoot:     map[module.Version]string{},
+		modFiles:    map[module.Version]*modfile.File{},
+		indices:     map[module.Version]*modFileIndex{},
+		tools:       map[string]bool{},
+		workFile:    workFile,
 	}
 	var workFileReplaces []*modfile.Replace
 	if workFile != nil {
@@ -1408,10 +1403,6 @@ func makeMainModules(ld *Loader, ms []module.Version, rootDirs []string, modFile
 			base.Errorf("go: workspace module %v is replaced at all versions in the go.work file. To fix, remove the replacement from the go.work file or specify the version at which to replace the module.", r.Old.Path)
 		}
 		replacedByWorkFile[r.Old.Path] = true
-		v, ok := mainModules.highestReplaced[r.Old.Path]
-		if !ok || gover.ModCompare(r.Old.Path, r.Old.Version, v) > 0 {
-			mainModules.highestReplaced[r.Old.Path] = r.Old.Version
-		}
 		replacements[r.Old] = r.New
 	}
 	for i, m := range ms {
@@ -1463,11 +1454,6 @@ func makeMainModules(ld *Loader, ms []module.Version, rootDirs []string, modFile
 				}
 				curModuleReplaces[r.Old] = true
 				replacements[r.Old] = newV
-
-				v, ok := mainModules.highestReplaced[r.Old.Path]
-				if !ok || gover.ModCompare(r.Old.Path, r.Old.Version, v) > 0 {
-					mainModules.highestReplaced[r.Old.Path] = r.Old.Version
-				}
 			}
 
 			for _, t := range modFiles[i].Tool {
@@ -1480,6 +1466,23 @@ func makeMainModules(ld *Loader, ms []module.Version, rootDirs []string, modFile
 
 				mainModules.tools[t.Path] = true
 			}
+		}
+	}
+
+	mainModules.replacedVersions = make(map[string][]string)
+	for m := range replacements {
+		mainModules.replacedVersions[m.Path] = append(mainModules.replacedVersions[m.Path], m.Version)
+	}
+	for path, versions := range mainModules.replacedVersions {
+		slices.SortFunc(versions, func(a, b string) int { return gover.ModCompare(path, b, a) })
+		if i := len(versions) - 1; versions[i] == "" {
+			// A wildcard can provide a missing import at a minimal version,
+			// allowing the user to upgrade to any real version later.
+			major := "v0"
+			if _, pathMajor, ok := module.SplitPathVersion(path); ok && pathMajor != "" {
+				major = pathMajor[1:]
+			}
+			versions[i] = module.ZeroPseudoVersion(major)
 		}
 	}
 
