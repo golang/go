@@ -70,7 +70,7 @@ func runGitAuth(client *http.Client, dir, url string) (string, http.Header, erro
 	// The request is intercepted for testing purposes to simulate interactions
 	// with the credential helper.
 	intercept.Request(req)
-	go updateGitCredentialHelper(client, req, out)
+	go updateGitCredentialHelper(client, req, dir, out)
 
 	// Return the parsed prefix and headers, even if credential validation fails.
 	// The caller is responsible for the primary validation.
@@ -119,7 +119,7 @@ func parseGitAuth(data []byte) (parsedPrefix, username, password string) {
 // updateGitCredentialHelper validates the given credentials by sending a HEAD request
 // and updates the git credential helper's cache accordingly. It retries the
 // request up to maxTries times.
-func updateGitCredentialHelper(client *http.Client, req *http.Request, credentialOutput []byte) {
+func updateGitCredentialHelper(client *http.Client, req *http.Request, dir string, credentialOutput []byte) {
 	for range maxTries {
 		release, err := base.AcquireNet()
 		if err != nil {
@@ -133,20 +133,23 @@ func updateGitCredentialHelper(client *http.Client, req *http.Request, credentia
 		res.Body.Close()
 		release()
 		if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusUnauthorized {
-			approveOrRejectCredential(credentialOutput, res.StatusCode == http.StatusOK)
+			approveOrRejectCredential(dir, credentialOutput, res.StatusCode == http.StatusOK)
 			break
 		}
 	}
 }
 
 // approveOrRejectCredential approves or rejects the provided credential using
-// 'git credential approve/reject'.
-func approveOrRejectCredential(credentialOutput []byte, approve bool) {
+// 'git credential approve/reject'. Like 'git credential fill' in runGitAuth,
+// git is run in dir, not in the current directory, to prevent config-injection
+// attacks. See https://golang.org/issue/29230.
+func approveOrRejectCredential(dir string, credentialOutput []byte, approve bool) {
 	action := "reject"
 	if approve {
 		action = "approve"
 	}
 	cmd := exec.Command("git", "credential", action)
+	cmd.Dir = dir
 	cmd.Stdin = bytes.NewReader(credentialOutput)
 	cmd.Run() // ignore error
 }
