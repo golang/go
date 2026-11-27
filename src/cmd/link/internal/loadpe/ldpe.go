@@ -208,15 +208,19 @@ type peLoaderState struct {
 	f               *pe.File
 	pn              string
 	sectsyms        map[*pe.Section]loader.Sym
-	comdats         map[uint16]int64 // key is section index, val is size
+	comdats         map[uint16]int64 // section index to size or COMDAT selection sentinel
 	sectdata        map[*pe.Section][]byte
 	localSymVersion int
 }
 
-// comdatDefinitions records the names of symbols for which we've
-// previously seen a definition in COMDAT. Key is symbol name, value
-// is symbol size (or -1 if we're using the "any" strategy).
-var comdatDefinitions map[string]int64
+const (
+	comdatAny          = -1
+	comdatNoDuplicates = -2
+)
+
+// comdatDefinitions records the previously seen COMDAT definitions,
+// indexed by linker symbol. Values are section sizes or selection sentinels.
+var comdatDefinitions map[loader.Sym]int64
 
 // Symbols contains the symbols that can be loaded from a PE file.
 type Symbols struct {
@@ -239,7 +243,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 	}
 	createImportSymsState(state.l, state.arch)
 	if comdatDefinitions == nil {
-		comdatDefinitions = make(map[string]int64)
+		comdatDefinitions = make(map[loader.Sym]int64)
 	}
 
 	// Some input files are archives containing multiple of
@@ -538,15 +542,16 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			return nil, nil
 		}
 
-		// Check for COMDAT symbol.
-		if sz, ok1 := state.comdats[uint16(pesym.SectionNumber-1)]; ok1 {
-			if psz, ok2 := comdatDefinitions[l.SymName(s)]; ok2 {
-				if sz == psz {
-					//  OK to discard, we've seen an instance
-					// already.
-					continue
-				}
-			}
+		// NODUPLICATES forbids a second definition regardless of the
+		// other section's selection strategy.
+		sz, comdat := state.comdats[uint16(pesym.SectionNumber-1)]
+		prevSize, prevComdat := comdatDefinitions[s]
+		if prevSize == comdatNoDuplicates || sz == comdatNoDuplicates && l.OuterSym(s) != 0 {
+			return nil, fmt.Errorf("%s: duplicate COMDAT symbol definition: %s", pn, l.SymName(s))
+		}
+		if comdat && prevComdat && sz == prevSize {
+			// The existing and incoming definitions allow coalescing.
+			continue
 		}
 		if l.OuterSym(s) != 0 {
 			if l.AttrDuplicateOK(s) {
@@ -569,13 +574,12 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			}
 			bld.SetExternal(true)
 		}
-		if sz, ok := state.comdats[uint16(pesym.SectionNumber-1)]; ok {
-			// This is a COMDAT definition. Record that we're picking
-			// this instance so that we can ignore future defs.
-			if _, ok := comdatDefinitions[l.SymName(s)]; ok {
+		if comdat {
+			// Record the selected definition for future duplicate checks.
+			if prevComdat {
 				return nil, fmt.Errorf("internal error: preexisting COMDAT definition for %q", name)
 			}
-			comdatDefinitions[l.SymName(s)] = sz
+			comdatDefinitions[s] = sz
 		}
 	}
 
@@ -794,12 +798,15 @@ func (state *peLoaderState) preprocessSymbols() error {
 		if err != nil {
 			return fmt.Errorf("unable to read aux info for section def symbol %d %s: pe.COFFSymbolReadComdatInfo returns %v", i, symname, err)
 		}
-		if auxsymp.Selection == pe.IMAGE_COMDAT_SELECT_SAME_SIZE {
-			// This is supported.
-		} else if auxsymp.Selection == pe.IMAGE_COMDAT_SELECT_ANY {
-			// Also supported.
-			state.comdats[uint16(pesym.SectionNumber-1)] = int64(-1)
-		} else {
+		section := uint16(pesym.SectionNumber - 1)
+		switch auxsymp.Selection {
+		case pe.IMAGE_COMDAT_SELECT_SAME_SIZE:
+			// Retain the section size for comparison.
+		case pe.IMAGE_COMDAT_SELECT_ANY:
+			state.comdats[section] = comdatAny
+		case pe.IMAGE_COMDAT_SELECT_NODUPLICATES:
+			state.comdats[section] = comdatNoDuplicates
+		default:
 			// We don't support any of the other strategies at the
 			// moment. I suspect that we may need to also support
 			// "associative", we'll see.
