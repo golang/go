@@ -5,7 +5,7 @@
 //go:build goexperiment.arenas
 
 /*
-The arena package provides the ability to allocate memory for a collection
+Package arena provides the ability to allocate memory for a collection
 of Go values and free that space manually all at once, safely. The purpose
 of this functionality is to improve efficiency: manually freeing memory
 before a garbage collection delays that cycle. Less frequent cycles means
