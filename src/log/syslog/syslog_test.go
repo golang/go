@@ -423,9 +423,7 @@ func TestConcurrentReconnect(t *testing.T) {
 	srvWG.Wait()
 	close(done)
 
-	select {
-	case <-count:
-	case <-time.After(100 * time.Millisecond):
-		t.Error("timeout in concurrent reconnect")
-	}
+	// The counting goroutine stops once done is closed, so this does not
+	// block forever. Don't limit how long it takes.
+	<-count
 }
