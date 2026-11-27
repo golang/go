@@ -204,6 +204,12 @@ func (c *CrossOriginProtection) isRequestExempt(req *Request) bool {
 // with a 403 Forbidden status or handled with the handler passed
 // to [CrossOriginProtection.SetDenyHandler].
 func (c *CrossOriginProtection) Handler(h Handler) Handler {
+	if c == nil {
+		panic("nil *CrossOriginProtection")
+	}
+	if h == nil {
+		panic("nil handler")
+	}
 	return HandlerFunc(func(w ResponseWriter, r *Request) {
 		if err := c.Check(r); err != nil {
 			if deny := c.deny.Load(); deny != nil {
