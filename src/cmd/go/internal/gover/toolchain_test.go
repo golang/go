@@ -17,3 +17,16 @@ var fromToolchainTests = []testCase1[string, string]{
 	{"gccgo-go1.23rc4", ""},
 	{"gccgo-go1.23rc4-bigdwarf", ""},
 }
+
+func TestToolchainForGoVersion(t *testing.T) {
+	test1(t, toolchainForGoVersionTests, "ToolchainForGoVersion", ToolchainForGoVersion)
+}
+
+var toolchainForGoVersionTests = []testCase1[string, string]{
+	{"1.20", "go1.20"},
+	{"1.21", "go1.21.0"},
+	{"1.22", "go1.22.0"},
+	{"1.23", "go1.23.0"},
+	{"1.23.4", "go1.23.4"},
+	{"1.24rc1", "go1.24rc1"},
+}
