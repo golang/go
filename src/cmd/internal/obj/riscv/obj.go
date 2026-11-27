@@ -162,6 +162,13 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				p.From.Reg = REG_ZERO
 				break
 			}
+			// On rva23u64 and later, leave constants in the Zfa
+			// load-immediate table for FLIS in instructionsForMOV.
+			if buildcfg.GORISCV64 >= 23 && p.To.Type == obj.TYPE_REG {
+				if _, ok := flisMapping[f32]; ok {
+					break
+				}
+			}
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = ctxt.Float32Sym(f32)
 			p.From.Name = obj.NAME_EXTERN
@@ -175,6 +182,13 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				p.From.Type = obj.TYPE_REG
 				p.From.Reg = REG_ZERO
 				break
+			}
+			// On rva23u64 and later, leave constants in the Zfa
+			// load-immediate table for FLID in instructionsForMOV.
+			if buildcfg.GORISCV64 >= 23 && p.To.Type == obj.TYPE_REG {
+				if _, ok := flidMapping[f64]; ok {
+					break
+				}
 			}
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = ctxt.Float64Sym(f64)
@@ -4209,6 +4223,27 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			return nil
 		}
 		return instructionsForMOVConst(p)
+
+	case p.From.Type == obj.TYPE_FCONST && p.To.Type == obj.TYPE_REG:
+		// Materialize floating-point constants that progedit left as
+		// TYPE_FCONST with FLIS/FLID. The immediate index goes in rs2, so it
+		// is set here rather than in the AFLIS/AFLID case of
+		// instructionsForProg, which sees the original p.As (AMOVF/AMOVD).
+		f64 := p.From.Val.(float64)
+		switch p.As {
+		case AMOVF:
+			if idx, ok := flisMapping[float32(f64)]; ok {
+				ins.as, ins.rs2 = AFLIS, REG_ZERO+idx
+				return inss
+			}
+		case AMOVD:
+			if idx, ok := flidMapping[f64]; ok {
+				ins.as, ins.rs2 = AFLID, REG_ZERO+idx
+				return inss
+			}
+		}
+		p.Ctxt.Diag("%v: unsupported floating-point constant load", p)
+		return nil
 
 	case p.From.Type == obj.TYPE_CONST && p.To.Type != obj.TYPE_REG:
 		p.Ctxt.Diag("%v: constant load must target register", p)

@@ -356,6 +356,146 @@ func Float64Constant() float64 {
 	return 49.0
 }
 
+func Float32ConstantImmediate() float32 {
+	// On rva23u64 the constant appears as an immediate rather than a pool load.
+	// riscv64/rva23u64:"MOVF [$]\\(2\\.5\\),"
+	// riscv64/rva20u64:"MOVF [$]f32\\.40200000\\(SB\\)"
+	// riscv64/rva22u64:"MOVF [$]f32\\.40200000\\(SB\\)"
+	return 2.5
+}
+
+func Float32ConstantImmediateNegative() float32 {
+	// riscv64/rva23u64:"MOVF [$]\\(-1\\.0\\),"
+	// riscv64/rva20u64:"MOVF [$]f32\\.bf800000\\(SB\\)"
+	// riscv64/rva22u64:"MOVF [$]f32\\.bf800000\\(SB\\)"
+	return -1.0
+}
+
+func Float32ConstantImmediateMinNormal() float32 {
+	// riscv64/rva23u64:"MOVF [$]\\(1\\.1754943508222875e-38\\),"
+	// riscv64/rva20u64:"MOVF [$]f32\\.00800000\\(SB\\)"
+	// riscv64/rva22u64:"MOVF [$]f32\\.00800000\\(SB\\)"
+	return 0x1p-126
+}
+
+func Float32ConstantImmediateHalf() float32 {
+	// riscv64/rva23u64:"MOVF [$]\\(0\\.5\\),"
+	// riscv64/rva20u64:"MOVF [$]f32\\.3f000000\\(SB\\)"
+	// riscv64/rva22u64:"MOVF [$]f32\\.3f000000\\(SB\\)"
+	return 0.5
+}
+
+func Float32ConstantImmediateOne() float32 {
+	// riscv64/rva23u64:"MOVF [$]\\(1\\.0\\),"
+	// riscv64/rva20u64:"MOVF [$]f32\\.3f800000\\(SB\\)"
+	// riscv64/rva22u64:"MOVF [$]f32\\.3f800000\\(SB\\)"
+	return 1.0
+}
+
+func Float32ConstantImmediateFour() float32 {
+	// riscv64/rva23u64:"MOVF [$]\\(4\\.0\\),"
+	// riscv64/rva20u64:"MOVF [$]f32\\.40800000\\(SB\\)"
+	// riscv64/rva22u64:"MOVF [$]f32\\.40800000\\(SB\\)"
+	return 4.0
+}
+
+func Float32ConstantImmediateLargest() float32 {
+	// The largest value in the FLIS immediate table.
+	// riscv64/rva23u64:"MOVF [$]\\(65536\\.0\\),"
+	// riscv64/rva20u64:"MOVF [$]f32\\.47800000\\(SB\\)"
+	// riscv64/rva22u64:"MOVF [$]f32\\.47800000\\(SB\\)"
+	return 65536.0
+}
+
+func Float32ConstantImmediateSmallest() float32 {
+	// The smallest value in the FLIS table apart from the minimum normal.
+	// riscv64/rva23u64:"MOVF [$]\\(1\\.52587890625e-05\\),"
+	// riscv64/rva20u64:"MOVF [$]f32\\.37800000\\(SB\\)"
+	// riscv64/rva22u64:"MOVF [$]f32\\.37800000\\(SB\\)"
+	return 1.52587890625e-05
+}
+
+func Float32ConstantPool() float32 {
+	// 0.1 is not in the Zfa table, so it is always a pool load.
+	// riscv64:"MOVF [$]f32\\.3dcccccd\\(SB\\)"
+	return 0.1
+}
+
+func Float32ConstantPoolPowerOfTwo() float32 {
+	// 2**-6 is a power of two but has no FLIS index, so it is always a pool load.
+	// riscv64:"MOVF [$]f32\\.3c800000\\(SB\\)"
+	return 0.015625
+}
+
+func Float64ConstantImmediate() float64 {
+	// riscv64/rva23u64:"MOVD [$]\\(2\\.5\\),"
+	// riscv64/rva20u64:"MOVD [$]f64\\.4004000000000000\\(SB\\)"
+	// riscv64/rva22u64:"MOVD [$]f64\\.4004000000000000\\(SB\\)"
+	return 2.5
+}
+
+func Float64ConstantImmediateMinNormal() float64 {
+	// The only double entry that differs from the single-precision table.
+	// riscv64/rva23u64:"MOVD [$]\\(2\\.2250738585072014e-308\\),"
+	// riscv64/rva20u64:"MOVD [$]f64\\.0010000000000000\\(SB\\)"
+	// riscv64/rva22u64:"MOVD [$]f64\\.0010000000000000\\(SB\\)"
+	return 0x1p-1022
+}
+
+func Float64ConstantImmediateNegative() float64 {
+	// riscv64/rva23u64:"MOVD [$]\\(-1\\.0\\),"
+	// riscv64/rva20u64:"MOVD [$]f64\\.bff0000000000000\\(SB\\)"
+	// riscv64/rva22u64:"MOVD [$]f64\\.bff0000000000000\\(SB\\)"
+	return -1.0
+}
+
+func Float64ConstantImmediateHalf() float64 {
+	// riscv64/rva23u64:"MOVD [$]\\(0\\.5\\),"
+	// riscv64/rva20u64:"MOVD [$]f64\\.3fe0000000000000\\(SB\\)"
+	// riscv64/rva22u64:"MOVD [$]f64\\.3fe0000000000000\\(SB\\)"
+	return 0.5
+}
+
+func Float64ConstantImmediateOne() float64 {
+	// riscv64/rva23u64:"MOVD [$]\\(1\\.0\\),"
+	// riscv64/rva20u64:"MOVD [$]f64\\.3ff0000000000000\\(SB\\)"
+	// riscv64/rva22u64:"MOVD [$]f64\\.3ff0000000000000\\(SB\\)"
+	return 1.0
+}
+
+func Float64ConstantImmediateFour() float64 {
+	// riscv64/rva23u64:"MOVD [$]\\(4\\.0\\),"
+	// riscv64/rva20u64:"MOVD [$]f64\\.4010000000000000\\(SB\\)"
+	// riscv64/rva22u64:"MOVD [$]f64\\.4010000000000000\\(SB\\)"
+	return 4.0
+}
+
+func Float64ConstantImmediateLargest() float64 {
+	// The largest value in the FLID immediate table.
+	// riscv64/rva23u64:"MOVD [$]\\(65536\\.0\\),"
+	// riscv64/rva20u64:"MOVD [$]f64\\.40f0000000000000\\(SB\\)"
+	// riscv64/rva22u64:"MOVD [$]f64\\.40f0000000000000\\(SB\\)"
+	return 65536.0
+}
+
+func Float64ConstantPool() float64 {
+	// riscv64:"MOVD [$]f64\\.400b000000000000\\(SB\\)"
+	return 3.375
+}
+
+func Float64ConstantPoolPowerOfTwo() float64 {
+	// 2**-6 is a power of two but has no FLID index, so it is always a pool load.
+	// riscv64:"MOVD [$]f64\\.3f90000000000000\\(SB\\)"
+	return 0.015625
+}
+
+func Float64ConstantImmediateInf() float64 {
+	// riscv64/rva23u64:"MOVD [$]\\(\\+Inf\\),"
+	// riscv64/rva20u64:"MOVD [$]f64\\.7ff0000000000000\\(SB\\)"
+	// riscv64/rva22u64:"MOVD [$]f64\\.7ff0000000000000\\(SB\\)"
+	return math.Inf(1)
+}
+
 func Float32DenormalConstant() float32 {
 	// ppc64x:"FMOVS [$]f32\\.00400000\\(SB\\)"
 	return 0x1p-127
