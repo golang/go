@@ -679,7 +679,7 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 			f.BitOffset, haveBitOffset = kid.Val(AttrBitOffset).(int64)
 			f.DataBitOffset, haveDataBitOffset = kid.Val(AttrDataBitOffset).(int64)
 			if haveBitOffset && haveDataBitOffset {
-				err = DecodeError{name, e.Offset, "duplicate bit offset attributes"}
+				err = DecodeError{name, kid.Offset, "duplicate bit offset attributes"}
 				goto Error
 			}
 			f.BitSize, _ = kid.Val(AttrBitSize).(int64)
