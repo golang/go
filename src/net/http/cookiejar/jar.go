@@ -4,7 +4,13 @@
 
 // Package cookiejar implements an in-memory [RFC 6265]-compliant [http.CookieJar].
 //
+// The jar also follows these rules of [RFC 6265bis] (draft 22), the revision
+// of RFC 6265:
+//   - The lifetime that an Expires or Max-Age attribute gives a cookie is
+//     limited to 400 days.
+//
 // [RFC 6265]: https://www.rfc-editor.org/info/rfc6265
+// [RFC 6265bis]: https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22
 package cookiejar
 
 import (
@@ -445,11 +451,12 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 		return e, false, err
 	}
 
-	// MaxAge takes precedence over Expires.
+	// MaxAge takes precedence over Expires. Both are limited to
+	// maxCookieAge.
 	if c.MaxAge < 0 {
 		return e, true, nil
 	} else if c.MaxAge > 0 {
-		e.Expires = now.Add(time.Duration(c.MaxAge) * time.Second)
+		e.Expires = now.Add(time.Duration(min(c.MaxAge, maxCookieAge)) * time.Second)
 		e.Persistent = true
 	} else {
 		if c.Expires.IsZero() {
@@ -460,6 +467,9 @@ func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e e
 				return e, true, nil
 			}
 			e.Expires = c.Expires
+			if limit := now.Add(maxCookieAge * time.Second); e.Expires.After(limit) {
+				e.Expires = limit
+			}
 			e.Persistent = true
 		}
 	}
@@ -490,6 +500,10 @@ var (
 // This instant is representable in most date/time formats (not just
 // Go's time.Time) and should be far enough in the future.
 var endOfTime = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
+
+// maxCookieAge is the longest lifetime of a persistent cookie, in seconds:
+// 400 days, as in RFC 6265bis section 5.5.
+const maxCookieAge = 400 * 24 * 60 * 60
 
 // domainAndType determines the cookie's domain and hostOnly attribute.
 func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
