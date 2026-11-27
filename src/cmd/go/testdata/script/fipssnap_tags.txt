@@ -1,0 +1,29 @@
+# The build tag for a GOFIPS140 snapshot must be set, and the purego tag
+# rejected, when -tags is used with 'go install pkg@version' or
+# 'go run pkg@version'. Toolchain selection resolves pkg@version, and so
+# initializes the FIPS settings, before the -tags flag is parsed.
+# Verifies golang.org/issue/83334.
+
+env GOFIPS140=v1.0.0
+
+# Go+BoringCrypto conflicts with GOFIPS140.
+[GOEXPERIMENT:boringcrypto] skip
+
+# -tags on the command line keeps the snapshot's build tag
+go install -tags=foo example.com/cmd/a@v1.0.0
+go version -m $GOPATH/bin/a$GOEXE
+stdout '^\tbuild\t-tags=foo,fips140v1\.0$'
+rm $GOPATH/bin
+
+# so does -tags in GOFLAGS
+env GOFLAGS=-tags=foo
+go install example.com/cmd/a@v1.0.0
+go version -m $GOPATH/bin/a$GOEXE
+stdout '^\tbuild\t-tags=foo,fips140v1\.0$'
+env GOFLAGS=
+
+# the purego tag is still rejected
+! go install -tags=purego example.com/cmd/a@v1.0.0
+stderr '^go: cannot use GOFIPS140 with the purego build tag$'
+! go run -tags=purego example.com/cmd/a@v1.0.0
+stderr '^go: cannot use GOFIPS140 with the purego build tag$'

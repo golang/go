@@ -108,8 +108,14 @@ import (
 // Init initializes the FIPS settings.
 // It must be called before using any other functions in this package.
 // If initialization fails, Init calls base.Fatalf.
+//
+// Init can be called more than once. Toolchain selection calls it
+// to resolve 'go install pkg@version' and 'go run pkg@version' before
+// the command's flags are parsed, and the -tags flag replaces
+// cfg.BuildContext.BuildTags, so every call applies the build tags.
 func Init() {
 	if initDone {
+		initTags()
 		return
 	}
 	initDone = true
@@ -125,6 +131,18 @@ func Init() {
 	// selected toolchain version.
 	if cfg.ExperimentErr == nil && cfg.Experiment.BoringCrypto && Enabled() {
 		base.Fatalf("go: cannot use GOFIPS140 with GOEXPERIMENT=boringcrypto")
+	}
+	initTags()
+}
+
+// initTags adds the build tag for the FIPS snapshot in use, if any,
+// and checks that the build tags do not conflict with FIPS mode.
+func initTags() {
+	if Snapshot() {
+		tag := "fips140" + semver.MajorMinor(version)
+		if !slices.Contains(cfg.BuildContext.BuildTags, tag) {
+			cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, tag)
+		}
 	}
 	if slices.Contains(cfg.BuildContext.BuildTags, "purego") && Enabled() {
 		base.Fatalf("go: cannot use GOFIPS140 with the purego build tag")
@@ -198,8 +216,7 @@ func initVersion() {
 	}
 
 	if _, err := os.Stat(file + ".zip"); err == nil {
-		// Found version. Add a build tag.
-		cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "fips140"+semver.MajorMinor(v))
+		// Found version. Init adds its build tag.
 		version = v
 		return
 	}
