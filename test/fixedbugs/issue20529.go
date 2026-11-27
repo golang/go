@@ -15,7 +15,6 @@ package p
 
 import "runtime"
 
-func f() { // GC_ERROR "stack frame too large"
-	x := [][]int{1e9: []int{}}
+func f(x [1e9][]int) { // GC_ERROR "stack frame too large"
 	runtime.KeepAlive(x)
 }
