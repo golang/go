@@ -187,7 +187,13 @@ func appendEscapedJSONString(buf []byte, s string) []byte {
 	str := func(s string) { buf = append(buf, s...) }
 
 	start := 0
-	for i := 0; i < len(s); {
+	i := 0
+	// Most strings are plain ASCII. Skip a leading run of bytes that need
+	// no escaping eight at a time, then continue byte by byte.
+	for len(s)-i >= 8 && safeASCII8(load64(s[i:])) {
+		i += 8
+	}
+	for i < len(s) {
 		if b := s[i]; b < utf8.RuneSelf {
 			if safeSet[b] {
 				i++
@@ -253,6 +259,30 @@ func appendEscapedJSONString(buf []byte, s string) []byte {
 		str(s[start:])
 	}
 	return buf
+}
+
+// load64 returns the first eight bytes of s as a little-endian uint64.
+func load64(s string) uint64 {
+	_ = s[7]
+	return uint64(s[0]) | uint64(s[1])<<8 | uint64(s[2])<<16 | uint64(s[3])<<24 |
+		uint64(s[4])<<32 | uint64(s[5])<<40 | uint64(s[6])<<48 | uint64(s[7])<<56
+}
+
+// safeASCII8 reports whether all eight bytes packed into x are in safeSet,
+// that is, ASCII other than control characters, '"' and '\\'.
+func safeASCII8(x uint64) bool {
+	const (
+		lo = 0x0101010101010101
+		hi = 0x8080808080808080
+	)
+	// For each condition, the high bit of a byte is set if that byte
+	// (or, once some byte matches, a more significant one) matches.
+	// Only whether any byte matches is used, so the false positives
+	// that borrows introduce do not matter.
+	q := x ^ ('"' * lo)
+	bs := x ^ ('\\' * lo)
+	m := (x - ' '*lo) | (q - lo) | (bs - lo)
+	return (m&^x|x)&hi == 0
 }
 
 const hex = "0123456789abcdef"
