@@ -77,6 +77,11 @@ var nextPrevTests = []struct {
 func TestIPNextPrev(t *testing.T) {
 	doNextPrev(t)
 
+	var zero Addr
+	if got := zero.Next(); got != zero {
+		t.Errorf("zero Addr.Next() = %v (As16 = %x), want zero Addr", got, got.As16())
+	}
+
 	for _, ip := range []Addr{
 		mustIP("0.0.0.0"),
 		mustIP("::"),

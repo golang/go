@@ -741,8 +741,11 @@ func (ip Addr) AsSlice() []byte {
 }
 
 // Next returns the address following ip.
-// If there is none, it returns the zero [Addr].
+// It returns the zero [Addr] if ip is zero or has no following address.
 func (ip Addr) Next() Addr {
+	if !ip.IsValid() {
+		return Addr{}
+	}
 	ip.addr = ip.addr.addOne()
 	if ip.Is4() {
 		if uint32(ip.addr.lo) == 0 {
