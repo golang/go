@@ -756,7 +756,7 @@ func bitsRotateAndMask(io64 [8]uint64, io32 [4]uint32, io16 [4]uint16, io8 [4]ui
 
 	// ppc64x: "RLWNM [$]0, R[0-9]*, [$]4, [$]19, R"
 	io32[0] = io32[0] & 0x0FFFF000
-	// ppc64x: "RLWNM [$]0, R[0-9]*, [$]20, [$]3, R"
+	// ppc64x: -"RLWNM" "MOVD" "AND"
 	io32[1] = io32[1] & 0xF0000FFF
 	// ppc64x: -"RLWNM" "MOVD" "AND"
 	io32[2] = io32[2] & 0xFFFF0002
