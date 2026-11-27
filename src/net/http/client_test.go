@@ -2098,6 +2098,51 @@ func (r *roundTripperGetBody) RoundTrip(req *Request) (*Response, error) {
 	return r.Transport.RoundTrip(req)
 }
 
+// A request with "Expect: 100-continue" waits for 100 Continue before
+// sending its body, also when the Client follows a redirect.
+func TestClientRedirectExpectContinue(t *testing.T) {
+	runSynctest(t, testClientRedirectExpectContinue)
+}
+
+func testClientRedirectExpectContinue(t *testing.T, mode testMode) {
+	var bodySent atomic.Bool
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		// The handler doesn't read the body, so the server never sends
+		// 100 Continue, and the client should never send the body.
+		if bodySent.Load() {
+			t.Errorf("%v: client sent the request body without waiting for 100 Continue", r.URL.Path)
+		}
+		if r.URL.Path == "/first" {
+			Redirect(w, r, "/second", StatusTemporaryRedirect)
+		}
+	}), func(tr *Transport) {
+		tr.ExpectContinueTimeout = 24 * time.Hour // forever
+	})
+
+	getBody := func() (io.ReadCloser, error) {
+		return io.NopCloser(io.MultiReader(
+			eofReaderFunc(func() { bodySent.Store(true) }),
+			strings.NewReader("hello"),
+		)), nil
+	}
+	req, err := NewRequest("PUT", cst.ts.URL+"/first", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Body, _ = getBody()
+	req.GetBody = getBody
+	req.ContentLength = int64(len("hello"))
+	req.Header.Set("Expect", "100-continue")
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if got, want := res.Request.URL.Path, "/second"; got != want {
+		t.Errorf("final request path = %q, want %q", got, want)
+	}
+}
+
 type roundTripperWithoutCloseIdle struct{}
 
 func (roundTripperWithoutCloseIdle) RoundTrip(*Request) (*Response, error) { panic("unused") }
