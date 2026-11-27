@@ -289,6 +289,13 @@ func (cs *clientStream) abortStreamLocked(err error) {
 	if cs.reqBody != nil {
 		cs.closeReqBodyLocked()
 	}
+	// Unblock a goroutine waiting in transportResponseBody.Read.
+	// Without this, cancelling the request context leaves Read blocked
+	// in bufPipe.Read until the peer ends the stream. See golang/go#83068.
+	// CloseWithError is a no-op if the pipe is already closed, and it
+	// only returns buffered data before the error, so this is safe to
+	// call for every abort.
+	cs.bufPipe.CloseWithError(err)
 	// TODO(dneil): Clean up tests where cs.cc.cond is nil.
 	if cs.cc.cond != nil {
 		// Wake up writeRequestBody if it is waiting on flow control.
@@ -781,6 +788,17 @@ func (cc *ClientConn) roundTrip(req *ClientRequest, streamf func(*clientStream))
 	}
 	cs := &req.stream
 
+	// Watch for request context cancellation for the whole lifetime of
+	// the stream, not just once it is detached. If the request body is
+	// unfinished, writeRequest blocks reading it and never reaches
+	// detach, so without this the cancellation would be lost and a
+	// blocked Response.Body.Read would never unblock. See golang/go#83068.
+	// detach reuses this watcher instead of arming a second one, and
+	// cleanupWriteRequest stops it when the stream ends.
+	cs.stopCtxWatch = context.AfterFunc(ctx, func() {
+		cs.abortStream(ctx.Err())
+	})
+
 	cs.requestedGzip = httpcommon.IsRequestGzip(req.Method, req.Header, cc.t.disableCompression())
 
 	cc.mu.Lock()
@@ -953,12 +971,19 @@ func (cs *clientStream) detach(respHeaderTimeout time.Duration) bool {
 	// the func in a new goroutine, which blocks acquiring cc.mu until we
 	// return.
 	//
+	// The watcher is normally already armed by roundTrip (so that
+	// cancellation is noticed even while the request body is still being
+	// written and the stream is not yet detached); only arm it here if
+	// it isn't already. See golang/go#83068.
+	//
 	// stopCtxWatch must be assigned before detached is set: once detached
 	// is set, an abort or peer close can schedule cleanupWriteRequest
 	// (which calls stopCtxWatch) as soon as we release cc.mu.
-	cs.stopCtxWatch = context.AfterFunc(cs.ctx, func() {
-		cs.abortStream(cs.ctx.Err())
-	})
+	if cs.stopCtxWatch == nil {
+		cs.stopCtxWatch = context.AfterFunc(cs.ctx, func() {
+			cs.abortStream(cs.ctx.Err())
+		})
+	}
 	cs.detached = true
 	return true
 }
