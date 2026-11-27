@@ -1,0 +1,75 @@
+# Test that a panic in a benchmark fails the run. The benchmark goroutine
+# used to signal that it was done while the panic unwound, so the run could
+# print PASS and exit 0 before the panic ended the process. Each panic value
+# below has a slow Error method, which the runtime calls before it exits,
+# so without the fix every run here would pass.
+
+# A panic in the first iteration, which run1 executes.
+! go test -run '^$' -bench '^BenchmarkPanic$' -benchtime=1x benchpanic
+! stdout ^ok
+! stdout ^PASS
+stdout 'panic: boom'
+stdout FAIL.*benchpanic
+
+# A panic in a later iteration, which launch executes.
+! go test -run '^$' -bench '^BenchmarkPanicLater$' -benchtime=2x benchpanic
+! stdout ^ok
+! stdout ^PASS
+stdout 'panic: later'
+stdout FAIL.*benchpanic
+
+# A panic in a sub-benchmark.
+! go test -run '^$' -bench '^BenchmarkPanicSub$' -benchtime=1x benchpanic
+! stdout ^ok
+! stdout ^PASS
+stdout 'panic: sub'
+stdout FAIL.*benchpanic
+
+# A direct runtime.Goexit, which neither returns nor stops with FailNow or
+# SkipNow, fails as it does in a test.
+! go test -run '^$' -bench '^BenchmarkGoexit$' -benchtime=1x benchpanic
+! stdout ^ok
+stdout 'panic: test executed panic\(nil\) or runtime.Goexit'
+stdout FAIL.*benchpanic
+
+-- go.mod --
+module benchpanic
+
+go 1.16
+-- x_test.go --
+package benchpanic
+
+import (
+	"runtime"
+	"testing"
+	"time"
+)
+
+// slowErr delays the runtime's report of a panic, giving the goroutine
+// waiting on the benchmark time to finish the run first.
+type slowErr string
+
+func (e slowErr) Error() string {
+	time.Sleep(time.Second)
+	return string(e)
+}
+
+func BenchmarkPanic(b *testing.B) {
+	panic(slowErr("boom"))
+}
+
+func BenchmarkPanicLater(b *testing.B) {
+	if b.N > 1 {
+		panic(slowErr("later"))
+	}
+}
+
+func BenchmarkPanicSub(b *testing.B) {
+	b.Run("sub", func(b *testing.B) {
+		panic(slowErr("sub"))
+	})
+}
+
+func BenchmarkGoexit(b *testing.B) {
+	runtime.Goexit()
+}
