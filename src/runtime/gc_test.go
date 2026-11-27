@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"internal/abi"
 	"internal/asan"
+	"internal/goexperiment"
 	"internal/msan"
 	"internal/race"
 	"internal/testenv"
@@ -36,6 +37,26 @@ func TestGcSys(t *testing.T) {
 	want := "OK\n"
 	if got != want {
 		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
+func TestGCSpanQueueOutOfMemory(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("skipping test; requires RLIMIT_DATA")
+	}
+	if !goexperiment.GreenTeaGC {
+		t.Skip("skipping test; requires the Green Tea GC")
+	}
+	if asan.Enabled || msan.Enabled || race.Enabled {
+		t.Skip("skipping test; sanitizers allocate memory outside of the Go runtime")
+	}
+	got := runTestProg(t, "testprog", "GCSpanQueueOutOfMemory")
+	if got == "OK\n" {
+		t.Skip("skipping test; RLIMIT_DATA is not enforced")
+	}
+	want := "fatal error: out of memory allocating GC span queue"
+	if !strings.Contains(got, want) {
+		t.Fatalf("expected %q, but got:\n%s", want, got)
 	}
 }
 
