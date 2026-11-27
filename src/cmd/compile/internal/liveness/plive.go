@@ -152,11 +152,6 @@ type Liveness struct {
 	// used only during liveness analysis for stack slot merging (doesn't
 	// make sense for stackmap analysis).
 	conservativeWrites bool
-
-	// addrUsed holds tracked variables that are not address-taken but
-	// whose address may propagate in SSA, by a spill for example. Like
-	// address-taken variables, they get stack objects. See issue 82026.
-	addrUsed map[*ir.Name]bool
 }
 
 // Map maps from *ssa.Value to StackMapIndex.
@@ -1072,7 +1067,7 @@ func (lv *Liveness) clobber(b *ssa.Block) {
 // of b.Values.
 func clobber(lv *Liveness, b *ssa.Block, live bitvec.BitVec) {
 	for i, n := range lv.vars {
-		if !live.Get(int32(i)) && !n.Addrtaken() && !lv.addrUsed[n] && !n.OpenDeferSlot() && !n.IsOutputParamHeapAddr() {
+		if !live.Get(int32(i)) && !n.Addrtaken() && !n.OpenDeferSlot() && !n.IsOutputParamHeapAddr() {
 			// Don't clobber stack objects (address-taken). They are
 			// tracked dynamically.
 			// Also don't clobber slots that are live for defers (see
@@ -1436,7 +1431,7 @@ func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs, retL
 	// Construct the global liveness state.
 	vars, idx := getvariables(curfn)
 	lv := newliveness(curfn, f, vars, idx, stkptrsize)
-	lv.computeAddrUsed()
+	lv.markAddrtaken()
 
 	// Run the dataflow framework.
 	lv.prologue()
@@ -1501,8 +1496,13 @@ func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs, retL
 	return lv.livenessMap, lv.partLiveArgs, retLv
 }
 
-// computeAddrUsed fills in lv.addrUsed.
-func (lv *Liveness) computeAddrUsed() {
+// markAddrtaken marks as address-taken each tracked variable whose
+// address may propagate in SSA, so that it gets a stack object.
+// See issue 82026.
+//
+// TODO: This is deliberately conservative. Tracking derived addresses
+// in the dataflow would be more precise.
+func (lv *Liveness) markAddrtaken() {
 	for _, b := range lv.f.Blocks {
 		for _, v := range b.Values {
 			for i, a := range v.Args {
@@ -1513,10 +1513,7 @@ func (lv *Liveness) computeAddrUsed() {
 				if _, ok := lv.idx[n]; !ok {
 					continue
 				}
-				if lv.addrUsed == nil {
-					lv.addrUsed = make(map[*ir.Name]bool)
-				}
-				lv.addrUsed[n] = true
+				n.SetAddrtaken(true)
 			}
 		}
 	}
@@ -1525,7 +1522,7 @@ func (lv *Liveness) computeAddrUsed() {
 func (lv *Liveness) emitStackObjects() *obj.LSym {
 	var vars []*ir.Name
 	for _, n := range lv.fn.Dcl {
-		if shouldTrack(n) && (n.Addrtaken() || lv.addrUsed[n]) && n.Esc() != ir.EscHeap {
+		if shouldTrack(n) && n.Addrtaken() && n.Esc() != ir.EscHeap {
 			vars = append(vars, n)
 		}
 	}
