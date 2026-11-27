@@ -7,6 +7,7 @@ package ssacompile
 import (
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
+	"cmd/internal/sys"
 )
 
 // layout orders basic blocks in f with the goal of minimizing control flow instructions.
@@ -77,6 +78,15 @@ func layoutOrder(f *ssa.Func) []*ssa.Block {
 		}
 	}
 
+	// On wasm, the header of a loop without calls has to come before the rest
+	// of the loop, see loopRotate, so it does not wait for the back edges.
+	var loopnest *ssa.LoopNest
+	var hasCall map[*ssa.Loop]bool
+	if f.Config.Ctxt.Arch.Arch == sys.ArchWasm {
+		loopnest = f.Loopnest()
+		hasCall = loopsWithCalls(f)
+	}
+
 	// Initialize indegree of each block
 	for _, b := range f.Blocks {
 		if exit.Contains(b.ID) {
@@ -84,7 +94,16 @@ func layoutOrder(f *ssa.Func) []*ssa.Block {
 			continue
 		}
 		indegree[b.ID] = len(b.Preds)
-		if len(b.Preds) == 0 {
+		if loopnest != nil {
+			if l := loopnest.B2L[b.ID]; l != nil && l.Header == b && !hasCall[l] {
+				for _, e := range b.Preds {
+					if loopnest.SDom.IsAncestorEq(b, e.B) {
+						indegree[b.ID]--
+					}
+				}
+			}
+		}
+		if indegree[b.ID] == 0 {
 			// Push an element to the tail of the queue.
 			zerodegree = append(zerodegree, b.ID)
 		} else {
