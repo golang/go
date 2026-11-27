@@ -18,6 +18,30 @@ import (
 	"time"
 )
 
+func TestReaderLongLines(t *testing.T) {
+	for _, n := range []int{4095, 4096, 4097, 16384} {
+		for _, suffix := range []string{"", "\r\n", " \t\r\n", "=\r\ntail"} {
+			t.Run(fmt.Sprintf("%d/%q", n, suffix), func(t *testing.T) {
+				prefix := strings.Repeat("a", n)
+				want := prefix
+				switch suffix {
+				case "\r\n", " \t\r\n":
+					want += "\r\n"
+				case "=\r\ntail":
+					want += "tail"
+				}
+				out, err := io.ReadAll(NewReader(strings.NewReader(prefix + suffix)))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if string(out) != want {
+					t.Errorf("decoded %d bytes, want %d", len(out), len(want))
+				}
+			})
+		}
+	}
+}
+
 func TestReader(t *testing.T) {
 	tests := []struct {
 		in, want string
