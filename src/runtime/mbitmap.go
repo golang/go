@@ -625,6 +625,12 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
 	// The objects here are always really small, so a single load is sufficient.
 	src0 := readUintptr(getGCMask(typ))
 
+	// When ASAN is enabled, a redzone is appended to the data, and the redzone would affect
+    // bitmap calculation by being incorrectly marked as pointers.
+    srcDataSize := dataSize
+    if asanenabled {
+        dataSize = actualSize(srcDataSize)
+    }
 	// Create repetitions of the bitmap if we have a small slice backing store.
 	src := src0
 	if typ.Size_ == goarch.PtrSize {
@@ -635,7 +641,7 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
 		// N.B. We rely on dataSize being an exact multiple of the type size.
 		// The alternative is to be defensive and mask out src to the length
 		// of dataSize. The purpose is to save on one additional masking operation.
-		if doubleCheckHeapSetType && !asanenabled && dataSize%typ.Size_ != 0 {
+		if doubleCheckHeapSetType && dataSize%typ.Size_ != 0 {
 			throw("runtime: (*mspan).writeHeapBitsSmall: dataSize is not a multiple of typ.Size_")
 		}
 		scanSize = typ.PtrBytes
@@ -643,13 +649,11 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
 			src |= src0 << (i / goarch.PtrSize)
 			scanSize += typ.Size_
 		}
-		if asanenabled {
-			// Mask src down to dataSize. dataSize is going to be a strange size because of
-			// the redzone required for allocations when asan is enabled.
-			src &= (1 << (dataSize / goarch.PtrSize)) - 1
-		}
 	}
 
+	if asanenabled {
+        scanSize += srcDataSize - dataSize
+    }
 	// Since we're never writing more than one uintptr's worth of bits, we're either going
 	// to do one or two writes.
 	dstBase, _ := spanHeapBitsRange(span.base(), pageSize, span.elemsize)
@@ -810,6 +814,9 @@ func doubleCheckHeapType(x, dataSize uintptr, gctyp *_type, header **_type, span
 	maxIterBytes := span.elemsize
 	if header == nil {
 		maxIterBytes = dataSize
+		if asanenabled {
+            maxIterBytes = actualSize(dataSize)
+        }
 	}
 	off := alignUp(uintptr(cheaprand())%dataSize, goarch.PtrSize)
 	size := dataSize - off
@@ -836,6 +843,9 @@ func doubleCheckHeapPointers(x, dataSize uintptr, typ *_type, header **_type, sp
 	maxIterBytes := span.elemsize
 	if header == nil {
 		maxIterBytes = dataSize
+		if asanenabled {
+            maxIterBytes = actualSize(dataSize)
+        }
 	}
 	bad := false
 	for i := uintptr(0); i < maxIterBytes; i += goarch.PtrSize {
