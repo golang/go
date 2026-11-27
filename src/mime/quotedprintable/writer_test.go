@@ -31,6 +31,8 @@ func testWriter(t *testing.T, binary bool) {
 		{in: "foo bar\n", want: "foo bar\r\n", wantB: "foo bar=0A"},
 		{in: "foo bar\r\n", want: "foo bar\r\n", wantB: "foo bar=0D=0A"},
 		{in: "foo bar\r\r\n", want: "foo bar\r\n\r\n", wantB: "foo bar=0D=0D=0A"},
+		{in: "a\r=\nb", want: "a\r\n=3D\r\nb", wantB: "a=0D=3D=0Ab"},
+		{in: "a\r\x00\nb", want: "a\r\n=00\r\nb", wantB: "a=0D=00=0Ab"},
 		{in: "foo bar ", want: "foo bar=20"},
 		{in: "foo bar\t", want: "foo bar=09"},
 		{in: "foo bar  ", want: "foo bar =20"},
@@ -91,28 +93,34 @@ func testWriter(t *testing.T, binary bool) {
 	}
 
 	for _, tt := range tests {
-		buf := new(strings.Builder)
-		w := NewWriter(buf)
+		for split := 0; split <= len(tt.in); split++ {
+			buf := new(strings.Builder)
+			w := NewWriter(buf)
 
-		want := tt.want
-		if binary {
-			w.Binary = true
-			if tt.wantB != "" {
-				want = tt.wantB
+			want := tt.want
+			if binary {
+				w.Binary = true
+				if tt.wantB != "" {
+					want = tt.wantB
+				}
 			}
-		}
 
-		if _, err := w.Write([]byte(tt.in)); err != nil {
-			t.Errorf("Write(%q): %v", tt.in, err)
-			continue
-		}
-		if err := w.Close(); err != nil {
-			t.Errorf("Close(): %v", err)
-			continue
-		}
-		got := buf.String()
-		if got != want {
-			t.Errorf("Write(%q), got:\n%q\nwant:\n%q", tt.in, got, want)
+			if _, err := w.Write([]byte(tt.in[:split])); err != nil {
+				t.Errorf("Write(%q): %v", tt.in[:split], err)
+				continue
+			}
+			if _, err := w.Write([]byte(tt.in[split:])); err != nil {
+				t.Errorf("Write(%q): %v", tt.in[split:], err)
+				continue
+			}
+			if err := w.Close(); err != nil {
+				t.Errorf("Close(): %v", err)
+				continue
+			}
+			got := buf.String()
+			if got != want {
+				t.Errorf("Write(%q) split at %d, got:\n%q\nwant:\n%q", tt.in, split, got, want)
+			}
 		}
 	}
 }
