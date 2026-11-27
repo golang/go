@@ -66,6 +66,17 @@ func TestServerTLSHandshakeTimeout(t *testing.T) {
 	}
 }
 
+func TestServerShutdownGracePeriod(t *testing.T) {
+	s := &Server{}
+	if s.ShutdownGracePeriod != 0 {
+		t.Errorf("expected ShutdownGracePeriod to be 0 by default, got %v", s.ShutdownGracePeriod)
+	}
+	s.ShutdownGracePeriod = 5 * time.Second
+	if s.ShutdownGracePeriod != 5*time.Second {
+		t.Errorf("expected ShutdownGracePeriod to be 5s, got %v", s.ShutdownGracePeriod)
+	}
+}
+
 type handler struct{ i int }
 
 func (handler) ServeHTTP(ResponseWriter, *Request) {}
