@@ -1,0 +1,1 @@
+pkg crypto/x509, type VerifyOptions struct, MaxConstraintComparisions //deprecated #79864
