@@ -778,9 +778,9 @@ func (t *Tree) operand() Node {
 		// More complex error cases will have to be handled at execution time.
 		switch node.Type() {
 		case NodeField:
-			node = t.newField(chain.Position(), chain.String())
+			node = t.newField(node.Position(), chain.String())
 		case NodeVariable:
-			node = t.newVariable(chain.Position(), chain.String())
+			node = t.newVariable(node.Position(), chain.String())
 		case NodeBool, NodeString, NodeNumber, NodeNil, NodeDot:
 			t.errorf("unexpected . after term %q", node.String())
 		default:
