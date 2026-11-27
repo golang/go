@@ -10,6 +10,13 @@ env GOSUMDB=off
 go list -m vcs-test.golang.org/git/prefercompatible.git@v2.0.0+incompatible
 stdout '^vcs-test.golang.org/git/prefercompatible.git v2\.0\.0\+incompatible$'
 
+# An explicitly incompatible upper bound should match the same versions
+# with or without the +incompatible suffix (issue 83138).
+go list -m vcs-test.golang.org/git/prefercompatible.git@<=v2.0.0+incompatible
+stdout '^vcs-test.golang.org/git/prefercompatible.git v2\.0\.0\+incompatible$'
+go list -m vcs-test.golang.org/git/prefercompatible.git@<v2.0.1+incompatible
+stdout '^vcs-test.golang.org/git/prefercompatible.git v2\.0\.0\+incompatible$'
+
 # prefercompatible v1.5.2 has a go.mod file, so v1.5.2 should be preferred over
 # v2.0.0+incompatible when resolving latest, upgrade, and patch.
 
