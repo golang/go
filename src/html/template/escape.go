@@ -757,6 +757,11 @@ func escapeSpecialScriptTags(s []byte) []byte {
 
 var doctypeBytes = []byte("<!DOCTYPE")
 
+// isDoctype reports whether s starts with "<!DOCTYPE", ignoring case.
+func isDoctype(s []byte) bool {
+	return len(s) >= len(doctypeBytes) && bytes.EqualFold(s[:len(doctypeBytes)], doctypeBytes)
+}
+
 // escapeText escapes a text template node.
 func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 	s, written, i, b := n.Text, 0, 0, new(bytes.Buffer)
@@ -774,7 +779,7 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 				}
 			}
 			for j := i; j < end; j++ {
-				if s[j] == '<' && !bytes.HasPrefix(bytes.ToUpper(s[j:]), doctypeBytes) {
+				if s[j] == '<' && !isDoctype(s[j:]) {
 					b.Write(s[written:j])
 					b.WriteString("&lt;")
 					written = j + 1

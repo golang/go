@@ -2537,3 +2537,28 @@ func TestEscapeErrorMemoization(t *testing.T) {
 		t.Fatal("ExecuteTemplate succeeded, want error")
 	}
 }
+
+func TestIsDoctype(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want bool
+	}{
+		{"", false},
+		{"<", false},
+		{"<!DOCTYP", false},
+		{"<!DOCTYPE", true},
+		{"<!doctype", true},
+		{"<!DocType html>", true},
+		{"<!DOCTYPX", false},
+		{"<!DOCTYP\xff", false},
+		{"<!\xffDOCTYPE", false},
+		{"<!DOCTYP\u0131", false}, // dotless i: upper case is I
+		{"<!\u017fOCTYPE", false}, // long s: upper case is S
+		{"<!DOCTYP\u212a", false}, // Kelvin sign: folds to k
+		{" <!DOCTYPE", false},
+	} {
+		if got := isDoctype([]byte(tc.in)); got != tc.want {
+			t.Errorf("isDoctype(%q) = %v, want %v", tc.in, got, tc.want)
+		}
+	}
+}
