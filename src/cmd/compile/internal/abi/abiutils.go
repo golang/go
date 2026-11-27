@@ -100,12 +100,12 @@ type ABIParamAssignment struct {
 	Type      *types.Type
 	Name      *ir.Name
 	Registers []RegIndex
-	offset    int32
+	offset    int64
 }
 
 // Offset returns the stack offset for addressing the parameter that "a" describes.
 // This will panic if "a" describes a register-allocated parameter.
-func (a *ABIParamAssignment) Offset() int32 {
+func (a *ABIParamAssignment) Offset() int64 {
 	if len(a.Registers) > 0 {
 		base.Fatalf("register allocated parameters have no offset")
 	}
@@ -251,10 +251,10 @@ func (a *ABIParamAssignment) FrameOffset(i *ABIParamResultInfo) int64 {
 		base.Fatalf("function parameter has no ABI-defined frame-pointer offset")
 	}
 	if len(a.Registers) == 0 { // passed on stack
-		return int64(a.offset) - i.config.LocalsOffset()
+		return a.offset - i.config.LocalsOffset()
 	}
 	// spill area for registers
-	return int64(a.offset) + i.SpillAreaOffset() - i.config.LocalsOffset()
+	return a.offset + i.SpillAreaOffset() - i.config.LocalsOffset()
 }
 
 // RegAmounts holds a specified number of integer/float registers.
@@ -616,7 +616,7 @@ func (state *assignState) assignParam(typ *types.Type, name *ir.Name, isResult b
 		Type:      typ,
 		Name:      name,
 		Registers: registers,
-		offset:    int32(offset),
+		offset:    offset,
 	}
 }
 
