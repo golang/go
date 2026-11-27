@@ -982,6 +982,79 @@ func TestParseAllSizes(t *testing.T) {
 	}
 }
 
+func TestScanUntilBoundary(t *testing.T) {
+	for _, tt := range []struct {
+		buf     string
+		nl      string
+		readErr error
+		n       int
+		err     error
+	}{
+		{"abc", "\r\n", nil, 3, nil},
+		{"abc", "\r\n", io.EOF, 3, io.EOF},
+		{"a\rbcdefghij", "\r\n", nil, 11, nil},
+		{"a\rbcdefghij\r", "\r\n", nil, 11, nil},
+		{"a\rbcdefghij\r\n--", "\r\n", nil, 11, nil},
+		{"a\rbcdefghij\r\n--x", "\r\n", nil, 16, nil},
+		{"a\rb\r\n-", "\r\n", nil, 3, nil},
+		{"a\rb\r\n--b\r\n", "\r\n", nil, 3, io.EOF},
+		{"a\nbcdefghij\n--", "\n", nil, 11, nil},
+		{"a\nbcdefghij\n-x", "\n", nil, 14, nil},
+	} {
+		n, err := scanUntilBoundary([]byte(tt.buf), []byte("--b"), []byte(tt.nl+"--b"), 1, tt.readErr)
+		if n != tt.n || err != tt.err {
+			t.Errorf("scanUntilBoundary(%q, %q) = %d, %v; want %d, %v", tt.buf, tt.nl, n, err, tt.n, tt.err)
+		}
+	}
+}
+
+func BenchmarkPartRead(b *testing.B) {
+	for _, tt := range []struct {
+		name string
+		gen  func(i int) byte
+	}{
+		{"text", func(i int) byte {
+			if i%80 == 79 {
+				return '\n'
+			}
+			return 'a' + byte(i%26)
+		}},
+		{"binary", func(i int) byte { return byte(i * 7) }},
+	} {
+		b.Run(tt.name, func(b *testing.B) {
+			data := make([]byte, 1<<20)
+			for i := range data {
+				data[i] = tt.gen(i)
+			}
+			var buf bytes.Buffer
+			w := NewWriter(&buf)
+			pw, err := w.CreateFormFile("file", "file")
+			if err != nil {
+				b.Fatal(err)
+			}
+			pw.Write(data)
+			w.Close()
+			body := buf.Bytes()
+			boundary := w.Boundary()
+			br := bytes.NewReader(body)
+
+			b.ReportAllocs()
+			b.SetBytes(int64(len(data)))
+			for b.Loop() {
+				br.Reset(body)
+				r := NewReader(br, boundary)
+				p, err := r.NextPart()
+				if err != nil {
+					b.Fatal(err)
+				}
+				if n, err := io.Copy(io.Discard, p); n != int64(len(data)) || err != nil {
+					b.Fatalf("read %d bytes, %v", n, err)
+				}
+			}
+		})
+	}
+}
+
 func roundTripParseTest() parseTest {
 	t := parseTest{
 		name: "round trip",

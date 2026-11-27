@@ -273,9 +273,11 @@ func scanUntilBoundary(buf, dashBoundary, nlDashBoundary []byte, total int64, re
 	// and so must be part of the body.
 	// Also if the section from the final \n onward is not a prefix of the boundary,
 	// it too must be part of the body.
-	i := bytes.LastIndexByte(buf, nlDashBoundary[0])
-	if i >= 0 && bytes.HasPrefix(nlDashBoundary, buf[i:]) {
-		return i, nil
+	// Only the tail can hold a partial boundary: Index found no full one.
+	tail := max(0, len(buf)-len(nlDashBoundary))
+	i := bytes.LastIndexByte(buf[tail:], nlDashBoundary[0])
+	if i >= 0 && bytes.HasPrefix(nlDashBoundary, buf[tail+i:]) {
+		return tail + i, nil
 	}
 	return len(buf), readErr
 }
