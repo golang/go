@@ -1019,6 +1019,31 @@ type Direct struct {
 	M map[string]int
 }
 
+type recursiveMapSlice struct {
+	ID       string
+	Children map[string][]*recursiveMapSlice
+}
+
+func TestRecursiveMapSlice(t *testing.T) {
+	want := []*recursiveMapSlice{{
+		ID: "parent",
+		Children: map[string][]*recursiveMapSlice{
+			"children": {{ID: "child"}},
+		},
+	}}
+	var buffer bytes.Buffer
+	if err := NewEncoder(&buffer).Encode(want); err != nil {
+		t.Fatal(err)
+	}
+	var got []recursiveMapSlice
+	if err := NewDecoder(&buffer).Decode(&got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || !reflect.DeepEqual(got[0], *want[0]) {
+		t.Errorf("round trip = %#v, want %#v", got, want)
+	}
+}
+
 func TestIndirectSliceMapArray(t *testing.T) {
 	// Marshal indirect, unmarshal to direct.
 	i := new(Indirect)
