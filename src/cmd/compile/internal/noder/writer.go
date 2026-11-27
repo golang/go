@@ -2203,8 +2203,13 @@ func (w *writer) expr(expr syntax.Expr) {
 			if selector, ok := expr.(*syntax.SelectorExpr); ok {
 				if sel, ok := w.p.info.Selections[selector]; ok && sel.Kind() == types2.MethodVal {
 					w.Bool(true) // method call
+					if recv, method := w.singletonPointerMethod(selector, sel); method != nil {
+						w.convertExpr(recv, selector.X, false)
+						w.methodExpr(selector, recv, method)
+						return
+					}
 					typ := w.recvExpr(selector, sel)
-					w.methodExpr(selector, typ, sel)
+					w.methodExpr(selector, typ, sel.Obj().(*types2.Func))
 					return
 				}
 			}
@@ -2258,7 +2263,7 @@ func (w *writer) methVal(expr *syntax.SelectorExpr, sel *types2.Selection) {
 	w.Code(exprMethodVal)
 	typ := w.recvExpr(expr, sel)
 	w.pos(expr)
-	w.methodExpr(expr, typ, sel)
+	w.methodExpr(expr, typ, sel.Obj().(*types2.Func))
 }
 
 func (w *writer) methExpr(expr *syntax.SelectorExpr, sel *types2.Selection) {
@@ -2287,7 +2292,41 @@ func (w *writer) methExpr(expr *syntax.SelectorExpr, sel *types2.Selection) {
 	}
 
 	w.pos(expr)
-	w.methodExpr(expr, typ, sel)
+	w.methodExpr(expr, typ, sel.Obj().(*types2.Func))
+}
+
+// singletonPointerMethod finds the concrete method behind a type parameter
+// constrained to one explicit, non-generic pointer type.
+func (w *writer) singletonPointerMethod(expr *syntax.SelectorExpr, sel *types2.Selection) (types2.Type, *types2.Func) {
+	tparam, ok := types2.Unalias(w.p.typeOf(expr.X)).(*types2.TypeParam)
+	if !ok {
+		return nil, nil
+	}
+	constraint := tparam.Underlying().(*types2.Interface)
+	if constraint.NumEmbeddeds() != 1 {
+		return nil, nil
+	}
+	recv, ok := types2.Unalias(constraint.EmbeddedType(0)).(*types2.Pointer)
+	if !ok {
+		return nil, nil
+	}
+	elem, ok := types2.Unalias(recv.Elem()).(*types2.Named)
+	if !ok || elem.TypeParams().Len() != 0 {
+		return nil, nil
+	}
+
+	selected := sel.Obj().(*types2.Func)
+	obj, index, _ := types2.LookupFieldOrMethod(recv, false, selected.Pkg(), selected.Name())
+	method, ok := obj.(*types2.Func)
+	if !ok || len(index) != 1 {
+		return nil, nil
+	}
+	sig := method.Type().(*types2.Signature)
+	if isGenericMethod(sig) || !types2.Identical(recv, sig.Recv().Type()) ||
+		!types2.Identical(sig, selected.Type()) {
+		return nil, nil
+	}
+	return recv, method
 }
 
 // recvExpr writes out expr.X, but handles any implicit addressing,
@@ -2336,14 +2375,13 @@ func (w *writer) funcInst(obj *types2.Func, targs []types2.Type) {
 	w.objInfo(info)
 }
 
-// methodExpr writes out a reference to the method selected by
-// expr. sel should be the corresponding types2.Selection, and recv
+// methodExpr writes out a reference to fun, the method selected by
+// expr. recv is
 // the type produced after any implicit addressing, dereferencing, and
-// field selection. (Note: recv might differ from sel.Obj()'s receiver
+// field selection. (Note: recv might differ from fun's receiver
 // parameter in the case of interface types, and is needed for
 // handling type parameter methods.)
-func (w *writer) methodExpr(expr *syntax.SelectorExpr, recv types2.Type, sel *types2.Selection) {
-	fun := sel.Obj().(*types2.Func)
+func (w *writer) methodExpr(expr *syntax.SelectorExpr, recv types2.Type, fun *types2.Func) {
 	sig := fun.Type().(*types2.Signature)
 
 	w.typ(recv)
