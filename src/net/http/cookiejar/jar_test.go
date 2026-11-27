@@ -135,9 +135,21 @@ var canonicalHostTests = map[string]string{
 	"[2001:4860:0:::68]:8080": "2001:4860:0:::68",
 	"www.bücher.de":           "www.xn--bcher-kva.de",
 	"www.example.com.":        "www.example.com",
+	// Non-ASCII host names are converted to ASCII the way net/http
+	// converts the host it connects to: IDNA mapping, then Punycode.
+	"www.BÜCHER.de":                  "www.xn--bcher-kva.de",
+	"www.bücher.de:8080":             "www.xn--bcher-kva.de",
+	"www.bücher.de.":                 "www.xn--bcher-kva.de",
+	"www.bücher.de\u3002":            "www.xn--bcher-kva.de",
+	"\uff57\uff57\uff57.example.com": "www.example.com",
+	"www\uff0eexample.com":           "www.example.com",
+	"www.example\u3002com":           "www.example.com",
+	"\u216b.example.com":             "xii.example.com",
+	"\u0301a.example.com":            "error",
+	"\u00ad":                         "error",
+	"\u00ad.":                        "error",
 	// TODO: Fix canonicalHost so that all of the following malformed
-	// domain names trigger an error. (This list is not exhaustive, e.g.
-	// malformed internationalized domain names are missing.)
+	// domain names trigger an error. (This list is not exhaustive.)
 	".":                       "",
 	"..":                      ".",
 	"...":                     "..",
@@ -1358,6 +1370,53 @@ var domainHandlingTests = [...]jarTest{
 			{"http://foo.www.xn--bcher-kva.test", "a=1"},
 			{"http://other.test", ""},
 			{"http://test", ""},
+		},
+	},
+	{
+		"Cookies on IDNA domain with uppercase letters",
+		"http://www.BÜCHER.test",
+		[]string{"a=1", "b=2; domain=xn--bcher-kva.test"},
+		"a=1 b=2",
+		[]query{
+			{"http://www.BÜCHER.test", "a=1 b=2"},
+			{"http://www.bücher.test", "a=1 b=2"},
+			{"http://www.xn--bcher-kva.test", "a=1 b=2"},
+			{"http://bar.bücher.test", "b=2"},
+			{"http://other.test", ""},
+		},
+	},
+	{
+		"Cookies on IDNA domain with fullwidth characters",
+		"http://\uff57\uff57\uff57\uff0ehost.test",
+		[]string{"a=1", "b=2; domain=host.test"},
+		"a=1 b=2",
+		[]query{
+			{"http://\uff57\uff57\uff57\uff0ehost.test", "a=1 b=2"},
+			{"http://www.host.test", "a=1 b=2"},
+			{"http://bar.host.test", "b=2"},
+			{"http://other.test", ""},
+		},
+	},
+	{
+		"Cookies on IDNA domain with ideographic full stop",
+		"http://www.host\u3002test",
+		[]string{"a=1", "b=2; domain=host.test"},
+		"a=1 b=2",
+		[]query{
+			{"http://www.host\u3002test", "a=1 b=2"},
+			{"http://www.host.test", "a=1 b=2"},
+			{"http://bar.host.test", "b=2"},
+			{"http://other.test", ""},
+		},
+	},
+	{
+		"No cookies on host name rejected by IDNA",
+		"http://\u0301a.host.test",
+		[]string{"a=1", "b=2; domain=host.test"},
+		"",
+		[]query{
+			{"http://\u0301a.host.test", ""},
+			{"http://www.host.test", ""},
 		},
 	},
 	{
