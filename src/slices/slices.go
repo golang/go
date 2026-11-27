@@ -38,9 +38,8 @@ func EqualFunc[S1 ~[]E1, S2 ~[]E2, E1, E2 any](s1 S1, s2 S2, eq func(E1, E2) boo
 	if len(s1) != len(s2) {
 		return false
 	}
-	for i, v1 := range s1 {
-		v2 := s2[i]
-		if !eq(v1, v2) {
+	for i := range s1 {
+		if !eq(s1[i], s2[i]) {
 			return false
 		}
 	}
@@ -76,12 +75,11 @@ func Compare[S ~[]E, E cmp.Ordered](s1, s2 S) int {
 // returns 0 the result is 0 if len(s1) == len(s2), -1 if len(s1) < len(s2),
 // and +1 if len(s1) > len(s2).
 func CompareFunc[S1 ~[]E1, S2 ~[]E2, E1, E2 any](s1 S1, s2 S2, cmp func(E1, E2) int) int {
-	for i, v1 := range s1 {
+	for i := range s1 {
 		if i >= len(s2) {
 			return +1
 		}
-		v2 := s2[i]
-		if c := cmp(v1, v2); c != 0 {
+		if c := cmp(s1[i], s2[i]); c != 0 {
 			return c
 		}
 	}
