@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"strings"
 	"syscall"
 )
 
@@ -43,7 +44,7 @@ func newFileFD(f *os.File) (net *netFD, err error) {
 	}
 	comp := splitAtBytes(path, "/")
 	n := len(comp)
-	if n < 3 || comp[0][0:3] != "net" {
+	if n < 3 || !strings.HasPrefix(comp[0], "net") {
 		return nil, syscall.EPLAN9
 	}
 
