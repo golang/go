@@ -1082,6 +1082,11 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 			if i < 0 || err != nil {
 				return nil, errors.New("invalid range")
 			}
+			if i == 0 {
+				// A zero suffix-length is unsatisfiable (RFC 9110, section 14.1.2).
+				noOverlap = true
+				continue
+			}
 			if i > size {
 				i = size
 			}
