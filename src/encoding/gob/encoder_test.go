@@ -582,6 +582,11 @@ var ignoreTests = []ignoreTest{
 	{&Struct0{&NewType0{"value0"}}, nil},
 	// Decode singleton slice of interfaces into a nil.
 	{[]any{"hi", &NewType0{"value1"}, 23}, nil},
+	// Decode nil interfaces, alone and inside containers, into a nil.
+	{new(any), nil},
+	{[]any{nil, &NewType0{"value2"}, nil}, nil},
+	{[3]any{nil, &NewType0{"value3"}, nil}, nil},
+	{map[any]any{nil: nil, "value": &NewType0{"value4"}}, nil},
 }
 
 func TestDecodeIntoNothing(t *testing.T) {
@@ -613,6 +618,62 @@ func TestDecodeIntoNothing(t *testing.T) {
 		}
 		if ns.S != str {
 			t.Fatalf("%d: expected %q got %q", i, str, ns.S)
+		}
+	}
+}
+
+func TestIgnoreNilInterface(t *testing.T) {
+	Register(new(NewType0))
+	tests := []any{
+		struct {
+			X    []any
+			Keep int
+		}{[]any{nil}, 1},
+		struct {
+			X    [1]any
+			Keep int
+		}{[1]any{nil}, 1},
+		struct {
+			X    []any
+			Keep int
+		}{[]any{nil, &NewType0{"before"}, nil, &NewType0{"after"}, nil}, 1},
+		struct {
+			X    [3]any
+			Keep int
+		}{[3]any{nil, &NewType0{"value"}, nil}, 1},
+		struct {
+			X    map[any]any
+			Keep int
+		}{map[any]any{nil: &NewType0{"value"}, "nil": nil}, 1},
+		struct {
+			X    struct{ V []any }
+			Keep int
+		}{struct{ V []any }{[]any{nil, &NewType0{"value"}, nil}}, 1},
+	}
+	for i, in := range tests {
+		var b bytes.Buffer
+		enc := NewEncoder(&b)
+		if err := enc.Encode(in); err != nil {
+			t.Fatalf("%d: encode: %v", i, err)
+		}
+		next := NewType0{"next"}
+		if err := enc.Encode(next); err != nil {
+			t.Fatalf("%d: encode next: %v", i, err)
+		}
+		dec := NewDecoder(&b)
+		var out struct{ Keep int }
+		if err := dec.Decode(&out); err != nil {
+			t.Errorf("%d: decode: %v", i, err)
+			continue
+		}
+		if out.Keep != 1 {
+			t.Errorf("%d: Keep = %d, want 1", i, out.Keep)
+		}
+		var got NewType0
+		if err := dec.Decode(&got); err != nil {
+			t.Errorf("%d: decode next: %v", i, err)
+		} else if got != next {
+			t.Errorf("%d: next = %v, want %v", i, got, next)
 		}
 	}
 }
