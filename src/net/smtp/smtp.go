@@ -24,8 +24,10 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"net/textproto"
 	"strings"
+	"unicode/utf8"
 )
 
 // A Client represents a client connection to an SMTP server.
@@ -95,8 +97,10 @@ func (c *Client) hello() error {
 // over the host name used. The client will introduce itself as "localhost"
 // automatically otherwise. If Hello is called, it must be called before
 // any of the other methods.
+// The host name must be an ASCII domain name or an address literal,
+// such as "[192.0.2.1]".
 func (c *Client) Hello(localName string) error {
-	if err := validateLine(localName); err != nil {
+	if err := validateHost(localName); err != nil {
 		return err
 	}
 	if c.didHello {
@@ -181,8 +185,9 @@ func (c *Client) TLSConnectionState() (state tls.ConnectionState, ok bool) {
 // If Verify returns nil, the address is valid. A non-nil return
 // does not necessarily indicate an invalid address. Many servers
 // will not verify addresses for security reasons.
+// The address must be valid as described for [Client.Rcpt].
 func (c *Client) Verify(addr string) error {
-	if err := validateLine(addr); err != nil {
+	if err := validateAddress(addr, "address"); err != nil {
 		return err
 	}
 	if err := c.hello(); err != nil {
@@ -243,8 +248,10 @@ func (c *Client) Auth(a Auth) error {
 // parameter. If the server supports the SMTPUTF8 extension, Mail adds the
 // SMTPUTF8 parameter.
 // This initiates a mail transaction and is followed by one or more [Client.Rcpt] calls.
+// The address must be valid as described for [Client.Rcpt], or empty
+// to send the null reverse-path.
 func (c *Client) Mail(from string) error {
-	if err := validateLine(from); err != nil {
+	if err := validateFrom(from); err != nil {
 		return err
 	}
 	if err := c.hello(); err != nil {
@@ -264,10 +271,14 @@ func (c *Client) Mail(from string) error {
 }
 
 // Rcpt issues a RCPT command to the server using the provided email address.
+// The address must be an RFC 5321 mailbox, such as "user@example.com",
+// which may contain UTF-8 as RFC 6531 allows, or a local part alone,
+// such as "postmaster". Source routes are not supported, and '<' and '>'
+// are rejected even in a quoted local part, where RFC 5321 allows them.
 // A call to Rcpt must be preceded by a call to [Client.Mail] and may be followed by
 // a [Client.Data] call or another Rcpt call.
 func (c *Client) Rcpt(to string) error {
-	if err := validateLine(to); err != nil {
+	if err := validateAddress(to, "recipient address"); err != nil {
 		return err
 	}
 	_, _, err := c.cmd(25, "RCPT TO:<%s>", to)
@@ -306,6 +317,8 @@ var testHookStartTLS func(*tls.Config) // nil, except for tests
 // The addr must include a port, as in "mail.example.com:smtp".
 //
 // The addresses in the to parameter are the SMTP RCPT addresses.
+// The from and to addresses must be valid as described for
+// [Client.Mail] and [Client.Rcpt].
 //
 // The msg parameter should be an RFC 822-style email with headers
 // first, a blank line, and then the message body. The lines of msg
@@ -320,11 +333,11 @@ var testHookStartTLS func(*tls.Config) // nil, except for tests
 // functionality. Higher-level packages exist outside of the standard
 // library.
 func SendMail(addr string, a Auth, from string, to []string, msg []byte) error {
-	if err := validateLine(from); err != nil {
+	if err := validateFrom(from); err != nil {
 		return err
 	}
 	for _, recp := range to {
-		if err := validateLine(recp); err != nil {
+		if err := validateAddress(recp, "recipient address"); err != nil {
 			return err
 		}
 	}
@@ -428,4 +441,171 @@ func validateLine(line string) error {
 		return errors.New("smtp: A line must not contain CR or LF")
 	}
 	return nil
+}
+
+// validateHost checks that name can be sent in a HELO or EHLO command:
+// a domain name or an address literal, as RFC 5321 section 4.1.1.1 requires,
+// in ASCII, as RFC 6531 section 3.7.1 requires.
+func validateHost(name string) error {
+	if err := validateLine(name); err != nil {
+		return err
+	}
+	if !isASCII(name) || !(isDomain(name) || isAddressLiteral(name)) {
+		return errors.New("smtp: invalid host name")
+	}
+	return nil
+}
+
+// validateFrom checks that from can be sent in a MAIL command:
+// empty for the null reverse-path, or an address as in validateAddress.
+func validateFrom(from string) error {
+	if from == "" {
+		return nil
+	}
+	return validateAddress(from, "sender address")
+}
+
+// validateAddress checks that addr can be sent in a MAIL, RCPT or VRFY
+// command and be read as the caller meant it. The error describes addr
+// as what and does not include its value.
+//
+// The address must be an RFC 5321 Mailbox (section 4.1.2), which has no
+// source route, with UTF-8 allowed as RFC 6531 extends it. Unlike the RFC,
+// '<' and '>' are rejected even within a Quoted-string, so that no server
+// can end the path early. Where it cannot change how the command is read,
+// the check is more lenient than the RFC: it accepts a Local-part alone,
+// as in "Postmaster" or the String argument of VRFY, which some servers
+// qualify with a domain of their own; an unquoted Local-part with leading,
+// trailing or consecutive dots, as some providers have issued; and
+// underscores in domain labels.
+func validateAddress(addr, what string) error {
+	if err := validateLine(addr); err != nil {
+		return err
+	}
+	if !utf8.ValidString(addr) || !isAddress(addr) {
+		return errors.New("smtp: invalid " + what)
+	}
+	return nil
+}
+
+// isAddress reports whether addr is a Local-part, optionally followed
+// by "@" and a Domain or address-literal.
+func isAddress(addr string) bool {
+	n := localPartLen(addr)
+	if n == 0 {
+		return false
+	}
+	if n == len(addr) {
+		return true
+	}
+	domain, ok := strings.CutPrefix(addr[n:], "@")
+	return ok && (isDomain(domain) || isAddressLiteral(domain))
+}
+
+// localPartLen returns the length of the Local-part at the start of s,
+// either a Quoted-string or a run of atext and dots, or 0 if there is none.
+func localPartLen(s string) int {
+	if !strings.HasPrefix(s, `"`) {
+		n := 0
+		for n < len(s) && (isAtext(s[n]) || s[n] == '.') {
+			n++
+		}
+		return n
+	}
+	for i := 1; i < len(s); i++ {
+		switch c := s[i]; {
+		case c == '"':
+			return i + 1
+		case c == '\\':
+			// quoted-pairSMTP: a backslash and printable ASCII or space.
+			i++
+			if i == len(s) || s[i] < ' ' || s[i] > '~' || s[i] == '<' || s[i] == '>' {
+				return 0
+			}
+		case !isQtext(c):
+			return 0
+		}
+	}
+	return 0
+}
+
+// isQtext reports whether c is allowed unescaped in a Quoted-string:
+// qtextSMTP or a byte of a UTF-8 sequence, but not '<' or '>'.
+func isQtext(c byte) bool {
+	return (' ' <= c && c <= '~' && c != '"' && c != '\\' && c != '<' && c != '>') || c >= utf8.RuneSelf
+}
+
+// isAtext reports whether c is allowed in an Atom: atext or a byte
+// of a UTF-8 sequence.
+func isAtext(c byte) bool {
+	return isLetDig(c) || strings.IndexByte("!#$%&'*+-/=?^_`{|}~", c) >= 0 || c >= utf8.RuneSelf
+}
+
+func isLetDig(c byte) bool {
+	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9'
+}
+
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
+}
+
+// isDomain reports whether s is a Domain: dot-separated labels of letters,
+// digits and hyphens, neither starting nor ending with a hyphen.
+// Underscores are also allowed, as some host names have them, and non-ASCII
+// bytes, for U-labels, which are not otherwise checked.
+func isDomain(s string) bool {
+	for label := range strings.SplitSeq(s, ".") {
+		if label == "" || label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
+		for i := 0; i < len(label); i++ {
+			if c := label[i]; !isLetDig(c) && c != '-' && c != '_' && c < utf8.RuneSelf {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// isAddressLiteral reports whether s is an address-literal: an IPv4 address,
+// "IPv6:" and an IPv6 address, or a General-address-literal, in brackets.
+// It does not allow '<' or '>'.
+func isAddressLiteral(s string) bool {
+	s, ok := strings.CutPrefix(s, "[")
+	if !ok {
+		return false
+	}
+	s, ok = strings.CutSuffix(s, "]")
+	if !ok {
+		return false
+	}
+	tag, content, ok := strings.Cut(s, ":")
+	if !ok {
+		ip, err := netip.ParseAddr(s)
+		return err == nil && ip.Is4()
+	}
+	if strings.EqualFold(tag, "IPv6") {
+		ip, err := netip.ParseAddr(content)
+		return err == nil && ip.Is6() && ip.Zone() == ""
+	}
+	if tag == "" || tag[len(tag)-1] == '-' || content == "" {
+		return false
+	}
+	for i := 0; i < len(tag); i++ {
+		if !isLetDig(tag[i]) && tag[i] != '-' {
+			return false
+		}
+	}
+	for i := 0; i < len(content); i++ {
+		// dcontent
+		if c := content[i]; c < '!' || c > '~' || strings.IndexByte("[\\]<>", c) >= 0 {
+			return false
+		}
+	}
+	return true
 }

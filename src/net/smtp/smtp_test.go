@@ -198,6 +198,9 @@ func TestBasic(t *testing.T) {
 	if err := c.Verify("user2@gmail.com>\r\nDATA\r\nAnother injected message body\r\n.\r\nQUIT\r\n"); err == nil {
 		t.Fatalf("VRFY should have failed due to a message injection attempt")
 	}
+	if err := c.Verify("user2@gmail.com SMTPUTF8"); err == nil {
+		t.Fatalf("VRFY should have failed due to a parameter injection attempt")
+	}
 	if err := c.Verify("user2@gmail.com"); err != nil {
 		t.Fatalf("Second VRFY: expected verification, got %s", err)
 	}
@@ -214,6 +217,12 @@ func TestBasic(t *testing.T) {
 	}
 	if err := c.Mail("user@gmail.com>\r\nDATA\r\nAnother injected message body\r\n.\r\nQUIT\r\n"); err == nil {
 		t.Fatalf("MAIL should have failed due to a message injection attempt")
+	}
+	if err := c.Rcpt("golang-nuts@googlegroups.com> NOTIFY=NEVER"); err == nil {
+		t.Fatalf("RCPT should have failed due to a parameter injection attempt")
+	}
+	if err := c.Mail("user@gmail.com> BODY=7BIT"); err == nil {
+		t.Fatalf("MAIL should have failed due to a parameter injection attempt")
 	}
 	if err := c.Mail("user@gmail.com"); err != nil {
 		t.Fatalf("MAIL failed: %s", err)
@@ -287,6 +296,137 @@ Goodbye.
 .
 QUIT
 `
+
+// fakeClient returns a Client that has said hello to a server answering
+// one command with 250, and the commands the Client sends.
+func fakeClient() (*Client, *bytes.Buffer) {
+	var sent bytes.Buffer
+	fake := faker{struct {
+		io.Reader
+		io.Writer
+	}{strings.NewReader("250 OK\r\n"), &sent}}
+	return &Client{Text: textproto.NewConn(fake), localName: "localhost", didHello: true}, &sent
+}
+
+var validAddresses = []string{
+	"user@example.com",
+	"User.Name+tag@Sub.Example.COM",
+	"!#$%&'*+-/=?^_`{|}~@example.com",
+	"user@localhost",
+	"user@[192.0.2.1]",
+	"user@[IPv6:2001:db8::1]",
+	"user@[ipv6:::ffff:192.0.2.1]",
+	"user@[x-tag:content]",
+	`"user name"@example.com`,
+	`"üser name"@example.com`,
+	`"user@name"@example.com`,
+	`"\"\\"@example.com`,
+	`""@example.com`,
+	"user+📧@gmail.com",
+	"用户@例子.广告",
+	"user@xn--fsqu00a.xn--3lr804guic",
+	"Postmaster",
+	"root",
+	`"user name"`,
+	// Not allowed by RFC 5321, but in use and harmless.
+	"a..b@example.com",
+	".a@example.com",
+	"a.@example.com",
+	"user@host_name.example.com",
+}
+
+var invalidAddresses = []string{
+	"user@example.com> BODY=8BITMIME",
+	"user@example.com>",
+	"<user@example.com>",
+	"Name <user@example.com>",
+	`">"@go.dev`,
+	`"<"@go.dev`,
+	`"\>"@go.dev`,
+	"user name@example.com",
+	"user@example.com SMTPUTF8",
+	"user@",
+	"@example.com",
+	"user@@example.com",
+	"user@example.com@example.com",
+	"user@example..com",
+	"user@.example.com",
+	"user@example.com.",
+	"user@-example.com",
+	"user@example-.com",
+	"user@exa mple.com",
+	"@relay.example:user@example.com",
+	"(comment)user@example.com",
+	"user@example.com (comment)",
+	`"user@example.com`,
+	`"user\"@example.com`,
+	`"user"name@example.com`,
+	"\"user\x01\"@example.com",
+	"\"user\\\x01\"@example.com",
+	"\"user\\\xc3\xa9\"@example.com",
+	"user\x00@example.com",
+	"user\t@example.com",
+	"user\x7f@example.com",
+	"user@example.com\r\nRSET",
+	"user@[192.0.2.1",
+	"user@[]",
+	"user@[192.0.2.256]",
+	"user@[IPv6:not-an-address]",
+	"user@[IPv6:192.0.2.1]",
+	"user@[IPv6:fe80::1%eth0]",
+	"user@[x-tag:a]b]",
+	"user@[x-tag:a>b]",
+	"user@[tag:]",
+	"user@[tag-:content]",
+	"user@[:content]",
+	"\xff@example.com",
+	"\"\xff\"@example.com",
+	"user@ex\xffample.com",
+}
+
+func TestAddressValidation(t *testing.T) {
+	for _, cmd := range []struct {
+		name    string
+		call    func(*Client, string) error
+		format  string
+		emptyOK bool
+	}{
+		{"Mail", (*Client).Mail, "MAIL FROM:<%s>\r\n", true}, // the null reverse-path
+		{"Rcpt", (*Client).Rcpt, "RCPT TO:<%s>\r\n", false},
+		{"Verify", (*Client).Verify, "VRFY %s\r\n", false},
+	} {
+		check := func(addr string, valid bool) {
+			t.Helper()
+			c, sent := fakeClient()
+			err := cmd.call(c, addr)
+			switch want := fmt.Sprintf(cmd.format, addr); {
+			case valid && err != nil:
+				t.Errorf("%s(%q): %v", cmd.name, addr, err)
+			case valid && sent.String() != want:
+				t.Errorf("%s(%q) sent %q, want %q", cmd.name, addr, sent, want)
+			case !valid && err == nil:
+				t.Errorf("%s(%q) succeeded, want error", cmd.name, addr)
+			case !valid && addr != "" && strings.Contains(err.Error(), addr):
+				t.Errorf("%s(%q) error %q contains the address", cmd.name, addr, err)
+			case !valid && sent.Len() > 0:
+				t.Errorf("%s(%q) sent %q, want nothing", cmd.name, addr, sent)
+			}
+		}
+		check("", cmd.emptyOK)
+		for _, addr := range validAddresses {
+			check(addr, true)
+		}
+		for _, addr := range invalidAddresses {
+			check(addr, false)
+		}
+
+		c, _ := fakeClient()
+		const want = "smtp: A line must not contain CR or LF"
+		if err := cmd.call(c, "user@example.com\r\nRSET"); err == nil || err.Error() != want {
+			t.Errorf("%s with CR LF: got error %v, want %q", cmd.name, err, want)
+		}
+	}
+}
 
 func TestHELOFailed(t *testing.T) {
 	serverLines := `502 EH?
@@ -819,6 +959,61 @@ var helloClient = []string{
 	"NOOP\n",
 }
 
+func TestHelloValidation(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		valid bool
+	}{
+		{"localhost", true},
+		{"mail.example.com", true},
+		{"MAIL-1.Example.COM", true},
+		{"host_name.example.com", true},
+		{"xn--r8jz45g.xn--zckzah", true},
+		{"192.0.2.1", true},
+		{"[192.0.2.1]", true},
+		{"[IPv6:2001:db8::1]", true},
+		{"[x-tag:content]", true},
+		{"", false},
+		{"mail host", false},
+		{"localhost SMTPUTF8", false},
+		{"host>", false},
+		{"host\x00", false},
+		{"host\r\nRSET", false},
+		{"example.com.", false},
+		{".example.com", false},
+		{"example..com", false},
+		{"-example.com", false},
+		{"example-.com", false},
+		{"user@example.com", false},
+		{"::1", false},
+		{"[::1]", false},
+		{"[192.0.2.1", false},
+		{"[192.0.2.256]", false},
+		{"[IPv6:192.0.2.1]", false},
+		{"[tag:a b]", false},
+		{"[tag:a>b]", false},
+		{"[tag-:content]", false},
+		{"例え.テスト", false}, // RFC 6531 section 3.7.1: ASCII only
+		{"ex\xffample.com", false},
+	} {
+		c, sent := fakeClient()
+		c.didHello = false
+		err := c.Hello(tt.name)
+		switch want := "EHLO " + tt.name + "\r\n"; {
+		case tt.valid && err != nil:
+			t.Errorf("Hello(%q): %v", tt.name, err)
+		case tt.valid && sent.String() != want:
+			t.Errorf("Hello(%q) sent %q, want %q", tt.name, sent, want)
+		case !tt.valid && err == nil:
+			t.Errorf("Hello(%q) succeeded, want error", tt.name)
+		case !tt.valid && tt.name != "" && strings.Contains(err.Error(), tt.name):
+			t.Errorf("Hello(%q) error %q contains the host name", tt.name, err)
+		case !tt.valid && sent.Len() > 0:
+			t.Errorf("Hello(%q) sent %q, want nothing", tt.name, sent)
+		}
+	}
+}
+
 func TestSendMail(t *testing.T) {
 	server := strings.Join(strings.Split(sendMailServer, "\n"), "\r\n")
 	client := strings.Join(strings.Split(sendMailClient, "\n"), "\r\n")
@@ -895,6 +1090,31 @@ SendMail is working for me.
 	actualcmds := cmdbuf.String()
 	if client != actualcmds {
 		t.Errorf("Got:\n%s\nExpected:\n%s", actualcmds, client)
+	}
+}
+
+func TestSendMailValidation(t *testing.T) {
+	for _, tt := range []struct {
+		from  string
+		to    []string
+		valid bool
+	}{
+		{"test@example.com", []string{"other@example.com"}, true},
+		{"", []string{"other@example.com"}, true},
+		{"root", []string{"root", "Postmaster"}, true},
+		{"test@example.com> BODY=8BITMIME", []string{"other@example.com"}, false},
+		{"test@example.com", []string{"other@example.com", "other@example.com> NOTIFY=NEVER"}, false},
+		{"test@example.com", []string{""}, false},
+	} {
+		// The address has no port, so a SendMail that gets past
+		// validation fails to dial without using the network.
+		err := SendMail("localhost", nil, tt.from, tt.to, []byte("Subject: test\r\n\r\nhowdy!\r\n"))
+		if err == nil {
+			t.Fatalf("SendMail(%q, %q) succeeded without a server", tt.from, tt.to)
+		}
+		if invalid := strings.HasPrefix(err.Error(), "smtp: invalid"); invalid == tt.valid {
+			t.Errorf("SendMail(%q, %q): %v, want valid=%v", tt.from, tt.to, err, tt.valid)
+		}
 	}
 }
 
