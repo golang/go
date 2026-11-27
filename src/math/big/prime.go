@@ -77,7 +77,7 @@ func (x *Int) ProbablyPrime(n int) bool {
 
 	stk := getStack()
 	defer stk.free()
-	return x.abs.probablyPrimeMillerRabin(stk, n+1, true) && x.abs.probablyPrimeLucas(stk)
+	return x.abs.probablyPrimeMillerRabin(stk, uint(n)+1, true) && x.abs.probablyPrimeLucas(stk)
 }
 
 // probablyPrimeMillerRabin reports whether n passes reps rounds of the
@@ -85,7 +85,7 @@ func (x *Int) ProbablyPrime(n int) bool {
 // If force2 is true, one of the rounds is forced to use base 2.
 // See Handbook of Applied Cryptography, p. 139, Algorithm 4.24.
 // The number n is known to be non-zero.
-func (n nat) probablyPrimeMillerRabin(stk *stack, reps int, force2 bool) bool {
+func (n nat) probablyPrimeMillerRabin(stk *stack, reps uint, force2 bool) bool {
 	nm1 := nat(nil).sub(n, natOne)
 	// determine q, k such that nm1 = q << k
 	k := nm1.trailingZeroBits()
@@ -98,7 +98,7 @@ func (n nat) probablyPrimeMillerRabin(stk *stack, reps int, force2 bool) bool {
 	nm3Len := nm3.bitLen()
 
 NextRandom:
-	for i := 0; i < reps; i++ {
+	for i := uint(0); i < reps; i++ {
 		if i == reps-1 && force2 {
 			x = x.set(natTwo)
 		} else {
