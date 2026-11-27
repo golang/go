@@ -3185,6 +3185,30 @@ func TestTan(t *testing.T) {
 	}
 }
 
+func TestTanSmall(t *testing.T) {
+	// For tiny arguments the cubic term must be kept: returning z
+	// alone loses up to about 25 ulp near the 1e-14 branch boundary
+	// (issue #82909). Expected values were verified against a
+	// 256-bit Taylor expansion (correctly rounded in every case).
+	// This tests the portable implementation directly, since some
+	// architectures use their own Tan assembly.
+	for _, test := range []struct {
+		x    float64
+		want uint64 // Float64bits of the expected result
+	}{
+		{5e-8, 0x3e6ad7f29abcaf4e},
+		{9.999999e-8, 0x3e7ad7f26db37854},
+		{1e-7, 0x3e7ad7f29abcaf61},
+		{-5e-8, 0xbe6ad7f29abcaf4e},
+		{1e-9, 0x3e112e0be826d695},
+		{5e-300, 0x1cac9a7b3b7302f}, // cubic term underflows; result is x
+	} {
+		if got := TanGo(test.x); Float64bits(got) != test.want {
+			t.Errorf("TanGo(%g) = %g (%#x), want %#x", test.x, got, Float64bits(got), test.want)
+		}
+	}
+}
+
 func TestTanh(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Tanh(vf[i]); !veryclose(tanh[i], f) {
