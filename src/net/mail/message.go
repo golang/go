@@ -462,6 +462,9 @@ func (p *addrParser) parseAddress(handleGroup bool) ([]*Address, error) {
 	if err != nil {
 		return nil, err
 	}
+	if !p.skipCFWS() {
+		return nil, errors.New("mail: misformatted parenthetical comment")
+	}
 	if !p.consume('>') {
 		return nil, errors.New("mail: unclosed angle-addr")
 	}
@@ -522,7 +525,9 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
 
 	// local-part = dot-atom / quoted-string
 	var localPart string
-	p.skipSpace()
+	if !p.skipCFWS() {
+		return "", errors.New("mail: misformatted parenthetical comment")
+	}
 	if p.empty() {
 		return "", errors.New("mail: no addr-spec")
 	}
@@ -543,13 +548,18 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
 		return "", err
 	}
 
+	if !p.skipCFWS() {
+		return "", errors.New("mail: misformatted parenthetical comment")
+	}
 	if !p.consume('@') {
 		return "", errors.New("mail: missing @ in addr-spec")
 	}
 
 	// domain = dot-atom / domain-literal
 	var domain string
-	p.skipSpace()
+	if !p.skipCFWS() {
+		return "", errors.New("mail: misformatted parenthetical comment")
+	}
 	if p.empty() {
 		return "", errors.New("mail: no domain in addr-spec")
 	}
