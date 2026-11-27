@@ -278,17 +278,41 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 	// end position.
 	body, comments = stripOutputComment(body, comments)
 
-	// Include documentation belonging to dependent declarations.
+	// Include documentation belonging to dependent declarations,
+	// and comments inside them.
+	commentsInside := func(n ast.Node) {
+		for _, c := range file.Comments {
+			if n.Pos() <= c.Pos() && c.End() <= n.End() {
+				comments = append(comments, c)
+			}
+		}
+	}
 	for _, d := range depDecls {
 		switch d := d.(type) {
 		case *ast.GenDecl:
 			if d.Doc != nil {
 				comments = append(comments, d.Doc)
 			}
+			// Unused specs, names and values may have been trimmed,
+			// so only look inside the parts that remain.
+			for _, s := range d.Specs {
+				switch s := s.(type) {
+				case *ast.TypeSpec:
+					commentsInside(s)
+				case *ast.ValueSpec:
+					if s.Type != nil {
+						commentsInside(s.Type)
+					}
+					for _, v := range s.Values {
+						commentsInside(v)
+					}
+				}
+			}
 		case *ast.FuncDecl:
 			if d.Doc != nil {
 				comments = append(comments, d.Doc)
 			}
+			commentsInside(d)
 		}
 	}
 
