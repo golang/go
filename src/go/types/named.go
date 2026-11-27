@@ -113,12 +113,14 @@ type Named struct {
 
 	inst *instance // information for instantiated types; nil otherwise
 
+	methodNames atomic.Pointer[methodNameIndex] // index of methods by name, for types with many methods; see methodIndex
+
 	mu         sync.Mutex     // guards all fields below
 	state_     uint32         // the current state of this type; must only be accessed atomically or when mu is held
+	varSize    bool           // whether the type has variable size
 	fromRHS    Type           // the declaration RHS this type is derived from
 	tparams    *TypeParamList // type parameters, or nil
 	underlying Type           // underlying type, or nil
-	varSize    bool           // whether the type has variable size
 
 	// methods declared for this type (not the method set of this type)
 	// Signatures are type-checked lazily.
@@ -567,7 +569,7 @@ func (t *Named) AddMethod(m *Func) {
 	assert(samePkg(t.obj.pkg, m.pkg))
 	assert(t.inst == nil)
 	t.unpack()
-	if t.methodIndex(m.name, false) < 0 {
+	if i, _ := methodIndex(t.methods, m.pkg, m.name, false); i < 0 {
 		t.methods = append(t.methods, m)
 	}
 }
@@ -585,6 +587,15 @@ func (t *Named) methodIndex(name string, foldCase bool) int {
 				return i
 			}
 		}
+	} else if len(t.methods) >= minIndexedMethods {
+		x := t.methodNames.Load()
+		if x == nil || x.n != len(t.methods) {
+			x = newMethodNameIndex(t.methods)
+			t.methodNames.Store(x)
+		}
+		if i, ok := x.index[name]; ok {
+			return i
+		}
 	} else {
 		for i, m := range t.methods {
 			if m.name == name {
@@ -593,6 +604,27 @@ func (t *Named) methodIndex(name string, foldCase bool) int {
 		}
 	}
 	return -1
+}
+
+// minIndexedMethods is the number of methods at which methodIndex
+// looks up names in a map rather than searching the method list.
+const minIndexedMethods = 128
+
+// A methodNameIndex maps the names of the first n methods of a type
+// to the index of their first occurrence. It is not modified once built.
+type methodNameIndex struct {
+	n     int
+	index map[string]int
+}
+
+func newMethodNameIndex(methods []*Func) *methodNameIndex {
+	index := make(map[string]int, len(methods))
+	for i, m := range methods {
+		if _, ok := index[m.name]; !ok {
+			index[m.name] = i
+		}
+	}
+	return &methodNameIndex{len(methods), index}
 }
 
 // rhs returns [Named.fromRHS].
