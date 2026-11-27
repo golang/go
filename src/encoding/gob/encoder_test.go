@@ -1163,6 +1163,8 @@ var badDataTests = []badDataTest{
 	{"03fffb0616fffc00f902ff02ff03bf005d02885802a311a8120228022c028ee7", "GobDecoder", nil},
 	// Issue 10491.
 	{"10fe010f020102fe01100001fe010e000016fe010d030102fe010e00010101015801fe01100000000bfe011000f85555555555555555", "exceeds input size", nil},
+	// Field number overflow while ignoring a struct.
+	{"1a7f030101015401ff8000010201014101040001014201040000000fff8001020102f87fffffffffffffff", "field numbers out of bounds", nil},
 }
 
 // TestBadData tests that various problems caused by malformed input
