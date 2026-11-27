@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"internal/synctest"
 	"internal/testenv"
+	"io"
 	"iter"
 	"os"
 	"reflect"
 	"runtime"
+	"runtime/pprof"
 	"slices"
 	"strconv"
 	"strings"
@@ -572,6 +574,43 @@ func TestDeadlockChild(t *testing.T) {
 			select {}
 		}()
 	})
+}
+
+// TestDeadlockAfterGoroutineLeakProfile checks that a goroutine which the
+// goroutineleak profile has marked as leaked still counts as durably blocked.
+// Otherwise the bubble never becomes idle, time stops advancing, and the
+// bubble hangs instead of reporting its deadlock.
+func TestDeadlockAfterGoroutineLeakProfile(t *testing.T) {
+	const want = "deadlock: main bubble goroutine has exited but blocked goroutines remain"
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		synctest.Run(func() {
+			go func() {
+				var ch chan int
+				<-ch
+			}()
+			synctest.Wait()
+			if err := pprof.Lookup("goroutineleak").WriteTo(io.Discard, 1); err != nil {
+				t.Error(err)
+			}
+			time.Sleep(time.Second)
+			fmt.Println("slept in bubble")
+		})
+		return
+	}
+
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$")
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Errorf("expected test function to panic, but test returned successfully")
+	}
+	if !strings.Contains(string(out), "slept in bubble") {
+		t.Errorf("fake time did not advance in the bubble; output:\n%s", out)
+	}
+	if !strings.Contains(string(out), want) {
+		t.Errorf("wanted test output containing %q; got %q", want, out)
+	}
 }
 
 func TestDeadlockTicker(t *testing.T) {
