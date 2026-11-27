@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
+	"syscall"
 	"testing"
 )
 
@@ -337,5 +338,19 @@ func TestFileCloseRace(t *testing.T) {
 			c1.Close()
 		}()
 		wg.Wait()
+	}
+}
+
+func TestConnFileUninitialized(t *testing.T) {
+	for _, c := range []interface{ File() (*os.File, error) }{
+		new(TCPConn),
+		new(UDPConn),
+		new(IPConn),
+		new(UnixConn),
+	} {
+		f, err := c.File()
+		if f != nil || err != syscall.EINVAL {
+			t.Errorf("%T.File() = %v, %v; want nil, %v", c, f, err, syscall.EINVAL)
+		}
 	}
 }

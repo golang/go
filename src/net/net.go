@@ -312,6 +312,9 @@ func (c *conn) SetWriteBuffer(bytes int) error {
 // On Windows, the returned os.File's file descriptor is not usable
 // on other processes.
 func (c *conn) File() (f *os.File, err error) {
+	if !c.ok() {
+		return nil, syscall.EINVAL
+	}
 	f, err = c.fd.dup()
 	if err != nil {
 		err = &OpError{Op: "file", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
