@@ -560,7 +560,7 @@ func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) 
 		if !ok {
 			return m, ProtocolError(fmt.Sprintf("malformed MIME header line: %q", kv))
 		}
-		key, ok := canonicalMIMEHeaderKey(k)
+		key, ok := canonicalMIMEHeaderKey(k, true)
 		if !ok {
 			return m, ProtocolError(fmt.Sprintf("malformed MIME header line: %q", kv))
 		}
@@ -660,23 +660,7 @@ func (r *Reader) upcomingHeaderKeys() (n int) {
 // If s contains a space or invalid header field bytes as
 // defined by RFC 9112, it is returned without modifications.
 func CanonicalMIMEHeaderKey(s string) string {
-	// Quick check for canonical encoding.
-	upper := true
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if !validHeaderFieldByte(c) {
-			return s
-		}
-		if upper && 'a' <= c && c <= 'z' {
-			s, _ = canonicalMIMEHeaderKey([]byte(s))
-			return s
-		}
-		if !upper && 'A' <= c && c <= 'Z' {
-			s, _ = canonicalMIMEHeaderKey([]byte(s))
-			return s
-		}
-		upper = c == '-'
-	}
+	s, _ = canonicalMIMEHeaderKey(s, false)
 	return s
 }
 
@@ -744,69 +728,85 @@ func validHeaderValueByte(c byte) bool {
 		(uint64(1)<<(c-64))&^(mask>>64)) == 0
 }
 
-// canonicalMIMEHeaderKey is like CanonicalMIMEHeaderKey but is
-// allowed to mutate the provided byte slice before returning the
-// string.
+// canonicalMIMEHeaderKey is like CanonicalMIMEHeaderKey but can be configured
+// to tolerates spaces.
 //
-// For invalid inputs (if a contains spaces or non-token bytes), a
-// is unchanged and a string copy is returned.
+// If tolerateSpaces is true and s contains spaces but no other invalid bytes,
+// canonicalMIMEHeaderKey returns a string identical to s (not canonicalized).
 //
-// ok is true if the header key contains only valid characters and spaces.
-// ReadMIMEHeader accepts header keys containing spaces, but does not
-// canonicalize them.
-func canonicalMIMEHeaderKey(a []byte) (_ string, ok bool) {
-	if len(a) == 0 {
+// ok is true if s is non-empty and contains only valid bytes, or if s is
+// non-empty and tolerateSpaces is true and s contains only valid bytes and
+// spaces.
+func canonicalMIMEHeaderKey[S string | []byte](s S, tolerateSpaces bool) (_ string, ok bool) {
+	if len(s) == 0 {
 		return "", false
 	}
-
-	// See if a looks like a header key. If not, return it unchanged.
-	noCanon := false
-	for _, c := range a {
-		if validHeaderFieldByte(c) {
-			continue
+	commonHeaderOnce.Do(initCommonHeader)
+	// Check whether s is already in canonical form and interned.
+	if len(s) <= maxCommonHeaderLen {
+		if v := commonHeader[string(s)]; v != "" {
+			return v, true
 		}
-		// Don't canonicalize.
-		if c == ' ' {
+	}
+	// See whether s looks like a header key. If it does, canonicalize it;
+	// if not, return it unchanged.
+	var (
+		a     []byte // for copying s (lazily initialized)
+		buf   [64]byte
+		upper = true
+	)
+	for i, c := range []byte(s) {
+		// Canonicalize: first letter upper case
+		// and upper case after each dash
+		// (Host, User-Agent, If-Modified-Since).
+		// MIME headers are ASCII only, so no Unicode issues.
+		switch {
+		case upper && 'a' <= c && c <= 'z':
+			if a == nil {
+				a = append(buf[:0], s...)
+			}
+			a[i] = c - toLower
+		case !upper && 'A' <= c && c <= 'Z':
+			if a == nil {
+				a = append(buf[:0], s...)
+			}
+			a[i] = c + toLower
+		case c == ' ':
 			// We accept invalid headers with a space before the
 			// colon, but must not canonicalize them.
 			// See https://go.dev/issue/34540.
-			noCanon = true
-			continue
+			if !tolerateSpaces {
+				return string(s), false
+			}
+			for i++; i < len(s); i++ {
+				c = s[i]
+				if c != ' ' && !validHeaderFieldByte(c) {
+					return string(s), false
+				}
+			}
+			return string(s), true
+		case !validHeaderFieldByte(c):
+			return string(s), false
 		}
-		return string(a), false
-	}
-	if noCanon {
-		return string(a), true
-	}
-
-	upper := true
-	for i, c := range a {
-		// Canonicalize: first letter upper case
-		// and upper case after each dash.
-		// (Host, User-Agent, If-Modified-Since).
-		// MIME headers are ASCII only, so no Unicode issues.
-		if upper && 'a' <= c && c <= 'z' {
-			c -= toLower
-		} else if !upper && 'A' <= c && c <= 'Z' {
-			c += toLower
-		}
-		a[i] = c
 		upper = c == '-' // for next time
 	}
-	commonHeaderOnce.Do(initCommonHeader)
-	// The compiler recognizes m[string(byteSlice)] as a special
-	// case, so a copy of a's bytes into a new string does not
-	// happen in this map lookup:
-	if v := commonHeader[string(a)]; v != "" {
-		return v, true
+	if a == nil { // s is already in canonical form.
+		return string(s), true
+	}
+	if len(s) <= maxCommonHeaderLen {
+		if v := commonHeader[string(a)]; v != "" {
+			return v, true
+		}
 	}
 	return string(a), true
 }
 
-// commonHeader interns common header strings.
-var commonHeader map[string]string
-
-var commonHeaderOnce sync.Once
+var (
+	// commonHeader interns common header strings.
+	commonHeader       map[string]string
+	maxCommonHeaderLen int
+	commonHeaderOnce   sync.Once
+)
 
 func initCommonHeader() {
 	commonHeader = make(map[string]string)
@@ -853,5 +853,6 @@ func initCommonHeader() {
 		"X-Powered-By",
 	} {
 		commonHeader[v] = v
+		maxCommonHeaderLen = max(maxCommonHeaderLen, len(v))
 	}
 }
