@@ -459,6 +459,8 @@ func isJSType(mimeType string) bool {
 	//   https://tools.ietf.org/html/rfc7231#section-3.1.1
 	//   https://tools.ietf.org/html/rfc4329#section-3
 	//   https://www.ietf.org/rfc/rfc4627.txt
+	//   https://html.spec.whatwg.org/multipage/scripting.html#attr-script-type
+	//     ("importmap" and "speculationrules" contain JSON)
 	// discard parameters
 	mimeType, _, _ = strings.Cut(mimeType, ";")
 	mimeType = strings.ToLower(mimeType)
@@ -472,7 +474,9 @@ func isJSType(mimeType string) bool {
 		"application/ld+json",
 		"application/x-ecmascript",
 		"application/x-javascript",
+		"importmap",
 		"module",
+		"speculationrules",
 		"text/ecmascript",
 		"text/javascript",
 		"text/javascript1.0",

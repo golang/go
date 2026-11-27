@@ -136,28 +136,30 @@ func TestStringsInScriptsWithJsonContentTypeAreCorrectlyEscaped(t *testing.T) {
 		{"ASCII letters", "ASCII letters"},
 		{"Unicode", "ʕ⊙ϖ⊙ʔ"},
 		{"Pizza", "🍕"},
+		{"ampersand", "https://example.com/?a=1&b=2"},
+		{"backslash", `\`},
 	}
-	const (
-		prefix = `<script type="application/ld+json">`
-		suffix = `</script>`
-		templ  = prefix + `"{{.}}"` + suffix
-	)
-	tpl := Must(New("JS string is JSON string").Parse(templ))
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			if err := tpl.Execute(&buf, tt.in); err != nil {
-				t.Fatalf("Cannot render template: %v", err)
-			}
-			trimmed := bytes.TrimSuffix(bytes.TrimPrefix(buf.Bytes(), []byte(prefix)), []byte(suffix))
-			var got string
-			if err := json.Unmarshal(trimmed, &got); err != nil {
-				t.Fatalf("Cannot parse JS string %q as JSON: %v", trimmed[1:len(trimmed)-1], err)
-			}
-			if got != tt.in {
-				t.Errorf("Serialization changed the string value: got %q want %q", got, tt.in)
-			}
-		})
+	for _, scriptType := range []string{"application/ld+json", "importmap", "speculationrules"} {
+		prefix := `<script type="` + scriptType + `">`
+		const suffix = `</script>`
+		templ := prefix + `"{{.}}"` + suffix
+		tpl := Must(New("JS string is JSON string").Parse(templ))
+		for _, tt := range tests {
+			t.Run(scriptType+"/"+tt.name, func(t *testing.T) {
+				var buf bytes.Buffer
+				if err := tpl.Execute(&buf, tt.in); err != nil {
+					t.Fatalf("Cannot render template: %v", err)
+				}
+				trimmed := bytes.TrimSuffix(bytes.TrimPrefix(buf.Bytes(), []byte(prefix)), []byte(suffix))
+				var got string
+				if err := json.Unmarshal(trimmed, &got); err != nil {
+					t.Fatalf("Cannot parse JS string %q as JSON: %v", trimmed[1:len(trimmed)-1], err)
+				}
+				if got != tt.in {
+					t.Errorf("Serialization changed the string value: got %q want %q", got, tt.in)
+				}
+			})
+		}
 	}
 }
 
