@@ -1,0 +1,255 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+//go:build goexperiment.jit && amd64 && (unix || windows)
+
+package jit_test
+
+import (
+	"encoding/binary"
+	"fmt"
+	"reflect"
+	"runtime"
+	"runtime/debug"
+	"runtime/jit"
+	"sync/atomic"
+	"testing"
+)
+
+//go:noinline
+func abiMixedCallee(i uintptr, f float64, p *int) (uintptr, float64, *int) {
+	runtime.GC()
+	return i + 1, f + 0.5, p
+}
+
+func executableBuffer(t *testing.T, emit func(*jit.SliceBuffer) []jit.StackMap) (uintptr, func()) {
+	t.Helper()
+	b := &jit.SliceBuffer{Bytes: make([]byte, 4096)}
+	maps := emit(b)
+	addr, size, err := allocExecutable(b.Bytes[:b.Position])
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := jit.Register(jit.Region{Start: addr, End: addr + uintptr(size), Unwind: jit.UnwindSkip, StackMaps: maps})
+	return addr, func() { h.Unregister(); freeExecutable(addr, size) }
+}
+
+func TestEmittedGoCallMixedRegisters(t *testing.T) {
+	c := jit.GetCallingConventionForFunc(abiMixedCallee)
+	addr, cleanup := executableBuffer(t, func(b *jit.SliceBuffer) []jit.StackMap {
+		jit.EmitFrame(b, jit.FramePlan{LocalBytes: int32(c.CallFrameSize)})
+		call := jit.EmitCall(b, jit.CallPlan{Entry: reflect.ValueOf(abiMixedCallee).Pointer()})
+		jit.EmitReturn(b, c.Registers.Frame)
+		return []jit.StackMap{jit.FrameStackMap(uintptr(call.ReturnPC), c.CallFrameSize, make([]byte, (c.CallFrameSize/8+1+7)/8))}
+	})
+	defer cleanup()
+	h := new(jit.FunctionHeader)
+	h.SetEntry(addr)
+	fn := jit.Function[func(uintptr, float64, *int) (uintptr, float64, *int)](h)
+	v := 19
+	a, f, p := fn(41, 2.25, &v)
+	if a != 42 || f != 2.75 || p != &v || *p != 19 {
+		t.Fatalf("bad mixed result: %d %f %p", a, f, p)
+	}
+	runtime.KeepAlive(h)
+}
+
+func TestEmittedClosureCall(t *testing.T) {
+	captured := new(int)
+	*captured = 17
+	closure := func(v uintptr) uintptr { runtime.GC(); return v + uintptr(*captured) }
+	context := jit.FunctionContext(closure)
+	c := jit.GetCallingConventionForFunc(closure)
+	addr, cleanup := executableBuffer(t, func(b *jit.SliceBuffer) []jit.StackMap {
+		jit.EmitFrame(b, jit.FramePlan{LocalBytes: int32(c.CallFrameSize)})
+		// Test-only materialization: the Go closure itself remains rooted below.
+		code := []byte{0x48, 0xba, 0, 0, 0, 0, 0, 0, 0, 0}
+		putU64(code[2:], uintptr(context))
+		b.Write(code)
+		r := c.Registers.Closure
+		call := jit.EmitCall(b, jit.CallPlan{Closure: &r})
+		jit.EmitReturn(b, c.Registers.Frame)
+		return []jit.StackMap{jit.FrameStackMap(uintptr(call.ReturnPC), c.CallFrameSize, make([]byte, (c.CallFrameSize/8+1+7)/8))}
+	})
+	defer cleanup()
+	h := new(jit.FunctionHeader)
+	h.SetEntry(addr)
+	if got := jit.Function[func(uintptr) uintptr](h)(25); got != 42 {
+		t.Fatalf("closure returned %d", got)
+	}
+	runtime.KeepAlive(closure)
+	runtime.KeepAlive(context)
+}
+
+func TestABIEmittedFunctionVariableLoad(t *testing.T) {
+	closure := func(v uintptr) uintptr { return v + 17 }
+	c := jit.GetCallingConventionForFunc(closure)
+	addr, cleanup := executableBuffer(t, func(b *jit.SliceBuffer) []jit.StackMap {
+		jit.EmitFrame(b, jit.FramePlan{LocalBytes: int32(c.CallFrameSize)})
+		// AX receives the address of a Go variable holding a function value.
+		jit.EmitLoadFunctionContext(b, c.Registers.Closure, c.Registers.IntegerArguments[0])
+		b.Write([]byte{0x48, 0x89, 0xd8}) // BX argument -> AX
+		call := jit.EmitCall(b, jit.CallPlan{Closure: &c.Registers.Closure})
+		jit.EmitReturn(b, c.Registers.Frame)
+		return []jit.StackMap{jit.FrameStackMap(uintptr(call.ReturnPC), c.CallFrameSize, make([]byte, (c.CallFrameSize/8+8)/8))}
+	})
+	defer cleanup()
+	h := new(jit.FunctionHeader)
+	h.SetEntry(addr)
+	fn := jit.Function[func(*func(uintptr) uintptr, uintptr) uintptr](h)
+	if got := fn(&closure, 25); got != 42 {
+		t.Fatalf("closure variable result %d", got)
+	}
+	closure = func(v uintptr) uintptr { return v + 18 }
+	if got := fn(&closure, 25); got != 43 {
+		t.Fatalf("updated closure variable result %d", got)
+	}
+}
+
+func TestABIWriteBarrierGuard(t *testing.T) {
+	old := debug.SetGCPercent(-1)
+	defer debug.SetGCPercent(old)
+	addr, cleanup := executableBuffer(t, func(b *jit.SliceBuffer) []jit.StackMap {
+		check := jit.EmitWriteBarrierCheck(b, 0)
+		// No GC is active when this function is invoked. The slow path must not
+		// run; it deliberately returns a different value.
+		emitConstantReturn(b, jit.RegisterConfig().IntegerArguments[0], 42)
+		jit.PatchWriteBarrierCheck(b, check, b.Offset())
+		emitConstantReturn(b, jit.RegisterConfig().IntegerArguments[0], 17)
+		return nil
+	})
+	defer cleanup()
+	runtime.GC()
+	h := new(jit.FunctionHeader)
+	h.SetEntry(addr)
+	if got := jit.Function[func() uintptr](h)(); got != 42 {
+		t.Fatalf("disabled barrier path %d", got)
+	}
+}
+
+//go:noinline
+func abiStackCallee(v [2]uintptr) [2]uintptr {
+	runtime.GC()
+	return [2]uintptr{v[1] + 1, v[0] + 2}
+}
+
+func TestABIStackArgumentsAndResults(t *testing.T) {
+	c := jit.GetCallingConventionForFunc(abiStackCallee)
+	addr, cleanup := executableBuffer(t, func(b *jit.SliceBuffer) []jit.StackMap {
+		jit.EmitFrame(b, jit.FramePlan{})
+		n := jit.EmitCallFrame(b, c)
+		for i, value := range []uint32{40, 41} {
+			code := []byte{0x48, 0xc7, 0x84, 0x24, 0, 0, 0, 0, 0, 0, 0, 0}
+			binary.LittleEndian.PutUint32(code[4:], uint32(c.Inputs[0].Parts[i].Location.StackOffset))
+			binary.LittleEndian.PutUint32(code[8:], value)
+			b.Write(code)
+		}
+		call := jit.EmitCall(b, jit.CallPlan{Entry: reflect.ValueOf(abiStackCallee).Pointer()})
+		for i, modrm := range []byte{0x84, 0x9c} { // load stack results into AX/BX
+			code := []byte{0x48, 0x8b, modrm, 0x24, 0, 0, 0, 0}
+			binary.LittleEndian.PutUint32(code[4:], uint32(c.Outputs[0].Parts[i].Location.StackOffset))
+			b.Write(code)
+		}
+		jit.ReleaseCallFrame(b, n)
+		// The wrapper itself returns an array, entirely on its caller's stack.
+		b.Write([]byte{0x48, 0x89, 0x45, 0x10, 0x48, 0x89, 0x5d, 0x18})
+		jit.EmitReturn(b, c.Registers.Frame)
+		return []jit.StackMap{jit.FrameStackMap(uintptr(call.ReturnPC), uintptr(n), make([]byte, (uintptr(n)/8+8)/8))}
+	})
+	defer cleanup()
+	h := new(jit.FunctionHeader)
+	h.SetEntry(addr)
+	if got := jit.Function[func() [2]uintptr](h)(); got != [2]uintptr{42, 42} {
+		t.Fatalf("stack result %v", got)
+	}
+}
+
+func TestEmittedFramePatchAndStackGrowth(t *testing.T) {
+	c := jit.GetCallingConventionForFunc((func([]byte) uintptr)(nil))
+	for _, frameReg := range []jit.PhysicalRegister{c.Registers.Frame, {Class: jit.IntegerRegister, Number: 13}} {
+		t.Run(fmt.Sprint(frameReg.Number), func(t *testing.T) {
+			addr, cleanup := executableBuffer(t, func(b *jit.SliceBuffer) []jit.StackMap {
+				check := jit.EmitStackCheck(b, 0, 0)
+				frame := jit.EmitFrame(b, jit.FramePlan{Frame: frameReg})
+				// A 32KB frame forces the generated slow path on a fresh goroutine.
+				jit.PatchFrame(b, frame, 32768)
+				// Return slice length, exercising argument preservation across growth.
+				b.Write([]byte{0x48, 0x89, 0xd8})
+				jit.EmitReturn(b, frameReg)
+				grow := b.Offset()
+				m := jit.EmitStackGrow(b, c, frameReg, 0)
+				jit.PatchStackCheck(b, check, 32768+8, grow)
+				return []jit.StackMap{m}
+			})
+			defer cleanup()
+			h := new(jit.FunctionHeader)
+			h.SetEntry(addr)
+			fn := jit.Function[func([]byte) uintptr](h)
+			result := make(chan uintptr, 1)
+			go func() { result <- fn(make([]byte, 123)) }()
+			if got := <-result; got != 123 {
+				t.Fatalf("argument lost across stack growth: %d", got)
+			}
+		})
+	}
+}
+
+func TestEmittedLoopCooperatesWithSchedulerAndGC(t *testing.T) {
+	// The consumer explicitly chooses a check on this unbounded loop back-edge.
+	// runtime/jit owns the flag access and scheduling-call encoding.
+	r := jit.RegisterConfig()
+	addr, cleanup := executableBuffer(t, func(b *jit.SliceBuffer) []jit.StackMap {
+		jit.EmitFrame(b, jit.FramePlan{})
+		loop := b.Offset()
+		// MOV RAX,[RDX+8] loads a typed atomic stop flag rooted by the funcval.
+		b.Write([]byte{0x48, 0x8b, 0x42, 0x08, 0x83, 0x38, 0x00, 0x0f, 0x85, 0, 0, 0, 0})
+		stopPatch := b.Offset() - 4
+		check := jit.EmitPreemptCheck(b, 0)
+		b.Write([]byte{0xe9, 0, 0, 0, 0})
+		loopPatch := b.Offset() - 4
+		put32 := func(p []byte, v int32) {
+			p[0] = byte(v)
+			p[1] = byte(v >> 8)
+			p[2] = byte(v >> 16)
+			p[3] = byte(v >> 24)
+		}
+		patchLoop := make([]byte, 4)
+		put32(patchLoop, int32(loop-b.Offset()))
+		b.Patch(loopPatch, patchLoop)
+		jit.PatchPreemptCheck(b, check, b.Offset())
+		// Preserve closure context as a precise root across the scheduling call.
+		b.Write([]byte{0x52, 0x52})
+		call := jit.EmitYield(b)
+		b.Write([]byte{0x5a, 0x5a, 0xe9, 0, 0, 0, 0})
+		patch := make([]byte, 4)
+		put32(patch, int32(loop-b.Offset()))
+		b.Patch(b.Offset()-4, patch)
+		stop := b.Offset()
+		put32(patch, int32(stop-stopPatch-4))
+		b.Patch(stopPatch, patch)
+		jit.EmitReturn(b, r.Frame)
+		return []jit.StackMap{jit.FrameStackMap(uintptr(call.ReturnPC), 16, []byte{3})}
+	})
+	defer cleanup()
+	var flag uint32
+	h := &struct {
+		jit.FunctionHeader
+		stop *uint32
+	}{stop: &flag}
+	h.SetEntry(addr)
+	fn := jit.Function[func()](&h.FunctionHeader)
+	old := runtime.GOMAXPROCS(1)
+	defer runtime.GOMAXPROCS(old)
+	done := make(chan struct{})
+	go func() { fn(); close(done) }()
+	// Scheduling must run this goroutine and GC despite the native loop.
+	runtime.Gosched()
+	runtime.GC()
+	// Go and generated code use atomic loads/stores on amd64.
+	atomicStoreStop(&flag)
+	<-done
+	runtime.KeepAlive(h)
+}
+
+func atomicStoreStop(p *uint32) { atomic.StoreUint32(p, 1) }

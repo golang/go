@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors. All rights reserved.
+// Copyright 2011-2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -15,9 +15,11 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -204,16 +206,53 @@ func TestGcZombieReporting(t *testing.T) {
 	if asan.Enabled || msan.Enabled || race.Enabled {
 		t.Skip("skipped test: checkptr mode catches the issue before getting to zombie reporting")
 	}
-	// This test is somewhat sensitive to how the allocator works.
-	// Pointers in zombies slice may cross-span, thus we
-	// add invalidptr=0 for avoiding the badPointer check.
-	// See issue https://golang.org/issues/49613/
-	got := runTestProg(t, "testprog", "GCZombie", "GODEBUG=invalidptr=0")
-	if want := "found pointer to free object"; !strings.Contains(got, want) {
-		t.Fatalf("expected %q in output, but got %q", want, got)
-	}
-	if want := " zombie"; !strings.Contains(got, want) {
-		t.Fatalf("expected %q in output, but got %q", want, got)
+	for _, test := range []struct {
+		name     string
+		program  string
+		elemSize int
+	}{
+		{"small", "GCZombieSmall", 32},
+		{"medium", "GCZombie", 192},
+		{"large", "GCZombieLarge", 2048},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			// Pointers in the zombies slice may cross spans. Disable the earlier
+			// badPointer check so this tests the sweep diagnostic. See issue 49613.
+			got := runTestProg(t, "testprog", test.program, "GODEBUG=invalidptr=0")
+			if want := "found pointer to free object"; !strings.Contains(got, want) {
+				t.Fatalf("expected %q in output, but got %q", want, got)
+			}
+			if want := fmt.Sprintf("elemsize=%d ", test.elemSize); !strings.Contains(got, want) {
+				t.Fatalf("expected %q in output, but got %q", want, got)
+			}
+			// Detection alone does not prove that the report uses the correct
+			// mark bitmap. Each diagnosed free slot must be marked as a zombie,
+			// followed by its object dump (bounded to the existing 1 KiB limit).
+			zombies := regexp.MustCompile(`(?m)^(0x[0-9a-f]+) free +marked +zombie$`).FindAllStringSubmatchIndex(got, -1)
+			if len(zombies) == 0 {
+				t.Fatalf("no marked free objects identified in diagnostic:\n%s", got)
+			}
+			for _, zombie := range zombies {
+				addr, err := strconv.ParseUint(got[zombie[2]+2:zombie[3]], 16, 64)
+				if err != nil {
+					t.Fatal(err)
+				}
+				dump := got[zombie[1]:]
+				if next := strings.Index(dump, "\n0x"); next >= 0 {
+					dump = dump[:next]
+				}
+				length := min(test.elemSize, 1024)
+				for offset := 0; offset < length; offset += 16 {
+					line := fmt.Sprintf("\n%0*x: ", 2*int(unsafe.Sizeof(uintptr(0))), addr+uint64(offset))
+					if !strings.Contains(dump, line) {
+						t.Fatalf("missing object dump line %q:\n%s", line, dump)
+					}
+				}
+				if line := fmt.Sprintf("\n%0*x: ", 2*int(unsafe.Sizeof(uintptr(0))), addr+uint64(length)); strings.Contains(dump, line) {
+					t.Fatalf("object dump exceeds %d bytes:\n%s", length, dump)
+				}
+			}
+		})
 	}
 }
 
