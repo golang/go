@@ -15,7 +15,11 @@ var vdsoLinuxVersion = vdsoVersionKey{"LINUX_2.6", 0x3ae75f6}
 
 var vdsoSymbolKeys = []vdsoSymbolKey{
 	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},
+	{"__vdso_clock_gettime64", 0x5ec75a4, 0xdb8d042, &vdsoClockgettime64Sym},
 }
 
 // initialize to fall back to syscall
 var vdsoClockgettimeSym uintptr = 0
+
+// __vdso_clock_gettime64 (Linux 5.1 and later), used when use64bitsTimeOn32bits is set.
+var vdsoClockgettime64Sym uintptr = 0

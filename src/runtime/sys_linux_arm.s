@@ -42,6 +42,8 @@
 #define SYS_nanosleep (SYS_BASE + 162)
 #define SYS_sched_getaffinity (SYS_BASE + 242)
 #define SYS_clock_gettime (SYS_BASE + 263)
+#define SYS_clock_gettime64 (SYS_BASE + 403)
+#define SYS_clock_nanosleep_time64 (SYS_BASE + 407)
 #define SYS_timer_create (SYS_BASE + 257)
 #define SYS_timer_settime (SYS_BASE + 258)
 #define SYS_timer_settime64 (SYS_BASE + 409)
@@ -358,9 +360,47 @@ finish:
 	MOVW	R7, m_vdsoPC(R6)
 	RET
 
-TEXT runtime·walltime(SB),NOSPLIT,$12-12
+TEXT runtime·walltime(SB),NOSPLIT,$24-12
+	MOVBU	runtime·use64bitsTimeOn32bits(SB), R4
+	CMP	$0, R4
+	B.EQ	time32
+
+	// Linux 5.1 and later: struct __kernel_timespec, 64-bit tv_sec, which
+	// keeps working without CONFIG_COMPAT_32BIT_TIME and past 2038.
+	// The vDSO's C code may assume its natural 8-byte alignment.
 	MOVW	$CLOCK_REALTIME, R0
-	MOVW	$spec-12(SP), R1	// timespec
+	MOVW	$spec-24(SP), R1
+	ADD	$7, R1
+	BIC	$7, R1
+
+	MOVW	runtime·vdsoClockgettime64Sym(SB), R4
+	CMP	$0, R4
+	B.EQ	fallback64
+
+	BL	runtime·vdsoCall(SB)
+
+	JMP	finish64
+
+fallback64:
+	MOVW	$SYS_clock_gettime64, R7
+	SWI	$0
+
+finish64:
+	MOVW	$spec-24(SP), R3
+	ADD	$7, R3
+	BIC	$7, R3
+	MOVW	0(R3), R0	// tv_sec, low word
+	MOVW	4(R3), R1	// tv_sec, high word
+	MOVW	8(R3), R2	// tv_nsec, low word
+
+	MOVW	R0, sec_lo+0(FP)
+	MOVW	R1, sec_hi+4(FP)
+	MOVW	R2, nsec+8(FP)
+	RET
+
+time32:
+	MOVW	$CLOCK_REALTIME, R0
+	MOVW	$spec-24(SP), R1	// struct old_timespec32
 
 	MOVW	runtime·vdsoClockgettimeSym(SB), R4
 	CMP	$0, R4
@@ -375,8 +415,8 @@ fallback:
 	SWI	$0
 
 finish:
-	MOVW	sec-12(SP), R0  // sec
-	MOVW	nsec-8(SP), R2  // nsec
+	MOVW	sec-24(SP), R0  // sec
+	MOVW	nsec-20(SP), R2  // nsec
 
 	MOVW	R0, sec_lo+0(FP)
 	MOVW	$0, R1
@@ -385,9 +425,52 @@ finish:
 	RET
 
 // func nanotime1() int64
-TEXT runtime·nanotime1(SB),NOSPLIT,$12-8
+TEXT runtime·nanotime1(SB),NOSPLIT,$24-8
+	MOVBU	runtime·use64bitsTimeOn32bits(SB), R4
+	CMP	$0, R4
+	B.EQ	time32
+
+	// As walltime: struct __kernel_timespec, 8-byte aligned.
 	MOVW	$CLOCK_MONOTONIC, R0
-	MOVW	$spec-12(SP), R1	// timespec
+	MOVW	$spec-24(SP), R1
+	ADD	$7, R1
+	BIC	$7, R1
+
+	MOVW	runtime·vdsoClockgettime64Sym(SB), R4
+	CMP	$0, R4
+	B.EQ	fallback64
+
+	BL	runtime·vdsoCall(SB)
+
+	JMP	finish64
+
+fallback64:
+	MOVW	$SYS_clock_gettime64, R7
+	SWI	$0
+
+finish64:
+	MOVW	$spec-24(SP), R3
+	ADD	$7, R3
+	BIC	$7, R3
+	MOVW	0(R3), R0	// tv_sec, low word
+	MOVW	4(R3), R4	// tv_sec, high word
+	MOVW	8(R3), R2	// tv_nsec, low word
+
+	MOVW	$1000000000, R3
+	MULLU	R0, R3, (R1, R0)
+	MUL	R3, R4	// high word of tv_sec times 1e9, into the upper half
+	ADD	R4, R1
+	ADD.S	R2, R0
+	ADC	$0, R1	// Add carry bit to upper half.
+
+	MOVW	R0, ret_lo+0(FP)
+	MOVW	R1, ret_hi+4(FP)
+
+	RET
+
+time32:
+	MOVW	$CLOCK_MONOTONIC, R0
+	MOVW	$spec-24(SP), R1	// struct old_timespec32
 
 	MOVW	runtime·vdsoClockgettimeSym(SB), R4
 	CMP	$0, R4
@@ -402,8 +485,8 @@ fallback:
 	SWI	$0
 
 finish:
-	MOVW	sec-12(SP), R0  // sec
-	MOVW	nsec-8(SP), R2  // nsec
+	MOVW	sec-24(SP), R0  // sec
+	MOVW	nsec-20(SP), R2  // nsec
 
 	MOVW	$1000000000, R3
 	MULLU	R0, R3, (R1, R0)
@@ -591,12 +674,34 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
 	MOVW	R0, ret+16(FP)
 	RET
 
-TEXT runtime·usleep(SB),NOSPLIT,$12
+TEXT runtime·usleep(SB),NOSPLIT,$20
 	MOVW	usec+0(FP), R0
 	CALL	runtime·usplitR0(SB)
+	MOVW	$1000, R2	// usec to nsec
+	MUL	R2, R1
+
+	MOVBU	runtime·use64bitsTimeOn32bits(SB), R3
+	CMP	$0, R3
+	B.EQ	time32
+
+	// Linux 5.1 and later: clock_nanosleep_time64(CLOCK_MONOTONIC, 0,
+	// &(struct __kernel_timespec){sec, nsec}, NULL). Plain nanosleep is
+	// a 32-bit time syscall, gone without CONFIG_COMPAT_32BIT_TIME.
+	MOVW	R0, 4(R13)	// tv_sec, low word
+	MOVW	$0, R2
+	MOVW	R2, 8(R13)	// tv_sec, high word
+	MOVW	R1, 12(R13)	// tv_nsec, low word
+	MOVW	R2, 16(R13)	// tv_nsec, high word
+	MOVW	$CLOCK_MONOTONIC, R0
+	MOVW	$0, R1	// flags: relative
+	MOVW	$4(R13), R2
+	MOVW	$0, R3
+	MOVW	$SYS_clock_nanosleep_time64, R7
+	SWI	$0
+	RET
+
+time32:
 	MOVW	R0, 4(R13)
-	MOVW	$1000, R0	// usec to nsec
-	MUL	R0, R1
 	MOVW	R1, 8(R13)
 	MOVW	$4(R13), R0
 	MOVW	$0, R1
