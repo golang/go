@@ -731,17 +731,7 @@ func validHeaderFieldByte(c byte) bool {
 //	SP             =  %x20
 //	VCHAR          =  %x21-7E
 func validHeaderValueByte(c byte) bool {
-	// mask is a 128-bit bitmap with 1s for allowed bytes,
-	// so that the byte c can be tested with a shift and an and.
-	// If c >= 128, then 1<<c and 1<<(c-64) will both be zero.
-	// Since this is the obs-text range, we invert the mask to
-	// create a bitmap with 1s for disallowed bytes.
-	const mask = 0 |
-		(1<<(0x7f-0x21)-1)<<0x21 | // VCHAR: %x21-7E
-		1<<0x20 | // SP: %x20
-		1<<0x09 // HTAB: %x09
-	return ((uint64(1)<<c)&^(mask&(1<<64-1)) |
-		(uint64(1)<<(c-64))&^(mask>>64)) == 0
+	return c >= 0x20 && c != 0x7f || c == '\t'
 }
 
 // canonicalMIMEHeaderKey is like CanonicalMIMEHeaderKey but is
