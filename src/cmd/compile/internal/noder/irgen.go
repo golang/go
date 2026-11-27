@@ -128,6 +128,8 @@ recheck:
 	}
 	base.ExitIfErrors()
 
+	nihMemo := make(map[*types2.Struct]bool)
+
 	// Implementation restriction: we don't allow not-in-heap types to
 	// be used as type arguments (#54765).
 	{
@@ -139,7 +141,7 @@ recheck:
 
 		for name, inst := range info.Instances {
 			for i := 0; i < inst.TypeArgs.Len(); i++ {
-				if targ := inst.TypeArgs.At(i); isNotInHeap(targ) {
+				if targ := inst.TypeArgs.At(i); isNotInHeap(targ, nihMemo) {
 					nihTargs = append(nihTargs, nihTarg{m.makeXPos(name.Pos()), targ})
 				}
 			}
@@ -163,15 +165,15 @@ recheck:
 					switch n := n.Type.(type) {
 					case *syntax.MapType:
 						typ := n.GetTypeInfo().Type.Underlying().(*types2.Map)
-						if isNotInHeap(typ.Key()) {
+						if isNotInHeap(typ.Key(), nihMemo) {
 							base.ErrorfAt(m.makeXPos(n.Pos()), 0, "incomplete (or unallocatable) map key not allowed")
 						}
-						if isNotInHeap(typ.Elem()) {
+						if isNotInHeap(typ.Elem(), nihMemo) {
 							base.ErrorfAt(m.makeXPos(n.Pos()), 0, "incomplete (or unallocatable) map value not allowed")
 						}
 					case *syntax.ChanType:
 						typ := n.GetTypeInfo().Type.Underlying().(*types2.Chan)
-						if isNotInHeap(typ.Elem()) {
+						if isNotInHeap(typ.Elem(), nihMemo) {
 							base.ErrorfAt(m.makeXPos(n.Pos()), 0, "chan of incomplete (or unallocatable) type not allowed")
 						}
 					}
