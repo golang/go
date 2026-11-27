@@ -25,6 +25,12 @@
 # CGO_ENABLED: Controls cgo usage during the build. Set it to 1
 # to include all cgo related files, .c and .go file with "cgo"
 # build directive, in the build. Set it to 0 to ignore them.
+# The value is also recorded as the default CGO_ENABLED setting
+# of the resulting go command. For example, a toolchain built with
+# CGO_ENABLED=0 disables cgo by default even when building for the
+# host system, and one built with CGO_ENABLED=1 enables cgo by default
+# even when cross-compiling. If CGO_ENABLED is unset, the go command
+# chooses the default at run time, as described by 'go help environment'.
 #
 # GO_EXTLINK_ENABLED: Set to 1 to invoke the host linker when building
 # packages that use cgo.  Set to 0 to do all linking internally.  This
