@@ -12,6 +12,11 @@ type packetNumber int64
 
 const maxPacketNumber = 1<<62 - 1 // https://www.rfc-editor.org/rfc/rfc9000.html#section-17.1-1
 
+// validPacketNumber reports whether pnum is in the QUIC packet number range.
+func validPacketNumber(pnum packetNumber) bool {
+	return 0 <= pnum && pnum <= maxPacketNumber
+}
+
 // decodePacketNumber decodes a truncated packet number, given
 // the largest acknowledged packet number in this number space,
 // the truncated number received in a packet, and the size of the
