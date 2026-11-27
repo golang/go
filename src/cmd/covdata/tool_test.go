@@ -58,12 +58,12 @@ var tdcount int
 
 func tempDir(t *testing.T) string {
 	tdmu.Lock()
+	defer tdmu.Unlock()
 	dir := filepath.Join(testTempDir, fmt.Sprintf("%03d", tdcount))
 	tdcount++
 	if err := os.Mkdir(dir, 0777); err != nil {
 		t.Fatal(err)
 	}
-	defer tdmu.Unlock()
 	return dir
 }
 
