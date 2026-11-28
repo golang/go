@@ -82,9 +82,9 @@ TEXT ·archExp(SB),$0-16
 	ADD	R1, R5		// R1 = int(k)
 	CMP	$1, R5
 	BGE	normal
-	ADD	$52, R5		// denormal
-	MOVD	$C1, R8
-	FMOVD	R8, F1		// m = 2**-52
+	ADD	$53, R5		// shift into the normal range
+	MOVD	$0x3ca0000000000000, R8	// 2**-53
+	FMOVD	R8, F1		// m = 2**-53
 normal:
 	ORR	R5<<52, R2, R0
 	FMOVD	R0, F0
