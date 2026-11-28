@@ -8,6 +8,7 @@
 #define PosInf		0x7ff0000000000000
 #define FracMask	0x000fffffffffffff
 #define C1		0x3cb0000000000000	// 2**-52
+#define Exp2DenormalScale	0x3ca0000000000000	// 2**-53
 
 DATA exprodata<>+0(SB)/8, $0.0
 DATA exprodata<>+8(SB)/8, $0.5
@@ -19,7 +20,7 @@ DATA exprodata<>+48(SB)/8, $1.44269504088896338700e+00	// Log2e
 DATA exprodata<>+56(SB)/8, $7.09782712893383973096e+02	// Overflow
 DATA exprodata<>+64(SB)/8, $-7.45133219101941108420e+02	// Underflow
 DATA exprodata<>+72(SB)/8, $1.0239999999999999e+03	// Overflow2
-DATA exprodata<>+80(SB)/8, $-1.0740e+03			// Underflow2
+DATA exprodata<>+80(SB)/8, $-1075.0			// Underflow2
 DATA exprodata<>+88(SB)/8, $3.7252902984619141e-09	// NearZero
 GLOBL exprodata<>+0(SB), NOPTR|RODATA, $96
 
@@ -215,8 +216,8 @@ TEXT ·archExp2(SB),$0-16
 	MOVV	$1, R12
 	BGE	R7, R12, normal
 
-	ADDV	$52, R7		// denormal
-	MOVV	$C1, R8
+	ADDV	$53, R7		// shift into the normal range
+	MOVV	$Exp2DenormalScale, R8
 	MOVV	R8, F17
 normal:
 	SLLV	$52, R7

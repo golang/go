@@ -8,11 +8,12 @@
 #define	Overflow	7.09782712893383973096e+02
 #define	Underflow	-7.45133219101941108420e+02
 #define	Overflow2	1.0239999999999999e+03
-#define	Underflow2	-1.0740e+03
+#define	Underflow2	-1075.0
 #define	NearZero	0x3e30000000000000	// 2**-28
 #define	PosInf	0x7ff0000000000000
 #define	FracMask	0x000fffffffffffff
 #define	C1	0x3cb0000000000000	// 2**-52
+#define	Exp2DenormalScale	0x3ca0000000000000	// 2**-53
 #define	P1	1.66666666666666657415e-01	// 0x3FC55555; 0x55555555
 #define	P2	-2.77777777770155933842e-03	// 0xBF66C16C; 0x16BEBD93
 #define	P3	6.61375632143793436117e-05	// 0x3F11566A; 0xAF25DE2C
@@ -163,9 +164,9 @@ TEXT ·archExp2(SB),$0-16
 	ADD	R1, R5		// R1 = int(k)
 	CMP	$1, R5
 	BGE	normal
-	ADD	$52, R5		// denormal
-	MOVD	$C1, R8
-	FMOVD	R8, F1		// m = 2**-52
+	ADD	$53, R5		// shift into the normal range
+	MOVD	$Exp2DenormalScale, R8
+	FMOVD	R8, F1		// m = 2**-53
 normal:
 	ORR	R5<<52, R2, R0
 	FMOVD	R0, F0
