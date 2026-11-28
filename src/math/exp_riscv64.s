@@ -113,8 +113,8 @@ TEXT ·archExp(SB),$0-16
 	ADD	X16, X18
 	MOV	$1, X21
 	BGE	X18, X21, normal
-	ADD	$52, X18		// denormal
-	MOV	$C1, X19
+	ADD	$53, X18		// shift into the normal range
+	MOV	$0x3ca0000000000000, X19	// 2**-53
 	MOVD	X19, F17
 normal:
 	SLL	$52, X18

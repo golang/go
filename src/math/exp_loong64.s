@@ -113,8 +113,8 @@ TEXT ·archExp(SB),$0-16
 	ADDV	R5, R7
 	MOVV	$1, R12
 	BGE	R7, R12, normal
-	ADDV	$52, R7		// denormal
-	MOVV	$C1, R8
+	ADDV	$53, R7		// shift into the normal range
+	MOVV	$0x3ca0000000000000, R8	// 2**-53
 	MOVV	R8, F17
 normal:
 	SLLV	$52, R7

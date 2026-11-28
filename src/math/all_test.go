@@ -1071,6 +1071,10 @@ var vfexpSC = []float64{
 	3.725290298461915e-09,
 	// denormal
 	-740,
+	// The adjacent float64 inputs on either side of log(2**-1075).
+	-745.1332191019412,
+	-745.1332191019411,
+	-745,
 }
 var expSC = []float64{
 	0,
@@ -1084,6 +1088,9 @@ var expSC = []float64{
 	2.718281828459045,
 	1.0000000037252903,
 	4.2e-322,
+	0,
+	SmallestNonzeroFloat64,
+	SmallestNonzeroFloat64,
 }
 
 var vfexp2SC = []float64{
