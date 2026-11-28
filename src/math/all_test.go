@@ -2782,6 +2782,30 @@ func TestHypotGo(t *testing.T) {
 	}
 }
 
+func TestHypotOverflow(t *testing.T) {
+	const x = 0x1.6a09e667f3bccp1023
+	tests := []struct {
+		p, q, want float64
+	}{
+		{x, x, MaxFloat64},
+		{-x, x, MaxFloat64},
+		{x, Nextafter(x, Inf(1)), Inf(1)},
+		// The exact norm is below MaxFloat64 and rounds to it.
+		{-0x1.9aaa85b6b5c3cp1022, 0x1.d505d2cd98357p1023, MaxFloat64},
+		{MaxFloat64, 0x1p996, MaxFloat64},
+		{MaxFloat64, 0x1p997, MaxFloat64},
+		{MaxFloat64, 0x1p998, Inf(1)},
+	}
+	for _, tt := range tests {
+		if got := Hypot(tt.p, tt.q); got != tt.want {
+			t.Errorf("Hypot(%x, %x) = %x, want %x", tt.p, tt.q, got, tt.want)
+		}
+		if got := HypotGo(tt.p, tt.q); got != tt.want {
+			t.Errorf("HypotGo(%x, %x) = %x, want %x", tt.p, tt.q, got, tt.want)
+		}
+	}
+}
+
 func TestIlogb(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := frexp[i].i - 1 // adjust because fr in the interval [½, 1)
