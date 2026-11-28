@@ -150,7 +150,7 @@ func exp2(x float64) float64 {
 		Ln2Lo = 1.90821492927058770002e-10
 
 		Overflow  = 1.0239999999999999e+03
-		Underflow = -1.0740e+03
+		Underflow = -1075 // 2**-1075 rounds to zero
 	)
 
 	// special cases

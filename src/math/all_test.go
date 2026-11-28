@@ -1094,6 +1094,12 @@ var vfexp2SC = []float64{
 	NaN(),
 	// smallest float64 that overflows Exp2(x)
 	1024,
+	// Around the midpoint between zero and SmallestNonzeroFloat64.
+	Nextafter(-1075, Inf(-1)),
+	-1075,
+	Nextafter(-1075, Inf(1)),
+	-1074.5,
+	Nextafter(-1074, Inf(-1)),
 	// near underflow
 	-1.07399999999999e+03,
 	// near zero
@@ -1106,6 +1112,11 @@ var exp2SC = []float64{
 	Inf(1),
 	NaN(),
 	Inf(1),
+	0,
+	0,
+	SmallestNonzeroFloat64,
+	SmallestNonzeroFloat64,
+	SmallestNonzeroFloat64,
 	5e-324,
 	1.0000000025821745,
 }
